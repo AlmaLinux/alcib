@@ -1,0 +1,45 @@
+---
+- name: Make sure git installed
+  yum:
+    name: "{{ packages }}"
+    state: present
+  become_user: root
+  become: true
+  vars:
+    packages:
+    - git
+    - python3-devel
+    - jq
+
+- name: Installing testinfra
+  pip:
+    name: ['pytest', 'pyinfra', 'testinfra']
+    executable: pip3
+  become: yes
+  become_user: root
+
+- name: Clone cloud-images repo
+  become_user: root
+  become: true
+  git:
+    repo: 'https://github.com/AlmaLinux/cloud-images.git'
+    # repo: 'https://github.com/LKHN/cloud-images.git'
+    dest: './cloud-images'
+    force: yes
+
+- name: Clone vagrant tests repo
+  become_user: root
+  become: true
+  git:
+    repo: 'https://github.com/LKHN/testrepo_vagrantboxauto.git'
+    dest: './testrepo_vagrantboxauto'
+    force: yes
+
+- name: Change permissions
+  file:
+    path: './cloud-images'
+    mode: 0777
+    recurse: yes
+    group: ec2-user
+    owner: ec2-user
+  become: yes

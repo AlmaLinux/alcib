@@ -318,7 +318,7 @@ class LinuxHypervisors(BaseHypervisor):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Preparing to test')
         cmd = 'cd /home/ec2-user/cloud-images/ && ' \
-              'cp /home/ec2-user/testrepo_vagrantboxauto/Vagrantfile . ' \
+              'cp /home/ec2-user/cloud-images/tests/vagrant/Vagrantfile . ' \
               '&& vagrant box add --name almalinux-8-test *.box && vagrant up'
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
@@ -333,8 +333,8 @@ class LinuxHypervisors(BaseHypervisor):
         vb_test_log = f'vagrant_box_test_{timestamp}.log'
 
         cmd = f'cd /home/ec2-user/cloud-images/ ' \
-              f'&& py.test -v --hosts=default --ssh-config=.vagrant/ssh-config' \
-              f' /home/ec2-user/testrepo_vagrantboxauto/tests/vagrantbox_tests.py ' \
+              f'&& py.test -v --hosts=almalinux-test-1,almalinux-test-2 --ssh-config=.vagrant/ssh-config' \
+              f' /home/ec2-user/cloud-images/tests/vagrant/test_vagrant.py ' \
               f'2>&1 | tee ./{vb_test_log}'
 
         try:
@@ -393,11 +393,6 @@ class HyperV(BaseHypervisor):
         stdout, _ = ssh.safe_execute('git clone https://github.com/AlmaLinux/cloud-images.git')
         logging.info(stdout.read().decode())
 
-        stdout, _ = ssh.safe_execute(
-            'git clone https://github.com/LKHN/testrepo_vagrantboxauto.git'
-        )
-        logging.info(stdout.read().decode())
-
         ssh.close()
         logging.info('Connection closed')
 
@@ -414,7 +409,7 @@ class HyperV(BaseHypervisor):
         logging.info('Preparing to test')
         cmd = "$Env:SMB_USERNAME = '{0}'; $Env:SMB_PASSWORD='{1}'; " \
               "cd c:\\Users\\Administrator\\cloud-images\\ ; " \
-              "cp c:\\Users\\Administrator\\testrepo_vagrantboxauto\\Vagrantfile . ; " \
+              "cp c:\\Users\\Administrator\\cloud-images\\tests\\vagrant\\Vagrantfile . ; " \
               "vagrant box add --name almalinux-8-test *.box ; vagrant up".format(
                 str(os.environ.get('WINDOWS_CREDS_USR')),
                 str(os.environ.get('WINDOWS_CREDS_PSW'))
@@ -432,8 +427,8 @@ class HyperV(BaseHypervisor):
         timestamp = str(datetime.date(datetime.today())).replace('-', '')
         vb_test_log = f'vagrant_box_test_{timestamp}.log'
         cmd = f'cd c:\\Users\\Administrator\\cloud-images\\ ; ' \
-              f'py.test -v --hosts=default --ssh-config=.vagrant/ssh-config ' \
-              f'c:\\Users\\Administrator\\testrepo_vagrantboxauto\\tests\\vagrantbox_tests.py ' \
+              f'py.test -v --hosts=almalinux-test-1,almalinux-test-2 --ssh-config=.vagrant/ssh-config ' \
+              f'c:\\Users\\Administrator\\cloud-images\\tests\\vagrant\\test_vagrant.py ' \
               f'| Out-File -FilePath c:\\Users\\Administrator\\cloud-images\\{vb_test_log}'
         try:
             stdout, _ = ssh.safe_execute(cmd)

@@ -27,14 +27,6 @@
     dest: './cloud-images'
     force: yes
 
-- name: Clone vagrant tests repo
-  become_user: root
-  become: true
-  git:
-    repo: 'https://github.com/LKHN/testrepo_vagrantboxauto.git'
-    dest: './testrepo_vagrantboxauto'
-    force: yes
-
 - name: Change permissions
   file:
     path: './cloud-images'

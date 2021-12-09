@@ -31,7 +31,7 @@ def performDestroyStages(String hypervisor) {
 pipeline {
   agent any
   parameters {
-      choice(name: 'IMAGE', choices: ['Vagrant Box', 'AWS AMI', 'Generic Cloud'], description: 'Cloud image to update: build, test, release', defaultValue: 'Vagrant')
+      choice(name: 'IMAGE', choices: ['Vagrant Box', 'AWS AMI', 'Generic Cloud'], description: 'Cloud image to update: build, test, release')
       extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64', visibleItemCount: 2)
       extendedChoice(defaultValue: 'VirtualBox', description: 'Hypervisors options to  build Vagrant Box', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'HYPERVISORS', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'VirtualBox, VMWare_Desktop, KVM, HyperV', visibleItemCount: 4)
       string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')

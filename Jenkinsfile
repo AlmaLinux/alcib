@@ -47,7 +47,7 @@ pipeline {
   }
 
   stages {
-      stage('Create AWS instance') {
+      stage('Create AWS instance for Vagrant') {
           when {
               expression { params.IMAGE == 'Vagrant Box' }
           }
@@ -61,7 +61,7 @@ pipeline {
               }
           }
       }
-      stage('Create AWS instance') {
+      stage('Create AWS instance for AWS AMI') {
           when {
               expression { params.IMAGE == 'AWS AMI' }
           }

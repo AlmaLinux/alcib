@@ -99,6 +99,7 @@ pipeline {
                       }
                   }
               }
+          }
       }
       stage('Build Vagrant Box') {
           when {

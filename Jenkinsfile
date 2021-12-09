@@ -90,7 +90,9 @@ pipeline {
                   }
                   stages {
                       stage('Stage 1') {
-                          sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
+                          steps {
+                              sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
+                          }
                       }
                   }
               }

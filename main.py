@@ -12,6 +12,7 @@ import logging
 
 from lib.builder import Builder
 from lib.hypervisors import get_hypervisor
+from lib.config import settings
 
 
 def init_args_parser() -> argparse.ArgumentParser:
@@ -32,6 +33,8 @@ def init_args_parser() -> argparse.ArgumentParser:
                         choices=['init', 'build', 'destroy',
                                  'test', 'release'],
                         help='Stage')
+    parser.add_argument('--arch', type=str, choices=['x86_64', 'aarch64'],
+                        help='Architecture')
     return parser
 
 
@@ -63,8 +66,10 @@ def main(sys_args):
 
     if args.stage == 'init':
         hypervisor.init_stage(builder)
-    elif args.stage == 'build':
+    elif args.stage == 'build' and settings.image == 'Vagrant Box':
         hypervisor.build_stage(builder)
+    elif args.stage == 'build' and settings.image == 'AWS AMI':
+        hypervisor.build_aws_stage(builder, args.arch)
     elif args.stage == 'test':
         hypervisor.test_stage(builder)
     elif args.stage == 'release':

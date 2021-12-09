@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     ssh_key_file: str
     vagrant_cloud_access_key: str
     build_number: str
+    image: str
 
 
 settings = Settings()

@@ -496,6 +496,34 @@ class KVM(LinuxHypervisors):
         """
         super().__init__('kvm')
 
+    def build_aws_stage(self, builder: Builder, arch: str):
+        ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
+        logging.info('Packer initialization')
+        stdout, _ = ssh.safe_execute('packer init ./cloud-images 2>&1')
+        logging.info(stdout.read().decode())
+        logging.info('Building AWS AMI')
+        timestamp = str(datetime.date(datetime.today())).replace('-', '')
+        aws_build_log = f'aws_ami_build_{timestamp}.log'
+        if arch == 'x86_64':
+            logging.info('Building Stage 1')
+            cmd = 'packer build -var aws_s3_bucket_name="alcib-dev" ' \
+                  '-only=qemu.almalinux-8-aws-stage1 . 2>&1 | tee ./{}'.format(aws_build_log)
+        else:
+            cmd = 'packer build -only=amazon-ebssurrogate.almalinux-8-aws-aarch64 . ' \
+                  '2>&1 | tee ./{}'.format(aws_build_log)
+        try:
+            stdout, _ = ssh.safe_execute(cmd)
+            sftp = ssh.open_sftp()
+            sftp.get(
+                f'{self.sftp_path}{aws_build_log}',
+                f'{self.name}-{aws_build_log}')
+            logging.info(stdout.read().decode())
+            logging.info('AWS AMI built')
+        finally:
+            self.upload_to_bucket(builder, ['aws_ami_build_*.log'])
+        ssh.close()
+        logging.info('Connection closed')
+
 
 def get_hypervisor(hypervisor_name):
     """

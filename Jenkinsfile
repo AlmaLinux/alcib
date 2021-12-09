@@ -75,27 +75,22 @@ pipeline {
           when {
               expression { params.IMAGE == 'AWS AMI' }
           }
-          for (arch in params.ARCH.replace('"', '').split(',')) {
-              parallel {
-                  stage('Build AWS AMI aarch64') {
-                      when {
-                          expression { arch == 'aarch64' }
-                      }
-                      steps {
-                          sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
-                      }
+          parallel {
+              stage('Build AWS AMI aarch64') {
+                  when {
+                      expression { params.ARCH == 'aarch64' }
                   }
-                  stage('Build AWS AMI x86_64') {
-                       when {
-                          expression { arch == 'x86_64' }
-                      }
-                      stages {
-                          stage('Stage 1') {
-                              sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
-                          }
-                          stage('Stage 2') {
-                              // build stage 2
-                          }
+                  steps {
+                      sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
+                  }
+              }
+              stage('Build AWS AMI x86_64') {
+                   when {
+                      expression { params.ARCH == 'x86_64' }
+                  }
+                  stages {
+                      stage('Stage 1') {
+                          sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
                       }
                   }
               }

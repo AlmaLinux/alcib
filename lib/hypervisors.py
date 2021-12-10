@@ -532,9 +532,9 @@ class KVM(LinuxHypervisors):
             logging.info(stdout)
             for line in iter(stdout.readline()):
                 logging.info(line)
-                logging.info(line.decode())
-                if line.decode().startswith('us-east-1'):
-                    ami = line.decode().split(':')[1]
+                logging.info(line)
+                if line.startswith('us-east-1'):
+                    ami = line.split(':')[1]
                     logging.info(ami)
             logging.info('AWS AMI built')
         finally:

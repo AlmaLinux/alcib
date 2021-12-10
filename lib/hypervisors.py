@@ -506,11 +506,23 @@ class KVM(LinuxHypervisors):
         aws_build_log = f'aws_ami_build_{timestamp}.log'
         if arch == 'x86_64':
             logging.info('Building Stage 1')
-            cmd = 'packer build -var aws_s3_bucket_name="alcib-dev" ' \
-                  '-only=qemu.almalinux-8-aws-stage1 . 2>&1 | tee ./{}'.format(aws_build_log)
+            cmd = "cd cloud-images && export AWS_DEFAULT_REGION='us-east-1' &&" \
+                  "export AWS_ACCESS_KEY_ID='{}' && export AWS_SECRET_ACCESS_KEY='{}' " \
+                  "&& packer build -var aws_s3_bucket_name='alcib-dev' " \
+                  "-var qemu_binary='/usr/libexec/qemu-kvm' " \
+                  "-var aws_role_name='alma-images-prod-role' " \
+                  "-only=qemu.almalinux-8-aws-stage1 . 2>&1 | tee ./{}".format(
+                      os.getenv('AWS_ACCESS_KEY_ID'),
+                      os.getenv('AWS_SECRET_ACCESS_KEY'), aws_build_log)
         else:
-            cmd = 'packer build -only=amazon-ebssurrogate.almalinux-8-aws-aarch64 . ' \
-                  '2>&1 | tee ./{}'.format(aws_build_log)
+            cmd = "cd cloud-images && && export AWS_DEFAULT_REGION='us-east-1' &&" \
+                  "export AWS_ACCESS_KEY_ID='{}' && export AWS_SECRET_ACCESS_KEY='{}' " \
+                  "&& packer build -var qemu_binary='/usr/libexec/qemu-kvm'" \
+                  " -var aws_role_name='alma-images-prod-role' " \
+                  "-only=amazon-ebssurrogate.almalinux-8-aws-aarch64 . " \
+                  "2>&1 | tee ./{}".format(
+                      os.getenv('AWS_ACCESS_KEY_ID'),
+                      os.getenv('AWS_SECRET_ACCESS_KEY'), aws_build_log)
         try:
             stdout, _ = ssh.safe_execute(cmd)
             sftp = ssh.open_sftp()

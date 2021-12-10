@@ -506,7 +506,7 @@ class KVM(LinuxHypervisors):
         aws_build_log = f'aws_ami_build_{timestamp}.log'
         if arch == 'x86_64':
             logging.info('Building Stage 1')
-            cmd = "cd cloud-images && export AWS_DEFAULT_REGION='us-east-1' &&" \
+            cmd = "cd cloud-images && export AWS_DEFAULT_REGION='us-east-1' && " \
                   "export AWS_ACCESS_KEY_ID='{}' && export AWS_SECRET_ACCESS_KEY='{}' " \
                   "&& packer build -var aws_s3_bucket_name='alcib-dev' " \
                   "-var qemu_binary='/usr/libexec/qemu-kvm' " \
@@ -517,8 +517,7 @@ class KVM(LinuxHypervisors):
         else:
             cmd = "cd cloud-images && && export AWS_DEFAULT_REGION='us-east-1' &&" \
                   "export AWS_ACCESS_KEY_ID='{}' && export AWS_SECRET_ACCESS_KEY='{}' " \
-                  "&& packer build -var qemu_binary='/usr/libexec/qemu-kvm'" \
-                  " -var aws_role_name='alma-images-prod-role' " \
+                  "&& packer build " \
                   "-only=amazon-ebssurrogate.almalinux-8-aws-aarch64 . " \
                   "2>&1 | tee ./{}".format(
                       os.getenv('AWS_ACCESS_KEY_ID'),
@@ -529,7 +528,14 @@ class KVM(LinuxHypervisors):
             sftp.get(
                 f'{self.sftp_path}{aws_build_log}',
                 f'{self.name}-{aws_build_log}')
-            logging.info(stdout.read().decode())
+            # logging.info(stdout.read().decode())
+            logging.info(stdout)
+            for line in iter(stdout.readline()):
+                logging.info(line)
+                logging.info(line.decode())
+                if line.decode().startswith('us-east-1'):
+                    ami = line.decode().split(':')[1]
+                    logging.info(ami)
             logging.info('AWS AMI built')
         finally:
             self.upload_to_bucket(builder, ['aws_ami_build_*.log'])

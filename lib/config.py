@@ -17,10 +17,10 @@ class Settings(BaseSettings):
     Settings for building Vagrant Boxes.
     """
 
-    vagrant: str
+    vagrant: str = ''
     bucket: str
     ssh_key_file: str
-    vagrant_cloud_access_key: str
+    vagrant_cloud_access_key: str = ''
     build_number: str
     image: str
 

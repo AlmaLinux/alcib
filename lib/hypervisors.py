@@ -508,12 +508,13 @@ class KVM(LinuxHypervisors):
             logging.info('Building Stage 1')
             cmd = "cd cloud-images && export AWS_DEFAULT_REGION='us-east-1' && " \
                   "export AWS_ACCESS_KEY_ID='{}' && export AWS_SECRET_ACCESS_KEY='{}' " \
-                  "&& packer build -var aws_s3_bucket_name='alcib-dev' " \
+                  "&& packer build -var aws_s3_bucket_name='{}' " \
                   "-var qemu_binary='/usr/libexec/qemu-kvm' " \
                   "-var aws_role_name='alma-images-prod-role' " \
                   "-only=qemu.almalinux-8-aws-stage1 . 2>&1 | tee ./{}".format(
                       os.getenv('AWS_ACCESS_KEY_ID'),
-                      os.getenv('AWS_SECRET_ACCESS_KEY'), aws_build_log)
+                      os.getenv('AWS_SECRET_ACCESS_KEY'),
+                      settings.bucket, aws_build_log)
         else:
             cmd = "cd cloud-images && && export AWS_DEFAULT_REGION='us-east-1' &&" \
                   "export AWS_ACCESS_KEY_ID='{}' && export AWS_SECRET_ACCESS_KEY='{}' " \

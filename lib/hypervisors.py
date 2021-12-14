@@ -8,12 +8,14 @@ Hypervisor's stages.
 
 import os
 import json
+import shutil
+import pathlib
 from datetime import datetime
 from subprocess import PIPE, Popen, STDOUT
 from io import BufferedReader
 import logging
-import requests
 
+import requests
 import boto3
 import ansible_runner
 
@@ -490,11 +492,11 @@ class KVM(LinuxHypervisors):
             "-only=qemu.almalinux-8 . 2>&1 | tee ./{}"
     )
 
-    def __init__(self):
+    def __init__(self, name='kvm'):
         """
         KVM initialization.
         """
-        super().__init__('kvm')
+        super().__init__(name)
 
     def build_aws_stage(self, builder: Builder, arch: str):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
@@ -525,22 +527,58 @@ class KVM(LinuxHypervisors):
                       os.getenv('AWS_SECRET_ACCESS_KEY'), aws_build_log)
         try:
             stdout, _ = ssh.safe_execute(cmd)
-            sftp = ssh.open_sftp()
-            sftp.get(
-                f'{self.sftp_path}{aws_build_log}',
-                f'{self.name}-{aws_build_log}')
-            stdout = stdout.read().decode()
-            logging.info(stdout)
-            for line in stdout.splitlines():
-                logging.info(line)
-                if line.startswith('us-east-1'):
-                    ami = line.split(':')[1]
-                    logging.info(ami)
-            logging.info('AWS AMI built')
         finally:
             self.upload_to_bucket(builder, ['aws_ami_build_*.log'])
+        sftp = ssh.open_sftp()
+        sftp.get(
+            f'{self.sftp_path}{aws_build_log}',
+            f'{self.name}-{aws_build_log}'
+        )
+        stdout = stdout.read().decode()
+        logging.info(stdout)
+        ami = None
+        for line in stdout.splitlines():
+            logging.info(line)
+            if line.startswith('us-east-1'):
+                ami = line.split(':')[-1].strip()
+                logging.info(ami)
+        logging.info('AWS AMI built')
+        aws_hypervisor = AwsStage2()
+        tfvars = {'ami_id': ami}
+        tf_vars_file = os.path.join(aws_hypervisor.terraform_dir, 'terraform.tfvars.json')
+        with open(tf_vars_file) as tf_file_fd:
+            json.dump(tfvars, tf_file_fd)
+        cloudinit_script_path = os.path.join(self.cloud_images_path, 'build-tools-on-ec2-userdata.yml')
+        sftp.get(
+            cloudinit_script_path,
+            os.path.join(aws_hypervisor.terraform_dir, 'build-tools-on-ec2-userdata.yml')
+        )
         ssh.close()
         logging.info('Connection closed')
+
+
+class AwsStage2(KVM):
+
+    def __init__(self):
+        super().__init__(name='aws-stage-2')
+
+    def build_aws_stage(self, builder: Builder, arch: str):
+        ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
+        logging.info('Packer initialization')
+        stdout, _ = ssh.safe_execute('sudo packer.io init .')
+        logging.info(stdout.read().decode())
+        logging.info('Building AWS AMI')
+        stdout, _ = ssh.safe_execute(
+            'sudo '
+            'AWS_ACCESS_KEY_ID="{}" '
+            'AWS_SECRET_ACCESS_KEY="{}" '
+            'AWS_DEFAULT_REGION="us-east-1" '
+            'packer.io build -only=amazon-chroot.almalinux-8-aws-stage2 .'.format(
+                os.getenv('AWS_ACCESS_KEY_ID'),
+                os.getenv('AWS_SECRET_ACCESS_KEY')
+            )
+        )
+        logging.info(stdout.read().decode())
 
 
 def get_hypervisor(hypervisor_name):
@@ -561,5 +599,6 @@ def get_hypervisor(hypervisor_name):
         'hyperv': HyperV,
         'virtualbox': VirtualBox,
         'kvm': KVM,
-        'vmware_desktop': VMWareDesktop
+        'vmware_desktop': VMWareDesktop,
+        'AWS-STAGE-2': AwsStage2
     }[hypervisor_name]()

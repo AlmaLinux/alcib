@@ -10,7 +10,7 @@ terraform {
 
 variable "instance_type" {
   type = string
-  default = "i3.metal"
+  default = "t2.micro"
 }
 
 variable "ami_id" {
@@ -18,19 +18,24 @@ variable "ami_id" {
   default = "ami-00964f8756a53c964"
 }
 
+data "template_file" "user_data" {
+  template = file("build-tools-on-ec2-userdata.yml")
+}
+
 provider "aws" {
   profile = "default"
   region  = "us-east-1"
 }
 
-resource "aws_instance" "ALCIB-KVM" {
+resource "aws_instance" "ALCIB-AWS-STAGE-2" {
   ami                         = var.ami_id
   instance_type               = var.instance_type
   associate_public_ip_address = "true"
   key_name                    = "alcib-user-prod"
   iam_instance_profile        = "alcib_jenkins_profile"
+  user_data                   = data.template_file.user_data.rendered
 
   tags = {
-    Name = "ALCIB-KVM"
+    Name = "ALCIB-AWS-STAGE-2"
   }
 }

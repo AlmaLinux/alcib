@@ -27,7 +27,7 @@ def init_args_parser() -> argparse.ArgumentParser:
         description='Cloud Images autobuilder'
     )
     parser.add_argument('--hypervisor', type=str,
-                        choices=['VirtualBox', 'KVM', 'VMWare_Desktop', 'HyperV'],
+                        choices=['VirtualBox', 'KVM', 'VMWare_Desktop', 'HyperV', 'AWS-STAGE-2'],
                         help='Hypervisor name')
     parser.add_argument('--stage', type=str,
                         choices=['init', 'build', 'destroy',

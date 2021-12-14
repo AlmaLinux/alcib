@@ -50,6 +50,12 @@ pipeline {
                       stage('Stage 1') {
                           steps {
                               sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
+                              sh "python3 -u main.py --stage destroy --hypervisor KVM"
+                          }
+                      }
+                      stage('Stage 2') {
+                          steps {
+                              sh "python3 -u main.py --stage build --hypervisor AWS-STAGE-2 --arch ${arch}"
                           }
                       }
                   }
@@ -61,13 +67,7 @@ pipeline {
               expression { params.DESTROY == true }
           }
           steps {
-              script {
-                  def jobs = [:]
-                  for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
-                      jobs[hv] = performDestroyStages(hv)
-                  }
-                  parallel jobs
-              }
+              sh "python3 -u main.py --stage destroy --hypervisor KVM"
           }
       }
   }
@@ -85,29 +85,11 @@ pipeline {
           slackSend channel: '#test-auto-vagrant',
                     color: 'danger',
                     message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
-          script {
-              if (params.DESTROY == true) {
-                  def jobs = [:]
-                  for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
-                      jobs[hv] = performDestroyStages(hv)
-                  }
-                  parallel jobs
-              }
-          }
       }
       aborted {
           slackSend channel: '#test-auto-vagrant',
                     color: 'warning',
                     message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
-          script {
-              if (params.DESTROY == true) {
-                  def jobs = [:]
-                  for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
-                      jobs[hv] = performDestroyStages(hv)
-                  }
-                  parallel jobs
-              }
-          }
       }
   }
 }

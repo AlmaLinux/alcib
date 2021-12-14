@@ -546,7 +546,7 @@ class KVM(LinuxHypervisors):
         aws_hypervisor = AwsStage2()
         tfvars = {'ami_id': ami}
         tf_vars_file = os.path.join(aws_hypervisor.terraform_dir, 'terraform.tfvars.json')
-        with open(tf_vars_file) as tf_file_fd:
+        with open(tf_vars_file, 'w') as tf_file_fd:
             json.dump(tfvars, tf_file_fd)
         cloudinit_script_path = os.path.join(self.cloud_images_path, 'build-tools-on-ec2-userdata.yml')
         sftp.get(

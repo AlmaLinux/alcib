@@ -529,10 +529,9 @@ class KVM(LinuxHypervisors):
             sftp.get(
                 f'{self.sftp_path}{aws_build_log}',
                 f'{self.name}-{aws_build_log}')
-            # logging.info(stdout.read().decode())
+            stdout = stdout.read().decode()
             logging.info(stdout)
-            for line in stdout.readline():
-                logging.info(line)
+            for line in stdout.splitlines():
                 logging.info(line)
                 if line.startswith('us-east-1'):
                     ami = line.split(':')[1]

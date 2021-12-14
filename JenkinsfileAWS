@@ -1,0 +1,113 @@
+def performCreateStages(String hypervisor) {
+    return {
+        sh "python3 -u main.py --stage init --hypervisor ${hypervisor}"
+    }
+}
+
+def performBuildStages(String hypervisor) {
+    return {
+        sh "python3 -u main.py --stage build --hypervisor ${hypervisor}"
+    }
+}
+
+pipeline {
+  agent any
+  parameters {
+      choice(name: 'IMAGE', choices: ['Vagrant Box', 'AWS AMI', 'Generic Cloud'], description: 'Cloud image to update: build, test, release')
+      extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64', visibleItemCount: 2)
+      string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
+      booleanParam(defaultValue: true, description: 'Destroy AWS instance', name: 'DESTROY')
+  }
+  environment {
+      AWS_ACCESS_KEY_ID = credentials('jenkins-aws-access-key-id')
+      AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws-secret-access-key')
+      SSH_KEY_FILE = credentials('jenkins-aclib-ssh-private-key')
+  }
+
+  stages {
+      stage('Create AWS instance for AWS AMI') {
+          steps {
+              script {
+                  sh "python3 -u main.py --stage init --hypervisor KVM"
+              }
+          }
+      }
+      stage('Build AWS AMI') {
+          parallel {
+              stage('Build AWS AMI aarch64') {
+                  when {
+                      expression { params.ARCH == 'aarch64' }
+                  }
+                  steps {
+                      sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
+                  }
+              }
+              stage('Build AWS AMI x86_64') {
+                   when {
+                      expression { params.ARCH == 'x86_64' }
+                  }
+                  stages {
+                      stage('Stage 1') {
+                          steps {
+                              sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
+                          }
+                      }
+                  }
+              }
+          }
+      }
+      stage('Destroy AWS instance') {
+          when {
+              expression { params.DESTROY == true }
+          }
+          steps {
+              script {
+                  def jobs = [:]
+                  for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
+                      jobs[hv] = performDestroyStages(hv)
+                  }
+                  parallel jobs
+              }
+          }
+      }
+  }
+
+  post {
+      always {
+          archiveArtifacts artifacts: '*.log'
+      }
+      success {
+          slackSend channel: '#test-auto-vagrant',
+                    color: 'good',
+                    message: "The build ${currentBuild.fullDisplayName} completed successfully : ${currentBuild.absoluteUrl}"
+      }
+      failure {
+          slackSend channel: '#test-auto-vagrant',
+                    color: 'danger',
+                    message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
+          script {
+              if (params.DESTROY == true) {
+                  def jobs = [:]
+                  for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
+                      jobs[hv] = performDestroyStages(hv)
+                  }
+                  parallel jobs
+              }
+          }
+      }
+      aborted {
+          slackSend channel: '#test-auto-vagrant',
+                    color: 'warning',
+                    message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
+          script {
+              if (params.DESTROY == true) {
+                  def jobs = [:]
+                  for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
+                      jobs[hv] = performDestroyStages(hv)
+                  }
+                  parallel jobs
+              }
+          }
+      }
+  }
+}

@@ -530,7 +530,7 @@ class KVM(LinuxHypervisors):
                 f'{self.name}-{aws_build_log}')
             # logging.info(stdout.read().decode())
             logging.info(stdout)
-            for line in iter(stdout.readline()):
+            for line in stdout.readline():
                 logging.info(line)
                 logging.info(line)
                 if line.startswith('us-east-1'):

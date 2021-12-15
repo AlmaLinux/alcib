@@ -32,7 +32,6 @@ pipeline {
   agent any
   parameters {
       choice(name: 'IMAGE', choices: ['Vagrant Box', 'AWS AMI', 'Generic Cloud'], description: 'Cloud image to update: build, test, release')
-      extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64', visibleItemCount: 2)
       extendedChoice(defaultValue: 'VirtualBox', description: 'Hypervisors options to  build Vagrant Box', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'HYPERVISORS', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'VirtualBox, VMWare_Desktop, KVM, HyperV', visibleItemCount: 4)
       string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
       string(name: 'VAGRANT', defaultValue: 'almalinux/8', description: 'Vagrant Cloud path to upload')
@@ -48,9 +47,6 @@ pipeline {
 
   stages {
       stage('Create AWS instance for Vagrant') {
-          when {
-              expression { params.IMAGE == 'Vagrant Box' }
-          }
           steps {
               script {
                   def jobs = [:]
@@ -61,47 +57,7 @@ pipeline {
               }
           }
       }
-      stage('Create AWS instance for AWS AMI') {
-          when {
-              expression { params.IMAGE == 'AWS AMI' }
-          }
-          steps {
-              script {
-                  sh "python3 -u main.py --stage init --hypervisor KVM"
-              }
-          }
-      }
-      stage('Build AWS AMI') {
-          when {
-              expression { params.IMAGE == 'AWS AMI' }
-          }
-          parallel {
-              stage('Build AWS AMI aarch64') {
-                  when {
-                      expression { params.ARCH == 'aarch64' }
-                  }
-                  steps {
-                      sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
-                  }
-              }
-              stage('Build AWS AMI x86_64') {
-                   when {
-                      expression { params.ARCH == 'x86_64' }
-                  }
-                  stages {
-                      stage('Stage 1') {
-                          steps {
-                              sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
-                          }
-                      }
-                  }
-              }
-          }
-      }
       stage('Build Vagrant Box') {
-          when {
-              expression { params.IMAGE == 'Vagrant Box' }
-          }
           steps {
               script {
                   def jobs = [:]
@@ -113,9 +69,6 @@ pipeline {
           }
       }
       stage('Test Vagrant Box') {
-          when {
-              expression { params.IMAGE == 'Vagrant Box' }
-          }
           steps {
               script {
                   def jobs = [:]
@@ -134,9 +87,6 @@ pipeline {
           }
       }
       stage('Vagrant Cloud') {
-          when {
-              expression { params.IMAGE == 'Vagrant Box' }
-          }
           steps {
               timeout(time:1, unit:'DAYS') {
                   script {
@@ -168,7 +118,7 @@ pipeline {
       }
       stage('Destroy AWS instance') {
           when {
-              expression { params.DESTROY == true && params.IMAGE == 'Vagrant Box' }
+              expression { params.DESTROY == true }
           }
           steps {
               script {
@@ -187,17 +137,11 @@ pipeline {
           archiveArtifacts artifacts: '*.log'
       }
       success {
-          when {
-              expression { params.IMAGE == 'Vagrant Box' }
-          }
           slackSend channel: '#test-auto-vagrant',
                     color: 'good',
                     message: "The build ${currentBuild.fullDisplayName} completed successfully : ${currentBuild.absoluteUrl}"
       }
       failure {
-          when {
-              expression { params.IMAGE == 'Vagrant Box' }
-          }
           slackSend channel: '#test-auto-vagrant',
                     color: 'danger',
                     message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
@@ -212,9 +156,6 @@ pipeline {
           }
       }
       aborted {
-          when {
-              expression { params.IMAGE == 'Vagrant Box' }
-          }
           slackSend channel: '#test-auto-vagrant',
                     color: 'warning',
                     message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"

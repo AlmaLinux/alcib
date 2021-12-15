@@ -4,16 +4,45 @@ def performCreateStages(String hypervisor) {
     }
 }
 
-def performBuildStages(String hypervisor) {
+def performDestroyStages(String hypervisor) {
     return {
-        sh "python3 -u main.py --stage build --hypervisor ${hypervisor}"
+        sh "python3 -u main.py --stage destroy --hypervisor ${hypervisor}"
+    }
+}
+
+def performBuildStages(String arch) {
+    if (arch == 'aarch64') {
+        return {
+            stage('Build new aarch AMI') {
+                steps {
+                    sh "python3 -u main.py --stage build --hypervisor KVM"
+                }
+            }
+        }
+    }
+    if (arch == 'x86_64') {
+        return {
+            stages {
+                stage('Stage 1') {
+                  steps {
+                      sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
+                      sh "python3 -u main.py --stage destroy --hypervisor KVM"
+                  }
+                }
+                stage('Stage 2') {
+                  steps {
+                      sh "python3 -u main.py --stage build --hypervisor AWS-STAGE-2 --arch ${arch}"
+                  }
+                }
+            }
+        }
     }
 }
 
 pipeline {
   agent any
   parameters {
-      choice(name: 'IMAGE', choices: ['Vagrant Box', 'AWS AMI', 'Generic Cloud'], description: 'Cloud image to update: build, test, release')
+      choice(name: 'IMAGE', choices: ['AWS AMI', 'Vagrant Box', 'Generic Cloud'], description: 'Cloud image to update: build, test, release')
       extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64', visibleItemCount: 2)
       string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
       booleanParam(defaultValue: true, description: 'Destroy AWS instance', name: 'DESTROY')
@@ -28,37 +57,22 @@ pipeline {
       stage('Create AWS instance for AWS AMI') {
           steps {
               script {
-                  sh "python3 -u main.py --stage init --hypervisor KVM"
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[arch] = performCreateStages('KVM')
+                  }
+                  parallel jobs
               }
           }
       }
-      stage('Build AWS AMI') {
-          parallel {
-              stage('Build AWS AMI aarch64') {
-                  when {
-                      expression { params.ARCH == 'aarch64' }
+      stage('Build AWS AMI Dynamic stages') {
+          steps {
+              script {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[arch] = performBuildStages(arch)
                   }
-                  steps {
-                      sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
-                  }
-              }
-              stage('Build AWS AMI x86_64') {
-                   when {
-                      expression { params.ARCH == 'x86_64' }
-                  }
-                  stages {
-                      stage('Stage 1') {
-                          steps {
-                              sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
-                              sh "python3 -u main.py --stage destroy --hypervisor KVM"
-                          }
-                      }
-                      stage('Stage 2') {
-                          steps {
-                              sh "python3 -u main.py --stage build --hypervisor AWS-STAGE-2 --arch ${arch}"
-                          }
-                      }
-                  }
+                  parallel jobs
               }
           }
       }
@@ -67,7 +81,13 @@ pipeline {
               expression { params.DESTROY == true }
           }
           steps {
-              sh "python3 -u main.py --stage destroy --hypervisor KVM"
+              script {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[arch] = performDestroyStages('KVM')
+                  }
+                  parallel jobs
+              }
           }
       }
   }

@@ -600,5 +600,5 @@ def get_hypervisor(hypervisor_name):
         'virtualbox': VirtualBox,
         'kvm': KVM,
         'vmware_desktop': VMWareDesktop,
-        'AWS-STAGE-2': AwsStage2
+        'aws-stage-2': AwsStage2
     }[hypervisor_name]()

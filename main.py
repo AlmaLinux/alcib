@@ -68,7 +68,7 @@ def main(sys_args):
         hypervisor.init_stage(builder)
     elif args.stage == 'build' and settings.image == 'Vagrant Box':
         hypervisor.build_stage(builder)
-    elif args.stage == 'build' and settings.image == 'AWS AMI':
+    elif args.stage == 'build' and settings.image == 'AWS AMI' and args.hypervisor != 'AWS-STAGE-2':
         hypervisor.build_aws_stage(builder, args.arch)
     elif args.stage == 'test':
         hypervisor.test_stage(builder)

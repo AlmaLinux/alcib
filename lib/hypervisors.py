@@ -576,11 +576,11 @@ class AwsStage2(KVM):
     def build_aws_stage(self, builder: Builder, arch: str):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Packer initialization')
-        stdout, _ = ssh.safe_execute('sudo packer.io init .')
+        stdout, _ = ssh.safe_execute('cd cloud-images && sudo packer.io init .')
         logging.info(stdout.read().decode())
         logging.info('Building AWS AMI')
         stdout, _ = ssh.safe_execute(
-            'sudo '
+            'cd cloud-images && sudo '
             'AWS_ACCESS_KEY_ID="{}" '
             'AWS_SECRET_ACCESS_KEY="{}" '
             'AWS_DEFAULT_REGION="us-east-1" '

@@ -562,6 +562,17 @@ class AwsStage2(KVM):
     def __init__(self):
         super().__init__(name='aws-stage-2')
 
+    def init_stage2(self):
+        """
+        Creates and provisions AWS Instance.
+        """
+        self.create_aws_instance()
+        logging.info('Checking if ready')
+        ec2_client = boto3.client(service_name='ec2', region_name='us-east-1')
+        waiter = ec2_client.get_waiter('instance_status_ok')
+        waiter.wait(InstanceIds=[self.instance_id])
+        logging.info('Instance is ready')
+
     def build_aws_stage(self, builder: Builder, arch: str):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Packer initialization')

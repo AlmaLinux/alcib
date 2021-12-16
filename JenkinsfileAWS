@@ -1,12 +1,18 @@
-def performCreateStages(String hypervisor) {
+def performCreateStages(String arch) {
     return {
-        sh "python3 -u main.py --stage init --hypervisor ${hypervisor}"
+        sh "python3 -u main.py --stage init --hypervisor KVM --arch ${arch}"
     }
 }
 
-def performDestroyStages(String hypervisor) {
+def performDestroyStages(String arch) {
     return {
-        sh "python3 -u main.py --stage destroy --hypervisor ${hypervisor}"
+        sh "python3 -u main.py --stage destroy --hypervisor --arch ${arch}"
+    }
+}
+
+def performTestStages(String arch) {
+    return {
+        sh "python3 -u main.py --stage test --hypervisor --arch ${arch}"
     }
 }
 
@@ -15,7 +21,7 @@ def performBuildStages(String arch) {
         return {
             stage('Build new aarch AMI') {
                 steps {
-                    sh "python3 -u main.py --stage build --hypervisor KVM"
+                    sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
                 }
             }
         }
@@ -26,7 +32,6 @@ def performBuildStages(String arch) {
                 stage('Stage 1') {
                   steps {
                       sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
-                      sh "python3 -u main.py --stage destroy --hypervisor KVM"
                   }
                 }
                 stage('Stage 2') {
@@ -59,7 +64,7 @@ pipeline {
               script {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[arch] = performCreateStages('KVM')
+                      jobs[arch] = performCreateStages(arch)
                   }
                   parallel jobs
               }
@@ -76,6 +81,17 @@ pipeline {
               }
           }
       }
+      stage('Test 'AWS AMI') {
+          steps {
+              script {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[hv] = performTestStages(arch)
+                  }
+                  parallel jobs
+              }
+          }
+      }
       stage('Destroy AWS instance') {
           when {
               expression { params.DESTROY == true }
@@ -84,7 +100,7 @@ pipeline {
               script {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[arch] = performDestroyStages('KVM')
+                      jobs[arch] = performDestroyStages(arch)
                   }
                   parallel jobs
               }
@@ -105,11 +121,29 @@ pipeline {
           slackSend channel: '#test-auto-vagrant',
                     color: 'danger',
                     message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
+          script {
+              if (params.DESTROY == true) {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[hv] = performDestroyStages(arch)
+                  }
+                  parallel jobs
+              }
+          }
       }
       aborted {
           slackSend channel: '#test-auto-vagrant',
                     color: 'warning',
                     message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
+          script {
+              if (params.DESTROY == true) {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[hv] = performDestroyStages(arch)
+                  }
+                  parallel jobs
+              }
+          }
       }
   }
 }

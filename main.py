@@ -62,7 +62,11 @@ def main(sys_args):
 
     setup_logger()
     builder = Builder()
-    hypervisor = get_hypervisor(args.hypervisor.lower())
+
+    if args.arch == 'aarch64':
+        hypervisor = get_hypervisor(args.hypervisor.lower(), args.arch)
+    else:
+        hypervisor = get_hypervisor(args.hypervisor.lower())
 
     if args.stage == 'init':
         hypervisor.init_stage(builder)
@@ -71,7 +75,10 @@ def main(sys_args):
     elif args.stage == 'build' and settings.image == 'AWS AMI' and args.hypervisor != 'AWS-STAGE-2':
         hypervisor.build_aws_stage(builder, args.arch)
     elif args.stage == 'test':
-        hypervisor.test_stage(builder)
+        if settings.image == 'AWS AMI':
+            hypervisor.test_aws_stage(builder)
+        else:
+            hypervisor.test_stage(builder)
     elif args.stage == 'release':
         hypervisor.release_stage(builder)
     elif args.stage == 'destroy':

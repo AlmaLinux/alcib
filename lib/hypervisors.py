@@ -10,6 +10,7 @@ import os
 import json
 import shutil
 import pathlib
+import time
 from datetime import datetime
 from subprocess import PIPE, Popen, STDOUT
 from io import BufferedReader
@@ -29,7 +30,7 @@ class BaseHypervisor:
     Basic configuration for any hypervisor.
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, arch: str):
         """
         Basic initialization.
 
@@ -39,6 +40,7 @@ class BaseHypervisor:
             Hypervisor name.
         """
         self.name = name
+        self.arch = arch
         self._instance_ip = None
         self._instance_id = None
         self.build_number = settings.build_number
@@ -53,7 +55,10 @@ class BaseHypervisor:
         Path
             Path to terraform templates.
         """
-        return os.path.join(os.getcwd(), 'terraform/{0}'.format(self.name))
+        if self.arch == 'aarch64':
+            return os.path.join(os.getcwd(), 'terraform/{0}'.format(self.arch))
+        else:
+            return os.path.join(os.getcwd(), 'terraform/{0}'.format(self.name))
 
     @property
     def instance_ip(self):
@@ -93,7 +98,7 @@ class BaseHypervisor:
         self._instance_ip = output_json['instance_public_ip']['value']
         self._instance_id = output_json['instance_id']['value']
 
-    def execute_command(self, cmd: str):
+    def execute_command(self, cmd: str, cwd_path: str):
         """
         Executes a local command.
 
@@ -101,6 +106,8 @@ class BaseHypervisor:
         ----------
         cmd : str
             A command to execute.
+        cwd_path: str
+            Directory path to execute commands.
 
         Raises
         ------
@@ -108,7 +115,7 @@ class BaseHypervisor:
             If a command fails during execution.
         """
         logging.info(f'Executing {cmd}')
-        proc = Popen(cmd.split(), cwd=self.terraform_dir,
+        proc = Popen(cmd.split(), cwd=cwd_path,
                      stderr=STDOUT, stdout=PIPE)
         for line in proc.stdout:
             logging.info(line.decode())
@@ -122,19 +129,24 @@ class BaseHypervisor:
         """
         Creates AWS Instance using Terraform commands.
         """
+        if self.arch == 'aarch64':
+            kvm_terraform = os.path.join(os.getcwd(), 'terraform/KVM')
+            shutil.copytree(kvm_terraform, self.terraform_dir)
         logging.info('Creating AWS VM')
         terraform_commands = ['terraform init', 'terraform fmt',
                               'terraform validate',
                               'terraform apply --auto-approve']
         for cmd in terraform_commands:
-            self.execute_command(cmd)
+            self.execute_command(cmd, self.terraform_dir)
 
     def teardown_stage(self):
         """
         Terminates AWS Instance.
         """
         logging.info('Destroying created VM')
-        self.execute_command('terraform destroy --auto-approve')
+        self.execute_command('terraform destroy --auto-approve', self.terraform_dir)
+        if self.arch == 'aarch64':
+            shutil.rmtree(self.terraform_dir)
 
     def upload_to_bucket(self, builder: Builder, files: list):
         """
@@ -556,6 +568,39 @@ class KVM(LinuxHypervisors):
         ssh.close()
         logging.info('Connection closed')
 
+    def test_aws_stage(self, builder: Builder):
+        ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
+        test_path_tf = f'/home/ec2-user/cloud-images/tests/ami/launch_test_instances/{self.arch}'
+        logging.info('Creating test instances')
+        terraform_commands = ['terraform init', 'terraform fmt',
+                              'terraform validate',
+                              'terraform apply --auto-approve']
+        for cmd in terraform_commands:
+            self.execute_command(cmd, test_path_tf)
+        logging.info('Checking if test instances are ready')
+        # add output tf for tests -> implement boto3 waiter
+        time.sleep(180)
+        logging.info('Test instances are ready')
+        logging.info('Starting testing')
+        timestamp = str(datetime.date(datetime.today())).replace('-', '')
+        aws_test_log = f'aws_ami_test_{timestamp}.log'
+        cmd = f'cd {self.cloud_images_path} && ' \
+              f'py.test -v --hosts=almalinux-test-1,almalinux-test-2 ' \
+              f'--ssh-config={test_path_tf}/ssh-config ' \
+              f'/home/ec2-user/cloud-images/tests/ami/test_ami.py 2>&1 | tee ./{aws_test_log}'
+        try:
+            stdout, _ = ssh.safe_execute(cmd)
+            sftp = ssh.open_sftp()
+            sftp.get(
+                f'{self.cloud_images_path}/{aws_test_log}',
+                f'{self.arch}-{aws_test_log}')
+            logging.info(stdout.read().decode())
+            logging.info('Tested')
+        finally:
+            self.upload_to_bucket(builder, ['aws_ami_test*.log'])
+        ssh.close()
+        logging.info('Connection closed')
+
 
 class AwsStage2(KVM):
 
@@ -579,20 +624,35 @@ class AwsStage2(KVM):
         stdout, _ = ssh.safe_execute('cd cloud-images && sudo packer.io init .')
         logging.info(stdout.read().decode())
         logging.info('Building AWS AMI')
-        stdout, _ = ssh.safe_execute(
-            'cd cloud-images && sudo '
-            'AWS_ACCESS_KEY_ID="{}" '
-            'AWS_SECRET_ACCESS_KEY="{}" '
-            'AWS_DEFAULT_REGION="us-east-1" '
-            'packer.io build -only=amazon-chroot.almalinux-8-aws-stage2 .'.format(
-                os.getenv('AWS_ACCESS_KEY_ID'),
-                os.getenv('AWS_SECRET_ACCESS_KEY')
+        timestamp = str(datetime.date(datetime.today())).replace('-', '')
+        aws2_build_log = f'aws_ami_stage2_build_{timestamp}.log'
+        try:
+            stdout, _ = ssh.safe_execute(
+                'cd cloud-images && sudo '
+                'AWS_ACCESS_KEY_ID="{}" '
+                'AWS_SECRET_ACCESS_KEY="{}" '
+                'AWS_DEFAULT_REGION="us-east-1" '
+                'packer.io build -only=amazon-chroot.almalinux-8-aws-stage2 . 2>&1 | tee ./{}'.format(
+                    os.getenv('AWS_ACCESS_KEY_ID'),
+                    os.getenv('AWS_SECRET_ACCESS_KEY'),
+                    aws2_build_log
+                )
             )
+        finally:
+            self.upload_to_bucket(builder, ['aws_ami_stage2_build_*.log'])
+        sftp = ssh.open_sftp()
+        sftp.get(
+            f'{self.sftp_path}{aws2_build_log}',
+            f'{self.name}-{aws2_build_log}'
         )
+        stdout = stdout.read().decode()
+        logging.info(stdout)
         logging.info(stdout.read().decode())
+        ssh.close()
+        logging.info('Connection closed')
 
 
-def get_hypervisor(hypervisor_name):
+def get_hypervisor(hypervisor_name, arch='x86_64'):
     """
     Gets specified hypervisor to build a vagrant box.
 
@@ -600,6 +660,8 @@ def get_hypervisor(hypervisor_name):
     ----------
     hypervisor_name: str
         Hypervisor's name.
+    arch: str
+        Architecture
 
     Returns
     -------
@@ -612,4 +674,4 @@ def get_hypervisor(hypervisor_name):
         'kvm': KVM,
         'vmware_desktop': VMWareDesktop,
         'aws-stage-2': AwsStage2
-    }[hypervisor_name]()
+    }[hypervisor_name](arch)

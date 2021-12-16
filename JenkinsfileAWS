@@ -20,9 +20,7 @@ def performBuildStages(String arch) {
     if (arch == 'aarch64') {
         stage('Build new aarch AMI') {
             steps {
-                return {
-                    sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
-                }
+                sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
             }
         }
     }

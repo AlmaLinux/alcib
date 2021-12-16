@@ -18,29 +18,25 @@ def performTestStages(String arch) {
 
 def performBuildStages(String arch) {
     if (arch == 'aarch64') {
-        return {
-            stages {
-                stage('Build new aarch AMI') {
-                    steps {
+        stages {
+            stage('Build new aarch AMI') {
+                steps {
                         sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
-                    }
                 }
             }
         }
     }
     if (arch == 'x86_64') {
-        return {
-            stages {
-                stage('Stage 1') {
-                  steps {
-                      sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
-                  }
-                }
-                stage('Stage 2') {
-                  steps {
-                      sh "python3 -u main.py --stage build --hypervisor AWS-STAGE-2 --arch ${arch}"
-                  }
-                }
+        stages {
+            stage('Stage 1') {
+              steps {
+                    sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
+              }
+            }
+            stage('Stage 2') {
+              steps {
+                  sh "python3 -u main.py --stage build --hypervisor AWS-STAGE-2 --arch ${arch}"
+              }
             }
         }
     }

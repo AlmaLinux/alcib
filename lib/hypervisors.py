@@ -381,11 +381,11 @@ class HyperV(BaseHypervisor):
         '| Tee-Object -file c:\\Users\\Administrator\\cloud-images\\{}'
     )
 
-    def __init__(self):
+    def __init__(self, arch):
         """
         HyperV initialization.
         """
-        super().__init__('hyperv')
+        super().__init__('hyperv', arch)
 
     def init_stage(self, builder: Builder):
         """
@@ -469,11 +469,11 @@ class VirtualBox(LinuxHypervisors):
         '2>&1 | tee ./{}'
     )
 
-    def __init__(self):
+    def __init__(self, arch):
         """
         VirtualBox initialization.
         """
-        super().__init__('virtualbox')
+        super().__init__('virtualbox', arch)
 
 
 class VMWareDesktop(LinuxHypervisors):
@@ -486,11 +486,11 @@ class VMWareDesktop(LinuxHypervisors):
         '2>&1 | tee ./{}'
     )
 
-    def __init__(self):
+    def __init__(self, arch):
         """
         VMWare Desktop initialization.
         """
-        super().__init__('vmware_desktop')
+        super().__init__('vmware_desktop', arch)
 
 
 class KVM(LinuxHypervisors):
@@ -504,11 +504,11 @@ class KVM(LinuxHypervisors):
             "-only=qemu.almalinux-8 . 2>&1 | tee ./{}"
     )
 
-    def __init__(self, name='kvm'):
+    def __init__(self, arch, name='kvm'):
         """
         KVM initialization.
         """
-        super().__init__(name)
+        super().__init__(name, arch)
 
     def build_aws_stage(self, builder: Builder, arch: str):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
@@ -604,8 +604,8 @@ class KVM(LinuxHypervisors):
 
 class AwsStage2(KVM):
 
-    def __init__(self):
-        super().__init__(name='aws-stage-2')
+    def __init__(self, arch):
+        super().__init__(arch, 'aws-stage-2')
 
     def init_stage2(self):
         """

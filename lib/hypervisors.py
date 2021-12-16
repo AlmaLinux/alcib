@@ -130,7 +130,7 @@ class BaseHypervisor:
         Creates AWS Instance using Terraform commands.
         """
         if self.arch == 'aarch64':
-            kvm_terraform = os.path.join(os.getcwd(), 'terraform/KVM')
+            kvm_terraform = os.path.join(os.getcwd(), 'terraform/kvm')
             shutil.copytree(kvm_terraform, self.terraform_dir)
         logging.info('Creating AWS VM')
         terraform_commands = ['terraform init', 'terraform fmt',

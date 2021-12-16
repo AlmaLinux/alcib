@@ -6,21 +6,25 @@ def performCreateStages(String arch) {
 
 def performDestroyStages(String arch) {
     return {
-        sh "python3 -u main.py --stage destroy --hypervisor --arch ${arch}"
+        sh "python3 -u main.py --stage destroy --hypervisor KVM --arch ${arch}"
     }
 }
 
 def performTestStages(String arch) {
     return {
-        sh "python3 -u main.py --stage test --hypervisor --arch ${arch}"
+        sh "python3 -u main.py --stage test --hypervisor KVM --arch ${arch}"
     }
 }
 
 def performBuildStages(String arch) {
     if (arch == 'aarch64') {
-        stage('Build new aarch AMI') {
-            steps {
-                sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
+        return {
+            stages {
+                stage('Build new aarch AMI') {
+                    steps {
+                        sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
+                    }
+                }
             }
         }
     }

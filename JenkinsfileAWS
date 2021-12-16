@@ -81,7 +81,7 @@ pipeline {
               }
           }
       }
-      stage('Test 'AWS AMI') {
+      stage('Test AWS AMI') {
           steps {
               script {
                   def jobs = [:]

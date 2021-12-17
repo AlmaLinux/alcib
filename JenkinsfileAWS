@@ -17,28 +17,8 @@ def performTestStages(String arch) {
 }
 
 def performBuildStages(String arch) {
-    if (arch == 'aarch64') {
-        stages {
-            stage('Build new aarch AMI') {
-                steps {
-                        sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
-                }
-            }
-        }
-    }
-    if (arch == 'x86_64') {
-        stages {
-            stage('Stage 1') {
-              steps {
-                    sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
-              }
-            }
-            stage('Stage 2') {
-              steps {
-                  sh "python3 -u main.py --stage build --hypervisor AWS-STAGE-2 --arch ${arch}"
-              }
-            }
-        }
+    return {
+            sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
     }
 }
 
@@ -84,7 +64,7 @@ pipeline {
               script {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[hv] = performTestStages(arch)
+                      jobs[arch] = performTestStages(arch)
                   }
                   parallel jobs
               }
@@ -123,7 +103,7 @@ pipeline {
               if (params.DESTROY == true) {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[hv] = performDestroyStages(arch)
+                      jobs[arch] = performDestroyStages(arch)
                   }
                   parallel jobs
               }
@@ -137,7 +117,7 @@ pipeline {
               if (params.DESTROY == true) {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[hv] = performDestroyStages(arch)
+                      jobs[arch] = performDestroyStages(arch)
                   }
                   parallel jobs
               }

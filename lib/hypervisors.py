@@ -570,7 +570,7 @@ class KVM(LinuxHypervisors):
 
     def test_aws_stage(self, builder: Builder):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
-        test_path_tf = f'/home/ec2-user/cloud-images/tests/ami/launch_test_instances/{self.arch}'
+        test_path_tf = f'/home/ec2-user/tests/tests/ami/launch_test_instances/{self.arch}'
         logging.info('Creating test instances')
         terraform_commands = ['terraform init', 'terraform fmt',
                               'terraform validate',
@@ -584,6 +584,8 @@ class KVM(LinuxHypervisors):
         logging.info('Starting testing')
         timestamp = str(datetime.date(datetime.today())).replace('-', '')
         aws_test_log = f'aws_ami_test_{timestamp}.log'
+        cmd = 'git clone https://github.com/LKHN/cloud-images.git /home/ec2-user/tests ' \
+              '&& cd /home/ec2-user/tests && git checkout test-aws-ami'
         cmd = f'cd {self.cloud_images_path} && ' \
               f'py.test -v --hosts=almalinux-test-1,almalinux-test-2 ' \
               f'--ssh-config={test_path_tf}/ssh-config ' \

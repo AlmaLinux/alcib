@@ -650,7 +650,7 @@ class AwsStage2(KVM):
         )
         stdout = stdout.read().decode()
         logging.info(stdout)
-        logging.info(stdout.read().decode())
+        # logging.info(stdout.read().decode())
         ssh.close()
         logging.info('Connection closed')
 

@@ -641,7 +641,8 @@ class AwsStage2(KVM):
                 )
             )
         finally:
-            self.upload_to_bucket(builder, ['aws_ami_stage2_build_*.log'])
+            pass
+            # self.upload_to_bucket(builder, ['aws_ami_stage2_build_*.log'])
         sftp = ssh.open_sftp()
         sftp.get(
             f'{self.sftp_path}{aws2_build_log}',

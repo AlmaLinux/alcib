@@ -555,7 +555,7 @@ class KVM(LinuxHypervisors):
                 ami = line.split(':')[-1].strip()
                 logging.info(ami)
         logging.info('AWS AMI built')
-        aws_hypervisor = AwsStage2()
+        aws_hypervisor = AwsStage2(self.arch)
         tfvars = {'ami_id': ami}
         tf_vars_file = os.path.join(aws_hypervisor.terraform_dir, 'terraform.tfvars.json')
         with open(tf_vars_file, 'w') as tf_file_fd:

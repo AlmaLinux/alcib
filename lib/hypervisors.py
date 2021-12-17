@@ -530,7 +530,7 @@ class KVM(LinuxHypervisors):
                       os.getenv('AWS_SECRET_ACCESS_KEY'),
                       settings.bucket, aws_build_log)
         else:
-            cmd = "cd cloud-images && && export AWS_DEFAULT_REGION='us-east-1' &&" \
+            cmd = "cd cloud-images && export AWS_DEFAULT_REGION='us-east-1' && " \
                   "export AWS_ACCESS_KEY_ID='{}' && export AWS_SECRET_ACCESS_KEY='{}' " \
                   "&& packer build " \
                   "-only=amazon-ebssurrogate.almalinux-8-aws-aarch64 . " \

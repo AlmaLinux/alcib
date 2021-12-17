@@ -586,6 +586,7 @@ class KVM(LinuxHypervisors):
         aws_test_log = f'aws_ami_test_{timestamp}.log'
         cmd = 'git clone https://github.com/LKHN/cloud-images.git /home/ec2-user/tests ' \
               '&& cd /home/ec2-user/tests && git checkout test-aws-ami'
+        stdout, _ = ssh.safe_execute(cmd)
         cmd = f'cd {self.cloud_images_path} && ' \
               f'py.test -v --hosts=almalinux-test-1,almalinux-test-2 ' \
               f'--ssh-config={test_path_tf}/ssh-config ' \
@@ -599,7 +600,8 @@ class KVM(LinuxHypervisors):
             logging.info(stdout.read().decode())
             logging.info('Tested')
         finally:
-            self.upload_to_bucket(builder, ['aws_ami_test*.log'])
+            pass
+            # self.upload_to_bucket(builder, ['aws_ami_test*.log'])
         ssh.close()
         logging.info('Connection closed')
 
@@ -623,7 +625,7 @@ class AwsStage2(KVM):
     def build_aws_stage(self, builder: Builder, arch: str):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Packer initialization')
-        stdout, _ = ssh.safe_execute('cd cloud-images && sudo packer.io init .')
+        stdout, _ = ssh.safe_execute('cd /home/ec2-user/cloud-images && sudo packer.io init .')
         logging.info(stdout.read().decode())
         logging.info('Building AWS AMI')
         timestamp = str(datetime.date(datetime.today())).replace('-', '')

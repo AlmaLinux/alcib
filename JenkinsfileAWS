@@ -48,16 +48,33 @@ pipeline {
               }
           }
       }
-      stage('Build AWS AMI Dynamic stages') {
-          steps {
-              script {
-                  def jobs = [:]
-                  for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[arch] = performBuildStages(arch)
+      stage('Build AWS AMI') {
+        stages {
+            stage('Build stage 1') {
+                steps {
+                      script {
+                          def jobs = [:]
+                          for (arch in params.ARCH.replace('"', '').split(',')) {
+                              jobs[arch] = performBuildStages(arch)
+                          }
+                          parallel jobs
+                      }
                   }
-                  parallel jobs
+            }
+              stage('Build AWS AMI stage 2') {
+                  steps {
+                      script {
+                          def jobs = [:]
+                          for (arch in params.ARCH.replace('"', '').split(',')) {
+                              if (arch == 'x86_64') {
+                                 sh "python3 -u main.py --stage build --hypervisor AWS-STAGE-2 --arch ${arch}"
+                              }
+                          }
+
+                      }
+                  }
               }
-          }
+        }
       }
       stage('Test AWS AMI') {
           steps {

@@ -10,8 +10,8 @@ terraform {
 
 variable "instance_type" {
   type = string
-  # default = "i3.metal"
-  default = "t2.micro"
+  default = "i3.metal"
+  # default = "t2.micro"
 }
 
 variable "ami_id" {

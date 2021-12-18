@@ -578,6 +578,12 @@ class KVM(LinuxHypervisors):
         # stdout, _ = ssh.safe_execute(cmd)
         test_path_tf = f'/home/ec2-user/cloud-images/tests/ami/launch_test_instances/{arch}'
         logging.info('Creating test instances')
+        cmd = "export AWS_DEFAULT_REGION='us-east-1' && " \
+              "export AWS_ACCESS_KEY_ID='{}' && " \
+              "export AWS_SECRET_ACCESS_KEY='{}'".format(
+                  os.getenv('AWS_ACCESS_KEY_ID'),
+                  os.getenv('AWS_SECRET_ACCESS_KEY'))
+        stdout, _ = ssh.safe_execute(cmd)
         terraform_commands = ['terraform init', 'terraform fmt',
                               'terraform validate',
                               'terraform apply --auto-approve']

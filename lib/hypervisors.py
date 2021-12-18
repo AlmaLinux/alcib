@@ -570,6 +570,12 @@ class KVM(LinuxHypervisors):
 
     def test_aws_stage(self, builder: Builder):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
+        sftp = ssh.open_sftp()
+        sftp.put(str(builder.AWS_KEY_PATH.absolute()), '/home/ec2-user/.ssh/alcib_rsa4096')
+
+        cmd = 'sudo chmod 700 /home/ec2-user/.ssh && sudo chmod 600 /home/ec2-user/.ssh/alcib_rsa4096'
+        stdout, _ = ssh.safe_execute(cmd)
+
         # cmd = 'git clone https://github.com/LKHN/cloud-images.git /home/ec2-user/tests ' \
         #       '&& cd /home/ec2-user/tests && git checkout test-aws-ami'
         # stdout, _ = ssh.safe_execute(cmd)
@@ -610,7 +616,6 @@ class KVM(LinuxHypervisors):
             stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && terraform destroy')
             logging.info(stdout.read().decode())
 
-        sftp = ssh.open_sftp()
         sftp.get(
             f'{self.cloud_images_path}/{aws_test_log}',
             f'{self.arch}-{aws_test_log}')

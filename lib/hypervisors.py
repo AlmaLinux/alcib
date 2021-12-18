@@ -590,6 +590,7 @@ class KVM(LinuxHypervisors):
         for cmd in terraform_commands:
             # self.execute_command(cmd, test_path_tf)
             stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && {cmd}')
+            logging.info(stdout.read().decode())
         logging.info('Checking if test instances are ready')
         # add output tf for tests -> implement boto3 waiter
         time.sleep(180)
@@ -603,6 +604,7 @@ class KVM(LinuxHypervisors):
               f'/home/ec2-user/cloud-images/tests/ami/test_ami.py 2>&1 | tee ./{aws_test_log}'
         try:
             stdout, _ = ssh.safe_execute(cmd)
+            logging.info(stdout.read().decode())
         finally:
             self.upload_to_bucket(builder, ['aws_ami_test*.log'])
         sftp = ssh.open_sftp()
@@ -611,6 +613,8 @@ class KVM(LinuxHypervisors):
             f'{self.arch}-{aws_test_log}')
         logging.info(stdout.read().decode())
         logging.info('Tested')
+        stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && terraform destroy')
+        logging.info(stdout.read().decode())
         ssh.close()
         logging.info('Connection closed')
 

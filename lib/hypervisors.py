@@ -573,7 +573,10 @@ class KVM(LinuxHypervisors):
         # cmd = 'git clone https://github.com/LKHN/cloud-images.git /home/ec2-user/tests ' \
         #       '&& cd /home/ec2-user/tests && git checkout test-aws-ami'
         # stdout, _ = ssh.safe_execute(cmd)
-        test_path_tf = f'/home/ec2-user/cloud-images/tests/ami/launch_test_instances/{self.arch}'
+        arch = self.arch if self.arch == 'aarch64' else 'amd64'
+        cmd = 'sudo chmod 777 -R /home/ec2-user/cloud-images/tests'
+        stdout, _ = ssh.safe_execute(cmd)
+        test_path_tf = f'/home/ec2-user/cloud-images/tests/ami/launch_test_instances/{arch}'
         logging.info('Creating test instances')
         terraform_commands = ['terraform init', 'terraform fmt',
                               'terraform validate',

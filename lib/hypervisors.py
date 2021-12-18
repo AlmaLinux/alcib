@@ -603,14 +603,14 @@ class KVM(LinuxHypervisors):
               f'/home/ec2-user/cloud-images/tests/ami/test_ami.py 2>&1 | tee ./{aws_test_log}'
         try:
             stdout, _ = ssh.safe_execute(cmd)
-            sftp = ssh.open_sftp()
-            sftp.get(
-                f'{self.cloud_images_path}/{aws_test_log}',
-                f'{self.arch}-{aws_test_log}')
-            logging.info(stdout.read().decode())
-            logging.info('Tested')
         finally:
             self.upload_to_bucket(builder, ['aws_ami_test*.log'])
+        sftp = ssh.open_sftp()
+        sftp.get(
+            f'{self.cloud_images_path}/{aws_test_log}',
+            f'{self.arch}-{aws_test_log}')
+        logging.info(stdout.read().decode())
+        logging.info('Tested')
         ssh.close()
         logging.info('Connection closed')
 

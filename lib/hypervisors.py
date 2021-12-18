@@ -607,14 +607,15 @@ class KVM(LinuxHypervisors):
             logging.info(stdout.read().decode())
         finally:
             self.upload_to_bucket(builder, ['aws_ami_test*.log'])
+            stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && terraform destroy')
+            logging.info(stdout.read().decode())
+
         sftp = ssh.open_sftp()
         sftp.get(
             f'{self.cloud_images_path}/{aws_test_log}',
             f'{self.arch}-{aws_test_log}')
         logging.info(stdout.read().decode())
         logging.info('Tested')
-        stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && terraform destroy')
-        logging.info(stdout.read().decode())
         ssh.close()
         logging.info('Connection closed')
 

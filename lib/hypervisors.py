@@ -583,10 +583,10 @@ class KVM(LinuxHypervisors):
               "export AWS_SECRET_ACCESS_KEY='{}'".format(
                   os.getenv('AWS_ACCESS_KEY_ID'),
                   os.getenv('AWS_SECRET_ACCESS_KEY'))
-        stdout, _ = ssh.safe_execute(cmd)
+        # stdout, _ = ssh.safe_execute(cmd)
         terraform_commands = ['terraform init', 'terraform fmt',
                               'terraform validate',
-                              'terraform apply --auto-approve']
+                              f'{cmd} && terraform apply --auto-approve']
         for cmd in terraform_commands:
             # self.execute_command(cmd, test_path_tf)
             stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && {cmd}')

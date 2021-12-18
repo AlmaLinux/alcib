@@ -574,15 +574,16 @@ class KVM(LinuxHypervisors):
         #       '&& cd /home/ec2-user/tests && git checkout test-aws-ami'
         # stdout, _ = ssh.safe_execute(cmd)
         arch = self.arch if self.arch == 'aarch64' else 'amd64'
-        cmd = 'sudo chmod 777 -R /home/ec2-user/cloud-images/tests'
-        stdout, _ = ssh.safe_execute(cmd)
+        # cmd = 'sudo chmod 777 -R /home/ec2-user/cloud-images/tests'
+        # stdout, _ = ssh.safe_execute(cmd)
         test_path_tf = f'/home/ec2-user/cloud-images/tests/ami/launch_test_instances/{arch}'
         logging.info('Creating test instances')
         terraform_commands = ['terraform init', 'terraform fmt',
                               'terraform validate',
                               'terraform apply --auto-approve']
         for cmd in terraform_commands:
-            self.execute_command(cmd, test_path_tf)
+            # self.execute_command(cmd, test_path_tf)
+            stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && {cmd}')
         logging.info('Checking if test instances are ready')
         # add output tf for tests -> implement boto3 waiter
         time.sleep(180)
@@ -603,8 +604,7 @@ class KVM(LinuxHypervisors):
             logging.info(stdout.read().decode())
             logging.info('Tested')
         finally:
-            pass
-            # self.upload_to_bucket(builder, ['aws_ami_test*.log'])
+            self.upload_to_bucket(builder, ['aws_ami_test*.log'])
         ssh.close()
         logging.info('Connection closed')
 

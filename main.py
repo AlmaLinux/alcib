@@ -27,7 +27,8 @@ def init_args_parser() -> argparse.ArgumentParser:
         description='Cloud Images autobuilder'
     )
     parser.add_argument('--hypervisor', type=str,
-                        choices=['VirtualBox', 'KVM', 'VMWare_Desktop', 'HyperV', 'AWS-STAGE-2'],
+                        choices=['VirtualBox', 'KVM', 'VMWare_Desktop', 'HyperV',
+                                 'AWS-STAGE-2', 'Equinix'],
                         help='Hypervisor name')
     parser.add_argument('--stage', type=str,
                         choices=['init', 'build', 'destroy',
@@ -70,7 +71,7 @@ def main(sys_args):
 
     if args.stage == 'init':
         hypervisor.init_stage(builder)
-    elif args.stage == 'build' and settings.image == 'Vagrant Box':
+    elif args.stage == 'build' and settings.image in ['Vagrant Box', 'Generic Cloud']:
         hypervisor.build_stage(builder)
     elif args.stage == 'build' and settings.image == 'AWS AMI' and args.hypervisor != 'AWS-STAGE-2':
         hypervisor.build_aws_stage(builder, args.arch)

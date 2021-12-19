@@ -191,10 +191,13 @@ class BaseHypervisor:
         logging.info('Packer initialization')
         stdout, _ = ssh.safe_execute('packer init ./cloud-images 2>&1')
         logging.info(stdout.read().decode())
-        logging.info('Building vagrant box')
+        logging.info(f'Building {settings.image}')
         timestamp = str(datetime.date(datetime.today())).replace('-', '')
-        vb_build_log = f'vagrant_box_build_{timestamp}.log'
-        cmd = self.packer_build_cmd.format(vb_build_log)
+        vb_build_log = f'{settings.image}_build_{timestamp}.log'
+        if settings.image == 'Generic Cloud':
+            cmd = self.packer_build_gencloud.format(vb_build_log)
+        else:
+            cmd = self.packer_build_cmd.format(vb_build_log)
         try:
             stdout, _ = ssh.safe_execute(cmd)
             sftp = ssh.open_sftp()
@@ -202,9 +205,13 @@ class BaseHypervisor:
                 f'{self.sftp_path}{vb_build_log}',
                 f'{self.name}-{vb_build_log}')
             logging.info(stdout.read().decode())
-            logging.info('Vagrant box built')
+            logging.info(f'{settings.image} built')
         finally:
-            self.upload_to_bucket(builder, ['vagrant_box_build*.log', '*.box'])
+            if settings.image == 'Generic Cloud':
+                file = '*.qcow2'
+            else:
+                file = '*.box'
+            self.upload_to_bucket(builder, [f'{settings.image}_build*.log', file])
         ssh.close()
         logging.info('Connection closed')
 
@@ -499,9 +506,14 @@ class KVM(LinuxHypervisors):
     """
 
     packer_build_cmd = (
-            "cd cloud-images && "
-            "packer build -var qemu_binary='/usr/libexec/qemu-kvm' "
-            "-only=qemu.almalinux-8 . 2>&1 | tee ./{}"
+        "cd cloud-images && "
+        "packer build -var qemu_binary='/usr/libexec/qemu-kvm' "
+        "-only=qemu.almalinux-8 . 2>&1 | tee ./{}"
+    )
+
+    packer_build_gencloud = (
+        "cd cloud-images && "
+        "packer build -only=qemu.almalinux-8-gencloud-x86_64 ."
     )
 
     def __init__(self, arch, name='kvm'):
@@ -676,6 +688,58 @@ class AwsStage2(KVM):
         logging.info('Connection closed')
 
 
+class Equinix:
+
+    def __init__(self, name: str, arch: str):
+        """
+        Basic initialization.
+        """
+        self.name = name
+        self.arch = arch
+        self.build_number = settings.build_number
+
+    def init_stage(self, builder: Builder):
+        ssh = builder.ssh_equinix_connect()
+        logging.info('Connection is good')
+        ssh.close()
+        logging.info('Connection closed')
+
+    def build_stage(self, builder: Builder):
+        ssh = builder.ssh_equinix_connect()
+        logging.info('Packer initialization')
+        stdout, _ = ssh.safe_execute('packer.io init /root/metal-images 2>&1')
+        logging.info(stdout.read().decode())
+        timestamp = str(datetime.date(datetime.today())).replace('-', '')
+        gc_build_log = f'{settings.image}_build_{timestamp}.log'
+        logging.info(f'Building {settings.image}')
+        try:
+            stdout, _ = ssh.safe_execute(
+                f'cd metal-images && '
+                f'packer.io build -only=qemu.almalinux-8-gencloud-aarch64 . '
+                f'2>&1 | tee ./{gc_build_log}'
+            )
+        finally:
+            files = [f'{settings.image}_build*.log', '*.qcow2']
+            for file in files:
+                cmd = f'bash -c "sha256sum /root//metal-images/{file}"'
+                stdout, _ = ssh.safe_execute(cmd)
+                checksum = stdout.read().decode().split()[0]
+                cmd = f'bash -c "aws s3 cp /root/metal-images/{file} ' \
+                      f's3://{settings.bucket}/{settings.build_number}-{settings.image}-{timestamp}/' \
+                      f' --metadata sha256={checksum}"'
+                stdout, _ = ssh.safe_execute(cmd)
+                logging.info(stdout.read().decode())
+                logging.info('Uploaded')
+        sftp = ssh.open_sftp()
+        sftp.get(
+            f'/root/metal-images/{gc_build_log}',
+            f'{self.name}-{gc_build_log}')
+        logging.info(stdout.read().decode())
+        logging.info(f'{settings.image} built')
+        ssh.close()
+        logging.info('Connection closed')
+
+
 def get_hypervisor(hypervisor_name, arch='x86_64'):
     """
     Gets specified hypervisor to build a vagrant box.
@@ -697,5 +761,6 @@ def get_hypervisor(hypervisor_name, arch='x86_64'):
         'virtualbox': VirtualBox,
         'kvm': KVM,
         'vmware_desktop': VMWareDesktop,
-        'aws-stage-2': AwsStage2
+        'aws-stage-2': AwsStage2,
+        'equinix': Equinix
     }[hypervisor_name](arch)

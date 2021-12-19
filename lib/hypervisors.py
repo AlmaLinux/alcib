@@ -700,30 +700,32 @@ class Equinix(BaseHypervisor):
     def init_stage(self, builder: Builder):
         ssh = builder.ssh_equinix_connect()
         logging.info('Connection is good')
+        stdout, _ = ssh.safe_execute('git clone https://github.com/AlmaLinux/cloud-images')
+        logging.info(stdout.read().decode())
         ssh.close()
         logging.info('Connection closed')
 
     def build_stage(self, builder: Builder):
         ssh = builder.ssh_equinix_connect()
         logging.info('Packer initialization')
-        stdout, _ = ssh.safe_execute('packer.io init /root/metal-images 2>&1')
+        stdout, _ = ssh.safe_execute('packer.io init /root/cloud-images 2>&1')
         logging.info(stdout.read().decode())
         timestamp = str(datetime.date(datetime.today())).replace('-', '')
         gc_build_log = f'{settings.image.replace(" ", "_")}_build_{timestamp}.log'
         logging.info(f'Building {settings.image}')
         try:
             stdout, _ = ssh.safe_execute(
-                f'cd metal-images && '
+                f'cd cloud-images && '
                 f'packer.io build -only=qemu.almalinux-8-gencloud-aarch64 . '
                 f'2>&1 | tee ./{gc_build_log}'
             )
         finally:
             files = [f'{settings.image.replace(" ", "_")}_build*.log', '*.qcow2']
             for file in files:
-                cmd = f'bash -c "sha256sum /root//metal-images/{file}"'
+                cmd = f'bash -c "sha256sum /root/cloud-images/{file}"'
                 stdout, _ = ssh.safe_execute(cmd)
                 checksum = stdout.read().decode().split()[0]
-                cmd = f'bash -c "aws s3 cp /root/metal-images/{file} ' \
+                cmd = f'bash -c "aws s3 cp /root/cloud-images/{file} ' \
                       f's3://{settings.bucket}/{settings.build_number}-{settings.image.replace(" ", "_")}-{timestamp}/' \
                       f' --metadata sha256={checksum}"'
                 stdout, _ = ssh.safe_execute(cmd)
@@ -740,8 +742,7 @@ class Equinix(BaseHypervisor):
 
     def teardown_equinix_stage(self, builder: Builder):
         ssh = builder.ssh_equinix_connect()
-        cmd = 'rm /root/metal-images/*.log && ' \
-              'rm /root/metal-images/*.qcow2'
+        cmd = 'sudo rm -r /root/cloud-images'
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
         ssh.close()

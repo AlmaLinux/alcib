@@ -513,7 +513,8 @@ class KVM(LinuxHypervisors):
 
     packer_build_gencloud = (
         "cd cloud-images && "
-        "packer build -only=qemu.almalinux-8-gencloud-x86_64 ."
+        "packer build -var qemu_binary='/usr/libexec/qemu-kvm'"
+        " -only=qemu.almalinux-8-gencloud-x86_64 ."
     )
 
     def __init__(self, arch, name='kvm'):

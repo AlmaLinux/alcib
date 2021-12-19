@@ -162,7 +162,7 @@ class BaseHypervisor:
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Uploading to S3 bucket')
         timestamp_today = str(datetime.date(datetime.today())).replace('-', '')
-        timestamp_name = f'{self.build_number}-{self.name}-{timestamp_today}'
+        timestamp_name = f'{self.build_number}-{settings.image}-{self.name}-{self.arch}-{timestamp_today}'
         for file in files:
             cmd = f'bash -c "sha256sum {self.cloud_images_path}/{file}"'
             try:
@@ -711,7 +711,7 @@ class Equinix(BaseHypervisor):
         stdout, _ = ssh.safe_execute('packer.io init /root/cloud-images 2>&1')
         logging.info(stdout.read().decode())
         timestamp = str(datetime.date(datetime.today())).replace('-', '')
-        gc_build_log = f'{settings.image.replace(" ", "_")}_build_{timestamp}.log'
+        gc_build_log = f'{settings.image.replace(" ", "_")}_{self.arch}_build_{timestamp}.log'
         logging.info(f'Building {settings.image}')
         try:
             stdout, _ = ssh.safe_execute(
@@ -728,7 +728,7 @@ class Equinix(BaseHypervisor):
                 stdout, _ = ssh.safe_execute(cmd)
                 checksum = stdout.read().decode().split()[0]
                 cmd = f'bash -c "aws s3 cp /root/cloud-images/{file} ' \
-                      f's3://{settings.bucket}/{settings.build_number}-{settings.image.replace(" ", "_")}-{timestamp}/' \
+                      f's3://{settings.bucket}/{settings.build_number}-{settings.image.replace(" ", "_")}-{self.arch}-{timestamp}/' \
                       f' --metadata sha256={checksum}"'
                 stdout, _ = ssh.safe_execute(cmd)
                 logging.info(stdout.read().decode())

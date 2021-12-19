@@ -52,11 +52,12 @@ pipeline {
                   script {
                       def jobs = [:]
                       for (arch in params.ARCH.replace('"', '').split(',')) {
-                      if (arch == 'x86_64') {
-                          jobs[arch] = performBuildStages('KVM', arch)
-                      }
-                      else {
-                          jobs[arch] = performBuildStages('Equinix', arch)
+                          if (arch == 'x86_64') {
+                              jobs[arch] = performBuildStages('KVM', arch)
+                          }
+                          else {
+                              jobs[arch] = performBuildStages('Equinix', arch)
+                          }
                       }
                       parallel jobs
                   }

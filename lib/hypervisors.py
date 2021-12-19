@@ -689,15 +689,13 @@ class AwsStage2(KVM):
         logging.info('Connection closed')
 
 
-class Equinix:
+class Equinix(BaseHypervisor):
 
-    def __init__(self, name: str, arch: str):
+    def __init__(self, arch, name='equinix'):
         """
-        Basic initialization.
+        KVM initialization.
         """
-        self.name = name
-        self.arch = arch
-        self.build_number = settings.build_number
+        super().__init__(name, arch)
 
     def init_stage(self, builder: Builder):
         ssh = builder.ssh_equinix_connect()
@@ -740,7 +738,7 @@ class Equinix:
         ssh.close()
         logging.info('Connection closed')
 
-    def teardown_stage(self, builder: Builder):
+    def teardown_equinix_stage(self, builder: Builder):
         ssh = builder.ssh_equinix_connect()
         cmd = 'rm /root/metal-images/*.log && ' \
               'rm /root/metal-images/*.qcow2'

@@ -84,7 +84,7 @@ def main(sys_args):
         hypervisor.release_stage(builder)
     elif args.stage == 'destroy':
         if settings.image == 'Generic Cloud':
-            hypervisor.teardown_stage(builder)
+            hypervisor.teardown_equinix_stage(builder)
         else:
             hypervisor.teardown_stage()
     elif args.hypervisor == 'AWS-STAGE-2':

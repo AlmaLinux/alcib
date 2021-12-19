@@ -193,7 +193,7 @@ class BaseHypervisor:
         logging.info(stdout.read().decode())
         logging.info(f'Building {settings.image}')
         timestamp = str(datetime.date(datetime.today())).replace('-', '')
-        vb_build_log = f'{settings.image.replace(" ", "_")}_build_{timestamp}.log'
+        vb_build_log = f'{settings.image.replace(" ", "_")}_{self.arch}_build_{timestamp}.log'
         if settings.image == 'Generic Cloud':
             cmd = self.packer_build_gencloud.format(vb_build_log)
         else:
@@ -211,7 +211,7 @@ class BaseHypervisor:
                 file = 'output-almalinux-8-gencloud-x86_64/*.qcow2'
             else:
                 file = '*.box'
-            self.upload_to_bucket(builder, [f'{settings.image.replace(" ", "_")}_build*.log', file])
+            self.upload_to_bucket(builder, [f'{settings.image.replace(" ", "_")}_{self.arch}_build*.log', file])
         ssh.close()
         logging.info('Connection closed')
 
@@ -721,7 +721,7 @@ class Equinix(BaseHypervisor):
                 f'2>&1 | tee ./{gc_build_log}'
             )
         finally:
-            files = [f'{settings.image.replace(" ", "_")}_build*.log',
+            files = [f'{settings.image.replace(" ", "_")}_{self.arch}_build*.log',
                      'output-almalinux-8-gencloud-aarch64/*.qcow2']
             for file in files:
                 cmd = f'bash -c "sha256sum /root/cloud-images/{file}"'

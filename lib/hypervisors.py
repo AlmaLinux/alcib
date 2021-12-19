@@ -735,7 +735,7 @@ class Equinix(BaseHypervisor):
                 logging.info('Uploaded')
         sftp = ssh.open_sftp()
         sftp.get(
-            f'/root/metal-images/{gc_build_log}',
+            f'/root/cloud-images/{gc_build_log}',
             f'{self.name}-{gc_build_log}')
         logging.info(stdout.read().decode())
         logging.info(f'{settings.image} built')

@@ -1,30 +1,18 @@
-def performCreateAWSStage(String arch) {
+def performCreateStages(String hypervisor, String arch) {
     return {
-        sh "python3 -u main.py --stage init --hypervisor KVM --arch ${arch}"
+        sh "python3 -u main.py --stage init --hypervisor ${hypervisor} --arch ${arch}"
     }
 }
 
-def performCreateEquinixStage(String arch) {
+def performDestroyStages(String hypervisor, String arch) {
     return {
-        sh "python3 -u main.py --stage init --hypervisor Equinix --arch ${arch}"
+        sh "python3 -u main.py --stage destroy --hypervisor ${hypervisor} --arch ${arch}"
     }
 }
 
-def performDestroyStages(String arch) {
+def performBuildStages(String hypervisor, String arch) {
     return {
-        sh "python3 -u main.py --stage destroy --hypervisor KVM --arch ${arch}"
-    }
-}
-
-def performTestStages(String arch) {
-    return {
-        sh "python3 -u main.py --stage test --hypervisor KVM --arch ${arch}"
-    }
-}
-
-def performBuildStages(String arch) {
-    return {
-            sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
+            sh "python3 -u main.py --stage build --hypervisor ${hypervisor} --arch ${arch}"
     }
 }
 
@@ -49,54 +37,30 @@ pipeline {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       if (arch == 'x86_64) {
-                        jobs[arch] = performCreateAWSStage(arch)
+                        jobs[arch] = performCreateStages('KVM', arch)
                       }
                       else {
-                        jobs[arch] = performCreateEquinixStage(arch)
+                        jobs[arch] = performCreateStages('Equinix', arch)
                       }
                   }
                   parallel jobs
               }
           }
       }
-      stage('Build AWS AMI') {
-        stages {
-            stage('Build stage 1') {
-                steps {
-                      script {
-                          def jobs = [:]
-                          for (arch in params.ARCH.replace('"', '').split(',')) {
-                              jobs[arch] = performBuildStages(arch)
-                          }
-                          parallel jobs
+      stage('Build Generic Cloud Image') {
+            steps {
+                  script {
+                      def jobs = [:]
+                      for (arch in params.ARCH.replace('"', '').split(',')) {
+                      if (arch == 'x86_64) {
+                          jobs[arch] = performBuildStages('KVM', arch)
                       }
+                      else {
+                          jobs[arch] = performBuildStages('Equinix', arch)
+                      }
+                      parallel jobs
                   }
             }
-              stage('Build AWS AMI stage 2') {
-                  steps {
-                      script {
-                          def jobs = [:]
-                          for (arch in params.ARCH.replace('"', '').split(',')) {
-                              if (arch == 'x86_64') {
-                                 sh "python3 -u main.py --stage build --hypervisor AWS-STAGE-2 --arch ${arch}"
-                              }
-                          }
-
-                      }
-                  }
-              }
-        }
-      }
-      stage('Test AWS AMI') {
-          steps {
-              script {
-                  def jobs = [:]
-                  for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[arch] = performTestStages(arch)
-                  }
-                  parallel jobs
-              }
-          }
       }
       stage('Destroy AWS instance') {
           when {
@@ -106,7 +70,12 @@ pipeline {
               script {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[arch] = performDestroyStages(arch)
+                    if (arch == 'x86_64) {
+                          jobs[arch] = performDestroyStages('KVM', arch)
+                      }
+                      else {
+                          jobs[arch] = performDestroyStages('Equinix', arch)
+                      }
                   }
                   parallel jobs
               }
@@ -131,7 +100,12 @@ pipeline {
               if (params.DESTROY == true) {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[arch] = performDestroyStages(arch)
+                      if (arch == 'x86_64) {
+                          jobs[arch] = performDestroyStages('KVM', arch)
+                      }
+                      else {
+                          jobs[arch] = performDestroyStages('Equinix', arch)
+                      }
                   }
                   parallel jobs
               }
@@ -145,7 +119,12 @@ pipeline {
               if (params.DESTROY == true) {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[arch] = performDestroyStages(arch)
+                      if (arch == 'x86_64) {
+                          jobs[arch] = performDestroyStages('KVM', arch)
+                      }
+                      else {
+                          jobs[arch] = performDestroyStages('Equinix', arch)
+                      }
                   }
                   parallel jobs
               }

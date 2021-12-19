@@ -739,6 +739,15 @@ class Equinix:
         ssh.close()
         logging.info('Connection closed')
 
+    def teardown_stage(self, builder: Builder):
+        ssh = builder.ssh_equinix_connect()
+        cmd = 'rm /root/metal-images/*.log && ' \
+              'rm /root/metal-images/*.qcow2'
+        stdout, _ = ssh.safe_execute(cmd)
+        logging.info(stdout.read().decode())
+        ssh.close()
+        logging.info('Connection closed')
+
 
 def get_hypervisor(hypervisor_name, arch='x86_64'):
     """

@@ -715,8 +715,9 @@ class Equinix(BaseHypervisor):
         logging.info(f'Building {settings.image}')
         try:
             stdout, _ = ssh.safe_execute(
-                f'cd cloud-images && '
-                f'packer.io build -only=qemu.almalinux-8-gencloud-aarch64 . '
+                f'cd /root/cloud-images && '
+                f'packer.io build -var qemu_binary="/usr/libexec/qemu-kvm" '
+                f'-only=qemu.almalinux-8-gencloud-aarch64 . '
                 f'2>&1 | tee ./{gc_build_log}'
             )
         finally:

@@ -193,7 +193,7 @@ class BaseHypervisor:
         logging.info(stdout.read().decode())
         logging.info(f'Building {settings.image}')
         timestamp = str(datetime.date(datetime.today())).replace('-', '')
-        vb_build_log = f'{settings.image}_build_{timestamp}.log'
+        vb_build_log = f'{settings.image.replace(" ", "_")}_build_{timestamp}.log'
         if settings.image == 'Generic Cloud':
             cmd = self.packer_build_gencloud.format(vb_build_log)
         else:
@@ -211,7 +211,7 @@ class BaseHypervisor:
                 file = '*.qcow2'
             else:
                 file = '*.box'
-            self.upload_to_bucket(builder, [f'{settings.image}_build*.log', file])
+            self.upload_to_bucket(builder, [f'{settings.image.replace(" ", "_")}_build*.log', file])
         ssh.close()
         logging.info('Connection closed')
 
@@ -710,7 +710,7 @@ class Equinix:
         stdout, _ = ssh.safe_execute('packer.io init /root/metal-images 2>&1')
         logging.info(stdout.read().decode())
         timestamp = str(datetime.date(datetime.today())).replace('-', '')
-        gc_build_log = f'{settings.image}_build_{timestamp}.log'
+        gc_build_log = f'{settings.image.replace(" ", "_")}_build_{timestamp}.log'
         logging.info(f'Building {settings.image}')
         try:
             stdout, _ = ssh.safe_execute(
@@ -719,13 +719,13 @@ class Equinix:
                 f'2>&1 | tee ./{gc_build_log}'
             )
         finally:
-            files = [f'{settings.image}_build*.log', '*.qcow2']
+            files = [f'{settings.image.replace(" ", "_")}_build*.log', '*.qcow2']
             for file in files:
                 cmd = f'bash -c "sha256sum /root//metal-images/{file}"'
                 stdout, _ = ssh.safe_execute(cmd)
                 checksum = stdout.read().decode().split()[0]
                 cmd = f'bash -c "aws s3 cp /root/metal-images/{file} ' \
-                      f's3://{settings.bucket}/{settings.build_number}-{settings.image}-{timestamp}/' \
+                      f's3://{settings.bucket}/{settings.build_number}-{settings.image.replace(" ", "_")}-{timestamp}/' \
                       f' --metadata sha256={checksum}"'
                 stdout, _ = ssh.safe_execute(cmd)
                 logging.info(stdout.read().decode())

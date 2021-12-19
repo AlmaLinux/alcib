@@ -700,7 +700,7 @@ class Equinix(BaseHypervisor):
     def init_stage(self, builder: Builder):
         ssh = builder.ssh_equinix_connect()
         logging.info('Connection is good')
-        # ssh.close()
+        ssh.close()
         logging.info('Connection closed')
 
     def build_stage(self, builder: Builder):
@@ -735,7 +735,7 @@ class Equinix(BaseHypervisor):
             f'{self.name}-{gc_build_log}')
         logging.info(stdout.read().decode())
         logging.info(f'{settings.image} built')
-        # ssh.close()
+        ssh.close()
         logging.info('Connection closed')
 
     def teardown_equinix_stage(self, builder: Builder):
@@ -744,7 +744,7 @@ class Equinix(BaseHypervisor):
               'rm /root/metal-images/*.qcow2'
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
-        # ssh.close()
+        ssh.close()
         logging.info('Connection closed')
 
 

@@ -144,3 +144,4 @@ class Builder:
         logging.info(f'Connecting to instance {equinix_ip}')
         ssh_client = self.get_ssh_client()
         ssh_client.connect(equinix_ip, username='root', pkey=self.private_key)
+        return ssh_client

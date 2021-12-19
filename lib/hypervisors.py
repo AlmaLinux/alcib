@@ -162,7 +162,7 @@ class BaseHypervisor:
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Uploading to S3 bucket')
         timestamp_today = str(datetime.date(datetime.today())).replace('-', '')
-        timestamp_name = f'{self.build_number}-{settings.image}-{self.name}-{self.arch}-{timestamp_today}'
+        timestamp_name = f'{self.build_number}-{settings.image.replace(" ", "_")}-{self.name}-{self.arch}-{timestamp_today}'
         for file in files:
             cmd = f'bash -c "sha256sum {self.cloud_images_path}/{file}"'
             try:

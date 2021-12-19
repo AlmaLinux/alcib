@@ -208,7 +208,7 @@ class BaseHypervisor:
             logging.info(f'{settings.image} built')
         finally:
             if settings.image == 'Generic Cloud':
-                file = '*.qcow2'
+                file = 'output-almalinux-8-gencloud-x86_64/*.qcow2'
             else:
                 file = '*.box'
             self.upload_to_bucket(builder, [f'{settings.image.replace(" ", "_")}_build*.log', file])
@@ -721,7 +721,8 @@ class Equinix(BaseHypervisor):
                 f'2>&1 | tee ./{gc_build_log}'
             )
         finally:
-            files = [f'{settings.image.replace(" ", "_")}_build*.log', '*.qcow2']
+            files = [f'{settings.image.replace(" ", "_")}_build*.log',
+                     'output-almalinux-8-gencloud-aarch64/*.qcow2']
             for file in files:
                 cmd = f'bash -c "sha256sum /root/cloud-images/{file}"'
                 stdout, _ = ssh.safe_execute(cmd)
@@ -743,7 +744,7 @@ class Equinix(BaseHypervisor):
 
     def teardown_equinix_stage(self, builder: Builder):
         ssh = builder.ssh_equinix_connect()
-        cmd = 'sudo rm -r /root/cloud-images'
+        cmd = 'sudo rm -r /root/cloud-images/'
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
         ssh.close()

@@ -36,7 +36,7 @@ pipeline {
               script {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      if (arch == 'x86_64) {
+                      if (arch == 'x86_64') {
                         jobs[arch] = performCreateStages('KVM', arch)
                       }
                       else {
@@ -52,7 +52,7 @@ pipeline {
                   script {
                       def jobs = [:]
                       for (arch in params.ARCH.replace('"', '').split(',')) {
-                      if (arch == 'x86_64) {
+                      if (arch == 'x86_64') {
                           jobs[arch] = performBuildStages('KVM', arch)
                       }
                       else {
@@ -70,7 +70,7 @@ pipeline {
               script {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                    if (arch == 'x86_64) {
+                    if (arch == 'x86_64') {
                           jobs[arch] = performDestroyStages('KVM', arch)
                       }
                       else {
@@ -100,7 +100,7 @@ pipeline {
               if (params.DESTROY == true) {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      if (arch == 'x86_64) {
+                      if (arch == 'x86_64') {
                           jobs[arch] = performDestroyStages('KVM', arch)
                       }
                       else {
@@ -119,7 +119,7 @@ pipeline {
               if (params.DESTROY == true) {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      if (arch == 'x86_64) {
+                      if (arch == 'x86_64') {
                           jobs[arch] = performDestroyStages('KVM', arch)
                       }
                       else {

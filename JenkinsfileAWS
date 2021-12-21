@@ -98,6 +98,7 @@ pipeline {
                       jobs[arch] = performDestroyStages(arch)
                   }
                   parallel jobs
+                  sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
               }
           }
       }
@@ -123,6 +124,7 @@ pipeline {
                       jobs[arch] = performDestroyStages(arch)
                   }
                   parallel jobs
+                  sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
               }
           }
       }
@@ -137,6 +139,7 @@ pipeline {
                       jobs[arch] = performDestroyStages(arch)
                   }
                   parallel jobs
+                  sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
               }
           }
       }

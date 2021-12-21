@@ -604,10 +604,14 @@ class KVM(LinuxHypervisors):
             stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && {c}')
             logging.info(stdout.read().decode())
         logging.info('Checking if test instances are ready')
-        output_cmd = f'cd {test_path_tf} && ' + cmd + ' && terraform output --json'
-        output = Popen(output_cmd.split(),
-                       cwd=test_path_tf, stderr=STDOUT, stdout=PIPE)
-        output_json = json.loads(BufferedReader(output.stdout).read().decode())
+        output_cmd = f'cd {test_path_tf} && {cmd} && terraform output --json'
+        stdout, _ = ssh.safe_execute(output_cmd)
+        f = stdout.read().decode()
+        logging.info(type(f))
+        logging.info(f)
+        output_json = json.loads(stdout.read().decode())
+        logging.info(output_json)
+        logging.info(type(output_json))
 
         instance_id1 = output_json['instance_id1']['value']
         instance_id2 = output_json['instance_id2']['value']

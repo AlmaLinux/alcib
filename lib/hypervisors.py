@@ -600,11 +600,12 @@ class KVM(LinuxHypervisors):
         terraform_commands = ['terraform init', 'terraform fmt',
                               'terraform validate',
                               f'{cmd} && terraform apply --auto-approve']
-        for cmd in terraform_commands:
-            stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && {cmd}')
+        for c in terraform_commands:
+            stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && {c}')
             logging.info(stdout.read().decode())
         logging.info('Checking if test instances are ready')
-        output = Popen(['terraform', 'output', '--json'],
+        output_cmd = f'cd {test_path_tf} && ' + cmd + ' && terraform output --json'
+        output = Popen(output_cmd.split(),
                        cwd=test_path_tf, stderr=STDOUT, stdout=PIPE)
         output_json = json.loads(BufferedReader(output.stdout).read().decode())
 

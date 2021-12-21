@@ -589,12 +589,7 @@ class KVM(LinuxHypervisors):
         cmd = 'sudo chmod 700 /home/ec2-user/.ssh && sudo chmod 600 /home/ec2-user/.ssh/alcib_rsa4096'
         stdout, _ = ssh.safe_execute(cmd)
 
-        # cmd = 'git clone https://github.com/LKHN/cloud-images.git /home/ec2-user/tests ' \
-        #       '&& cd /home/ec2-user/tests && git checkout test-aws-ami'
-        # stdout, _ = ssh.safe_execute(cmd)
         arch = self.arch if self.arch == 'aarch64' else 'amd64'
-        # cmd = 'sudo chmod 777 -R /home/ec2-user/cloud-images/tests'
-        # stdout, _ = ssh.safe_execute(cmd)
         test_path_tf = f'/home/ec2-user/cloud-images/tests/ami/launch_test_instances/{arch}'
         logging.info('Creating test instances')
         cmd = "export AWS_DEFAULT_REGION='us-east-1' && " \
@@ -602,17 +597,24 @@ class KVM(LinuxHypervisors):
               "export AWS_SECRET_ACCESS_KEY='{}'".format(
                   os.getenv('AWS_ACCESS_KEY_ID'),
                   os.getenv('AWS_SECRET_ACCESS_KEY'))
-        # stdout, _ = ssh.safe_execute(cmd)
         terraform_commands = ['terraform init', 'terraform fmt',
                               'terraform validate',
                               f'{cmd} && terraform apply --auto-approve']
         for cmd in terraform_commands:
-            # self.execute_command(cmd, test_path_tf)
             stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && {cmd}')
             logging.info(stdout.read().decode())
         logging.info('Checking if test instances are ready')
-        # add output tf for tests -> implement boto3 waiter
-        time.sleep(180)
+        output = Popen(['terraform', 'output', '--json'],
+                       cwd=test_path_tf, stderr=STDOUT, stdout=PIPE)
+        output_json = json.loads(BufferedReader(output.stdout).read().decode())
+
+        instance_id1 = output_json['instance_id1']['value']
+        instance_id2 = output_json['instance_id2']['value']
+        ec2_client = boto3.client(service_name='ec2', region_name='us-east-1')
+        waiter = ec2_client.get_waiter('instance_status_ok')
+        waiter.wait(InstanceIds=[instance_id1, instance_id2])
+        logging.info('Instance is ready')
+
         logging.info('Test instances are ready')
         logging.info('Starting testing')
         timestamp = str(datetime.date(datetime.today())).replace('-', '')

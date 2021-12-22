@@ -785,7 +785,7 @@ class Equinix(BaseHypervisor):
     def init_stage(self, builder: Builder):
         ssh = builder.ssh_equinix_connect()
         logging.info('Connection is good')
-        stdout, _ = ssh.safe_execute('git clone https://github.com/LKHN/cloud-images && git checkout test-genericcloud')
+        stdout, _ = ssh.safe_execute('git clone https://github.com/LKHN/cloud-images.git && git checkout test-genericcloud')
         logging.info(stdout.read().decode())
         ssh.close()
         logging.info('Connection closed')

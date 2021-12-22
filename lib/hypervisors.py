@@ -609,7 +609,7 @@ class KVM(LinuxHypervisors):
         f = stdout.read().decode()
         logging.info(type(f))
         logging.info(f)
-        output_json = json.loads(stdout.read().decode())
+        output_json = json.loads(f)
         logging.info(output_json)
         logging.info(type(output_json))
 
@@ -618,7 +618,6 @@ class KVM(LinuxHypervisors):
         ec2_client = boto3.client(service_name='ec2', region_name='us-east-1')
         waiter = ec2_client.get_waiter('instance_status_ok')
         waiter.wait(InstanceIds=[instance_id1, instance_id2])
-        logging.info('Instance is ready')
 
         logging.info('Test instances are ready')
         logging.info('Starting testing')
@@ -639,6 +638,55 @@ class KVM(LinuxHypervisors):
         sftp.get(
             f'{self.cloud_images_path}/{aws_test_log}',
             f'{self.arch}-{aws_test_log}')
+        logging.info(stdout.read().decode())
+        logging.info('Tested')
+        ssh.close()
+        logging.info('Connection closed')
+
+    def test_openstack(self, builder: Builder):
+        ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
+        sftp = ssh.open_sftp()
+        arch = self.arch if self.arch == 'aarch64' else 'amd64'
+        test_path_tf = f'/home/ec2-user/cloud-images/tests/genericcloud'
+        logging.info('Uploading openstack image')
+
+        stdout, _ = ssh.safe_execute(
+            f'cp '
+            f'/home/ec2-user/cloud-images/output-almalinux-8-gencloud-x86_64/*.qcow2 '
+            f'{test_path_tf}/upload_image/{arch}/')
+        terraform_commands = ['terraform init', 'terraform fmt',
+                              'terraform validate',
+                              'terraform apply --auto-approve']
+        for c in terraform_commands:
+            stdout, _ = ssh.safe_execute(f'cd {test_path_tf}/upload_image/{arch}/ && {c}')
+            logging.info(stdout.read().decode())
+
+        logging.info('Creating test instances')
+        for c in terraform_commands:
+            stdout, _ = ssh.safe_execute(f'cd {test_path_tf}/launch_test_instances/{arch}/ && {c}')
+            logging.info(stdout.read().decode())
+
+        logging.info('Checking if test instances are ready')
+        time.sleep(300)
+        logging.info('Test instances are ready')
+        logging.info('Starting testing')
+        timestamp = str(datetime.date(datetime.today())).replace('-', '')
+        gc_test_log = f'genericcloud_test_{timestamp}.log'
+        cmd = f'cd {self.cloud_images_path} && ' \
+              f'py.test -v --hosts=almalinux-test-1,almalinux-test-2 ' \
+              f'--ssh-config={test_path_tf}/launch_test_instances/{arch}/ssh-config ' \
+              f'{test_path_tf}/launch_test_instances/{arch}/test_genericcloud.py 2>&1 | tee ./{gc_test_log}'
+        try:
+            stdout, _ = ssh.safe_execute(cmd)
+            logging.info(stdout.read().decode())
+        finally:
+            self.upload_to_bucket(builder, ['genericclout_test*.log'])
+            stdout, _ = ssh.safe_execute(f'cd {test_path_tf}/launch_test_instances/{arch} && terraform destroy')
+            logging.info(stdout.read().decode())
+
+        sftp.get(
+            f'{self.cloud_images_path}/{gc_test_log}',
+            f'{self.arch}-{gc_test_log}')
         logging.info(stdout.read().decode())
         logging.info('Tested')
         ssh.close()
@@ -716,13 +764,14 @@ class Equinix(BaseHypervisor):
     def init_stage(self, builder: Builder):
         ssh = builder.ssh_equinix_connect()
         logging.info('Connection is good')
-        stdout, _ = ssh.safe_execute('git clone https://github.com/AlmaLinux/cloud-images')
+        stdout, _ = ssh.safe_execute('git clone https://github.com/LKHN/cloud-images && git checkout test-genericcloud')
         logging.info(stdout.read().decode())
         ssh.close()
         logging.info('Connection closed')
 
     def build_stage(self, builder: Builder):
         ssh = builder.ssh_equinix_connect()
+
         logging.info('Packer initialization')
         stdout, _ = ssh.safe_execute('packer.io init /root/cloud-images 2>&1')
         logging.info(stdout.read().decode())
@@ -755,6 +804,61 @@ class Equinix(BaseHypervisor):
             f'{self.name}-{gc_build_log}')
         logging.info(stdout.read().decode())
         logging.info(f'{settings.image} built')
+        ssh.close()
+        logging.info('Connection closed')
+
+    def test_openstack(self, builder: Builder):
+        ssh = builder.ssh_equinix_connect()
+        sftp = ssh.open_sftp()
+        arch = self.arch if self.arch == 'aarch64' else 'amd64'
+        test_path_tf = f'/root/cloud-images/tests/genericcloud'
+        logging.info('Uploading openstack image')
+
+        stdout, _ = ssh.safe_execute(
+            f'cp '
+            f'/root/cloud-images/output-almalinux-8-gencloud-aarch64/*.qcow2 '
+            f'{test_path_tf}/upload_image/{arch}/')
+        terraform_commands = ['terraform init', 'terraform fmt',
+                              'terraform validate',
+                              'terraform apply --auto-approve']
+        for c in terraform_commands:
+            stdout, _ = ssh.safe_execute(f'cd {test_path_tf}/upload_image/{arch}/ && {c}')
+            logging.info(stdout.read().decode())
+
+        logging.info('Creating test instances')
+        for c in terraform_commands:
+            stdout, _ = ssh.safe_execute(f'cd {test_path_tf}/launch_test_instances/{arch}/ && {c}')
+            logging.info(stdout.read().decode())
+
+        logging.info('Checking if test instances are ready')
+        time.sleep(300)
+        logging.info('Test instances are ready')
+        logging.info('Starting testing')
+        timestamp = str(datetime.date(datetime.today())).replace('-', '')
+        gc_test_log = f'genericcloud_test_{timestamp}.log'
+        cmd = f'cd /root/cloud-images && ' \
+              f'py.test -v --hosts=almalinux-test-1,almalinux-test-2 ' \
+              f'--ssh-config={test_path_tf}/launch_test_instances/{arch}/ssh-config ' \
+              f'{test_path_tf}/launch_test_instances/{arch}/test_genericcloud.py 2>&1 | tee ./{gc_test_log}'
+        try:
+            stdout, _ = ssh.safe_execute(cmd)
+            logging.info(stdout.read().decode())
+        finally:
+            cmd = f'bash -c "sha256sum /root/cloud-images/{gc_test_log}"'
+            stdout, _ = ssh.safe_execute(cmd)
+            checksum = stdout.read().decode().split()[0]
+            cmd = f'bash -c "aws s3 cp /root/cloud-images/{gc_test_log} ' \
+                  f's3://{settings.bucket}/{settings.build_number}-{settings.image.replace(" ", "_")}-{self.arch}-{timestamp}/' \
+                  f' --metadata sha256={checksum}"'
+            stdout, _ = ssh.safe_execute(cmd)
+            logging.info(stdout.read().decode())
+            logging.info('Uploaded')
+
+        sftp.get(
+            f'/root/clout-images/{gc_test_log}',
+            f'{self.arch}-{gc_test_log}')
+        logging.info(stdout.read().decode())
+        logging.info('Tested')
         ssh.close()
         logging.info('Connection closed')
 

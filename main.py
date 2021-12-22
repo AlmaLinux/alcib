@@ -78,6 +78,8 @@ def main(sys_args):
     elif args.stage == 'test':
         if settings.image == 'AWS AMI':
             hypervisor.test_aws_stage(builder)
+        elif settings.image == 'Generic Cloud':
+            hypervisor.test_openstack(builder)
         else:
             hypervisor.test_stage(builder)
     elif args.stage == 'release':

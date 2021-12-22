@@ -16,6 +16,13 @@ def performBuildStages(String hypervisor, String arch) {
     }
 }
 
+def performTestStages(String hypervisor, String arch) {
+    return {
+        sh "python3 -u main.py --stage test --hypervisor ${hypervisor}--arch ${arch}"
+    }
+}
+
+
 pipeline {
   agent any
   parameters {
@@ -62,6 +69,22 @@ pipeline {
                       parallel jobs
                   }
             }
+      }
+      stage('Test Generic Cloud') {
+          steps {
+              script {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      if (arch == 'x86_64') {
+                        jobs[arch] = performTestStages('KVM', arch)
+                      }
+                      else {
+                        jobs[arch] = performTestStages('Equinix', arch)
+                      }
+                  }
+                  parallel jobs
+              }
+          }
       }
       stage('Destroy AWS instance') {
           when {

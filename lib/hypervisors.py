@@ -517,7 +517,7 @@ class KVM(LinuxHypervisors):
         " -only=qemu.almalinux-8-gencloud-x86_64 . 2>&1 | tee ./{}"
     )
 
-    def __init__(self, arch, name='kvm'):
+    def __init__(self, name='kvm', arch='x86_64'):
         """
         KVM initialization.
         """
@@ -707,7 +707,7 @@ class AwsStage2(KVM):
 
 class Equinix(BaseHypervisor):
 
-    def __init__(self, arch, name='equinix'):
+    def __init__(self, name='equinix', arch='aarch64'):
         """
         KVM initialization.
         """
@@ -790,4 +790,4 @@ def get_hypervisor(hypervisor_name, arch='x86_64'):
         'vmware_desktop': VMWareDesktop,
         'aws-stage-2': AwsStage2,
         'equinix': Equinix
-    }[hypervisor_name](arch)
+    }[hypervisor_name](arch=arch)

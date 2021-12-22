@@ -26,7 +26,7 @@
     # repo: 'https://github.com/AlmaLinux/cloud-images.git'
     repo: 'https://github.com/LKHN/cloud-images.git'
     dest: './cloud-images'
-    version: test-aws-ami
+    version: test-genericcloud
     force: yes
 
 - name: Change permissions

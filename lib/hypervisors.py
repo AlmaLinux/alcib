@@ -531,7 +531,7 @@ class KVM(LinuxHypervisors):
         logging.info(stdout.read().decode())
         logging.info('Building AWS AMI')
         timestamp = str(datetime.date(datetime.today())).replace('-', '')
-        aws_build_log = f'aws_ami_build_{timestamp}.log'
+        aws_build_log = f'aws_ami_build_{self.arch}_{timestamp}.log'
         if arch == 'x86_64':
             logging.info('Building Stage 1')
             cmd = "cd cloud-images && export AWS_DEFAULT_REGION='us-east-1' && " \
@@ -554,7 +554,7 @@ class KVM(LinuxHypervisors):
         try:
             stdout, _ = ssh.safe_execute(cmd)
         finally:
-            self.upload_to_bucket(builder, ['aws_ami_build_*.log'])
+            self.upload_to_bucket(builder, [f'aws_ami_build*.log'])
         sftp = ssh.open_sftp()
         sftp.get(
             f'{self.sftp_path}{aws_build_log}',

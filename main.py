@@ -87,7 +87,7 @@ def main(sys_args):
             hypervisor.teardown_equinix_stage(builder)
         else:
             hypervisor.teardown_stage()
-    elif args.hypervisor == 'AWS-STAGE-2':
+    elif args.hypervisor == 'AWS-STAGE-2' and args.stage != 'destroy':
         hypervisor.init_stage2()
         hypervisor.build_aws_stage(builder, args.arch)
 

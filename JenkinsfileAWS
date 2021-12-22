@@ -96,9 +96,11 @@ pipeline {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performDestroyStages(arch)
+                      if (arch == 'x86_64') {
+                        sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
+                      }
                   }
                   parallel jobs
-                  sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
               }
           }
       }
@@ -122,9 +124,11 @@ pipeline {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performDestroyStages(arch)
+                      if (arch == 'x86_64') {
+                        sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
+                      }
                   }
                   parallel jobs
-                  sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
               }
           }
       }
@@ -137,9 +141,11 @@ pipeline {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performDestroyStages(arch)
+                      if (arch == 'x86_64') {
+                        sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
+                      }
                   }
                   parallel jobs
-                  sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
               }
           }
       }

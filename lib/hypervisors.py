@@ -641,7 +641,7 @@ class KVM(LinuxHypervisors):
             f'{self.arch}-{aws_test_log}')
         logging.info(stdout.read().decode())
         logging.info('Tested')
-        stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && {cmd_export} && terraform destroy')
+        stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && {cmd_export} && terraform destroy --auto-approve')
         ssh.close()
         logging.info('Connection closed')
 

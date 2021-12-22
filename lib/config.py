@@ -27,8 +27,8 @@ class Settings(BaseSettings):
     amd_username: str = ''
     aarch_password: str = ''
     amd_password: str = ''
-    aarch_project_id: str = ''
-    amd_project_id: str = ''
+    aarch_project_id: None
+    amd_project_id: None
 
 
 settings = Settings()

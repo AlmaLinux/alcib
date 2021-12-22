@@ -35,6 +35,12 @@ pipeline {
       AWS_ACCESS_KEY_ID = credentials('jenkins-aws-access-key-id')
       AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws-secret-access-key')
       SSH_KEY_FILE = credentials('jenkins-aclib-ssh-private-key')
+      AARCH_USERNAME = credentials('aarch_username')
+      AMD_USERNAME = credentials('amd_username')
+      AARCH_PASSWORD = credentials('aarch_password')
+      AMD_PASSWORD = credentials('amd_password')
+      AARCH_PROJECT_ID = credentials('aarch_project_id')
+      AMD_PROJECT_ID = credentials('amd_project_id')
   }
 
   stages {

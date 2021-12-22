@@ -658,7 +658,7 @@ class KVM(LinuxHypervisors):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         sftp = ssh.open_sftp()
 
-        yaml_file = sftp.file('/home/ec2-user/.config/openstack/clouds.yaml', "a")
+        yaml_file = sftp.file('/home/ec2-user/.config/openstack/clouds.yaml', "w")
         yaml_file.write(yaml_content)
         yaml_file.flush()
 
@@ -836,7 +836,7 @@ class Equinix(BaseHypervisor):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         sftp = ssh.open_sftp()
 
-        yaml_file = sftp.file('/root/.config/openstack/clouds.yaml', "a")
+        yaml_file = sftp.file('/root/.config/openstack/clouds.yaml', "w")
         yaml_file.write(yaml_content)
         yaml_file.flush()
 

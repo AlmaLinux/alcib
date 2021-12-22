@@ -658,6 +658,11 @@ class KVM(LinuxHypervisors):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         sftp = ssh.open_sftp()
 
+        sftp.put(str(builder.AWS_KEY_PATH.absolute()), '/home/ec2-user/.ssh/alcib_rsa4096')
+
+        cmd = 'sudo chmod 700 /home/ec2-user/.ssh && sudo chmod 600 /home/ec2-user/.ssh/alcib_rsa4096'
+        stdout, _ = ssh.safe_execute(cmd)
+
         yaml_file = sftp.file('/home/ec2-user/.config/openstack/clouds.yaml', "w")
         yaml_file.write(yaml_content)
         yaml_file.flush()
@@ -837,6 +842,11 @@ class Equinix(BaseHypervisor):
 
         ssh = builder.ssh_equinix_connect()
         sftp = ssh.open_sftp()
+
+        sftp.put(str(builder.AWS_KEY_PATH.absolute()), '/root/.ssh/alcib_rsa4096')
+
+        cmd = 'sudo chmod 700 /root/.ssh && sudo chmod 600 /root/.ssh/alcib_rsa4096'
+        stdout, _ = ssh.safe_execute(cmd)
 
         stdout, _ = ssh.safe_execute('mkdir -p /root/.config/openstack/')
         yaml_file = sftp.file('/root/.config/openstack/clouds.yaml', "w")

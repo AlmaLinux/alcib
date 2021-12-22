@@ -18,6 +18,7 @@ import logging
 
 import requests
 import boto3
+from jinja2 import DictLoader, Environment
 import ansible_runner
 
 from lib.builder import Builder, ExecuteError
@@ -643,9 +644,23 @@ class KVM(LinuxHypervisors):
         ssh.close()
         logging.info('Connection closed')
 
+    def generate_clouds(self, yaml_template) -> str:
+        env = Environment(loader=DictLoader({'clouds': yaml_template}))
+        template = env.get_template('clouds')
+        return template.render(config=settings)
+
     def test_openstack(self, builder: Builder):
+        yaml = os.path.join(os.getcwd(), 'clouds.yaml.j2')
+        content = open(yaml, 'r').read()
+        yaml_content = self.generate_clouds(content)
+
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         sftp = ssh.open_sftp()
+
+        yaml_file = sftp.file('/home/ec2-user/.config/openstack/clouds.yaml', "a")
+        yaml_file.write(yaml_content)
+        yaml_file.flush()
+
         arch = self.arch if self.arch == 'aarch64' else 'amd64'
         test_path_tf = f'/home/ec2-user/cloud-images/tests/genericcloud'
         logging.info('Uploading openstack image')
@@ -761,6 +776,11 @@ class Equinix(BaseHypervisor):
         """
         super().__init__(name, arch)
 
+    def generate_clouds(self, yaml_template) -> str:
+        env = Environment(loader=DictLoader({'clouds': yaml_template}))
+        template = env.get_template('clouds')
+        return template.render(config=settings)
+
     def init_stage(self, builder: Builder):
         ssh = builder.ssh_equinix_connect()
         logging.info('Connection is good')
@@ -808,8 +828,17 @@ class Equinix(BaseHypervisor):
         logging.info('Connection closed')
 
     def test_openstack(self, builder: Builder):
-        ssh = builder.ssh_equinix_connect()
+        yaml = os.path.join(os.getcwd(), 'clouds.yaml.j2')
+        content = open(yaml, 'r').read()
+        yaml_content = self.generate_clouds(content)
+
+        ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         sftp = ssh.open_sftp()
+
+        yaml_file = sftp.file('/root/.config/openstack/clouds.yaml', "a")
+        yaml_file.write(yaml_content)
+        yaml_file.flush()
+
         arch = self.arch if self.arch == 'aarch64' else 'amd64'
         test_path_tf = f'/root/cloud-images/tests/genericcloud'
         logging.info('Uploading openstack image')

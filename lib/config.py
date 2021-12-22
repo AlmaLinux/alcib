@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     vagrant_cloud_access_key: str = ''
     build_number: str
     image: str
+    aarch_username: str = ''
+    amd_username: str = ''
+    aarch_password: str = ''
+    amd_password: str = ''
+    aarch_project_id: str = ''
+    amd_project_id: str = ''
 
 
 settings = Settings()

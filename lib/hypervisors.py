@@ -710,6 +710,12 @@ class KVM(LinuxHypervisors):
             f'{self.arch}-{gc_test_log}')
         logging.info(stdout.read().decode())
         logging.info('Tested')
+        stdout, _ = ssh.safe_execute(
+            f'cd {test_path_tf}/launch_test_instances/{arch}/ && '
+            f'terraform destroy --auto-approve')
+        stdout, _ = ssh.safe_execute(
+            f'cd {test_path_tf}/upload_image/{arch}/ && '
+            f'terraform destroy --auto-approve')
         ssh.close()
         logging.info('Connection closed')
 
@@ -902,6 +908,12 @@ class Equinix(BaseHypervisor):
             f'{self.arch}-{gc_test_log}')
         logging.info(stdout.read().decode())
         logging.info('Tested')
+        stdout, _ = ssh.safe_execute(
+            f'cd {test_path_tf}/launch_test_instances/{arch}/ && '
+            f'terraform destroy --auto-approve')
+        stdout, _ = ssh.safe_execute(
+            f'cd {test_path_tf}/upload_image/{arch}/ && '
+            f'terraform destroy --auto-approve')
         ssh.close()
         logging.info('Connection closed')
 

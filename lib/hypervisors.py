@@ -835,7 +835,7 @@ class Equinix(BaseHypervisor):
         content = open(yaml, 'r').read()
         yaml_content = self.generate_clouds(content)
 
-        ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
+        ssh = builder.ssh_equinix_connect()
         sftp = ssh.open_sftp()
 
         yaml_file = sftp.file('/root/.config/openstack/clouds.yaml', "w")

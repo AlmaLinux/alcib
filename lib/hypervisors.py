@@ -657,6 +657,7 @@ class KVM(LinuxHypervisors):
 
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         sftp = ssh.open_sftp()
+        stdout, _ = ssh.safe_execute('mkdir -p /home/ec2-user/.config/openstack/')
 
         sftp.put(str(builder.AWS_KEY_PATH.absolute()), '/home/ec2-user/.ssh/alcib_rsa4096')
 

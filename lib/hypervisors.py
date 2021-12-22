@@ -907,7 +907,7 @@ class Equinix(BaseHypervisor):
 
     def teardown_equinix_stage(self, builder: Builder):
         ssh = builder.ssh_equinix_connect()
-        cmd = 'sudo rm -r /root/cloud-images/'
+        cmd = 'sudo rm -r /root/cloud-images/ && sudo rm /root/.ssh/alcib_rsa4096'
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
         ssh.close()

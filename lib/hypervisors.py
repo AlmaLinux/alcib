@@ -648,7 +648,7 @@ class KVM(LinuxHypervisors):
 class AwsStage2(KVM):
 
     def __init__(self, arch):
-        super().__init__(arch, 'aws-stage-2')
+        super().__init__('aws-stage-2', arch)
 
     def init_stage2(self):
         """
@@ -683,7 +683,9 @@ class AwsStage2(KVM):
             )
         finally:
             pass
-            # self.upload_to_bucket(builder, ['aws_ami_stage2_build_*.log'])
+        cmd = f'bash -c "sha256sum /home/ec2-user/cloud-images/{aws2_build_log}"'
+        stdout, _ = ssh.safe_execute(cmd)
+        checksum = stdout.read().decode().split()[0]
         sftp = ssh.open_sftp()
         sftp.get(
             f'{self.sftp_path}{aws2_build_log}',
@@ -691,7 +693,14 @@ class AwsStage2(KVM):
         )
         stdout = stdout.read().decode()
         logging.info(stdout)
+        output = Popen(['aws', 's3', 'cp', f'{self.name}-{aws2_build_log}',
+                        f's3://{settings.bucket}/{settings.build_number}-{settings.image.replace(" ", "_")}-{self.arch}-{timestamp}/',
+                        '--metadata', f'sha256={checksum}'], shell=True,
+                       stderr=STDOUT, stdout=PIPE)
+        # self.upload_to_bucket(builder, ['aws_ami_stage2_build_*.log'])
         # logging.info(stdout.read().decode())
+        for line in output.stdout:
+            logging.info(line.decode())
         ssh.close()
         logging.info('Connection closed')
 

@@ -838,6 +838,7 @@ class Equinix(BaseHypervisor):
         ssh = builder.ssh_equinix_connect()
         sftp = ssh.open_sftp()
 
+        stdout, _ = ssh.safe_execute('mkdir -p /root/.config/openstack/')
         yaml_file = sftp.file('/root/.config/openstack/clouds.yaml', "w")
         yaml_file.write(yaml_content)
         yaml_file.flush()

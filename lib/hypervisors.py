@@ -593,19 +593,20 @@ class KVM(LinuxHypervisors):
         arch = self.arch if self.arch == 'aarch64' else 'amd64'
         test_path_tf = f'/home/ec2-user/cloud-images/tests/ami/launch_test_instances/{arch}'
         logging.info('Creating test instances')
-        cmd = "export AWS_DEFAULT_REGION='us-east-1' && " \
-              "export AWS_ACCESS_KEY_ID='{}' && " \
-              "export AWS_SECRET_ACCESS_KEY='{}'".format(
-                  os.getenv('AWS_ACCESS_KEY_ID'),
-                  os.getenv('AWS_SECRET_ACCESS_KEY'))
+        cmd_export = \
+            "export AWS_DEFAULT_REGION='us-east-1' && " \
+            "export AWS_ACCESS_KEY_ID='{}' && " \
+            "export AWS_SECRET_ACCESS_KEY='{}'".format(
+                os.getenv('AWS_ACCESS_KEY_ID'),
+                os.getenv('AWS_SECRET_ACCESS_KEY'))
         terraform_commands = ['terraform init', 'terraform fmt',
                               'terraform validate',
-                              f'{cmd} && terraform apply --auto-approve']
+                              f'{cmd_export} && terraform apply --auto-approve']
         for c in terraform_commands:
             stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && {c}')
             logging.info(stdout.read().decode())
         logging.info('Checking if test instances are ready')
-        output_cmd = f'cd {test_path_tf} && {cmd} && terraform output --json'
+        output_cmd = f'cd {test_path_tf} && {cmd_export} && terraform output --json'
         stdout, _ = ssh.safe_execute(output_cmd)
         f = stdout.read().decode()
         logging.info(type(f))
@@ -633,7 +634,6 @@ class KVM(LinuxHypervisors):
             logging.info(stdout.read().decode())
         finally:
             self.upload_to_bucket(builder, ['aws_ami_test*.log'])
-            stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && terraform destroy')
             logging.info(stdout.read().decode())
 
         sftp.get(
@@ -641,6 +641,7 @@ class KVM(LinuxHypervisors):
             f'{self.arch}-{aws_test_log}')
         logging.info(stdout.read().decode())
         logging.info('Tested')
+        stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && {cmd_export} && terraform destroy')
         ssh.close()
         logging.info('Connection closed')
 

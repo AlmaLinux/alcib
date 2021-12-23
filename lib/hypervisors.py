@@ -953,17 +953,17 @@ class Equinix(BaseHypervisor):
             logging.info(stdout.read().decode())
             logging.info('Uploaded')
 
-        sftp.get(
-            f'/root/cloud-images/{gc_test_log}',
-            f'{self.arch}-{gc_test_log}')
-        logging.info(stdout.read().decode())
-        logging.info('Tested')
-        stdout, _ = ssh.safe_execute(
-            f'cd {test_path_tf}/launch_test_instances/{arch}/ && '
-            f'terraform destroy --auto-approve')
-        stdout, _ = ssh.safe_execute(
-            f'cd {test_path_tf}/upload_image/{arch}/ && '
-            f'terraform destroy --auto-approve')
+            sftp.get(
+                f'/root/cloud-images/{gc_test_log}',
+                f'{self.arch}-{gc_test_log}')
+            logging.info(stdout.read().decode())
+            logging.info('Tested')
+            stdout, _ = ssh.safe_execute(
+                f'cd {test_path_tf}/launch_test_instances/{arch}/ && '
+                f'terraform destroy --auto-approve')
+            stdout, _ = ssh.safe_execute(
+                f'cd {test_path_tf}/upload_image/{arch}/ && '
+                f'terraform destroy --auto-approve')
         ssh.close()
         logging.info('Connection closed')
 

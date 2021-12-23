@@ -9,8 +9,6 @@ Hypervisor's stages.
 import os
 import json
 import shutil
-import pathlib
-import time
 from datetime import datetime
 from subprocess import PIPE, Popen, STDOUT
 from io import BufferedReader
@@ -23,6 +21,34 @@ import ansible_runner
 
 from lib.builder import Builder, ExecuteError
 from lib.config import settings
+
+
+def execute_command(cmd: str, cwd_path: str):
+    """
+    Executes a local command.
+
+    Parameters
+    ----------
+    cmd : str
+        A command to execute.
+    cwd_path: str
+        Directory path to execute commands.
+
+    Raises
+    ------
+    Exception
+        If a command fails during execution.
+    """
+    logging.info(f'Executing {cmd}')
+    proc = Popen(cmd.split(), cwd=cwd_path,
+                 stderr=STDOUT, stdout=PIPE)
+    for line in proc.stdout:
+        logging.info(line.decode())
+    proc.wait()
+    if proc.returncode != 0:
+        raise Exception(
+            'Command {0} execution failed {1}'.format(
+                cmd, proc.returncode))
 
 
 class BaseHypervisor:
@@ -99,33 +125,6 @@ class BaseHypervisor:
         self._instance_ip = output_json['instance_public_ip']['value']
         self._instance_id = output_json['instance_id']['value']
 
-    def execute_command(self, cmd: str, cwd_path: str):
-        """
-        Executes a local command.
-
-        Parameters
-        ----------
-        cmd : str
-            A command to execute.
-        cwd_path: str
-            Directory path to execute commands.
-
-        Raises
-        ------
-        Exception
-            If a command fails during execution.
-        """
-        logging.info(f'Executing {cmd}')
-        proc = Popen(cmd.split(), cwd=cwd_path,
-                     stderr=STDOUT, stdout=PIPE)
-        for line in proc.stdout:
-            logging.info(line.decode())
-        proc.wait()
-        if proc.returncode != 0:
-            raise Exception(
-                'Command {0} execution failed {1}'.format(
-                    cmd, proc.returncode))
-
     def create_aws_instance(self):
         """
         Creates AWS Instance using Terraform commands.
@@ -138,14 +137,14 @@ class BaseHypervisor:
                               'terraform validate',
                               'terraform apply --auto-approve']
         for cmd in terraform_commands:
-            self.execute_command(cmd, self.terraform_dir)
+            execute_command(cmd, self.terraform_dir)
 
     def teardown_stage(self):
         """
         Terminates AWS Instance.
         """
         logging.info('Destroying created VM')
-        self.execute_command('terraform destroy --auto-approve', self.terraform_dir)
+        execute_command('terraform destroy --auto-approve', self.terraform_dir)
         if self.arch == 'aarch64':
             shutil.rmtree(self.terraform_dir)
 
@@ -212,7 +211,10 @@ class BaseHypervisor:
                 file = 'output-almalinux-8-gencloud-x86_64/*.qcow2'
             else:
                 file = '*.box'
-            self.upload_to_bucket(builder, [f'{settings.image.replace(" ", "_")}_{self.arch}_build*.log', file])
+            self.upload_to_bucket(
+                builder,
+                [f'{settings.image.replace(" ", "_")}_{self.arch}_build*.log', file]
+            )
         ssh.close()
         logging.info('Connection closed')
 
@@ -355,7 +357,8 @@ class LinuxHypervisors(BaseHypervisor):
         vb_test_log = f'vagrant_box_test_{timestamp}.log'
 
         cmd = f'cd /home/ec2-user/cloud-images/ ' \
-              f'&& py.test -v --hosts=almalinux-test-1,almalinux-test-2 --ssh-config=.vagrant/ssh-config' \
+              f'&& py.test -v --hosts=almalinux-test-1,almalinux-test-2 ' \
+              f'--ssh-config=.vagrant/ssh-config' \
               f' /home/ec2-user/cloud-images/tests/vagrant/test_vagrant.py ' \
               f'2>&1 | tee ./{vb_test_log}'
 
@@ -449,7 +452,8 @@ class HyperV(BaseHypervisor):
         timestamp = str(datetime.date(datetime.today())).replace('-', '')
         vb_test_log = f'vagrant_box_test_{timestamp}.log'
         cmd = f'cd c:\\Users\\Administrator\\cloud-images\\ ; ' \
-              f'py.test -v --hosts=almalinux-test-1,almalinux-test-2 --ssh-config=.vagrant/ssh-config ' \
+              f'py.test -v --hosts=almalinux-test-1,almalinux-test-2 ' \
+              f'--ssh-config=.vagrant/ssh-config ' \
               f'c:\\Users\\Administrator\\cloud-images\\tests\\vagrant\\test_vagrant.py ' \
               f'| Out-File -FilePath c:\\Users\\Administrator\\cloud-images\\{vb_test_log}'
         try:
@@ -554,7 +558,7 @@ class KVM(LinuxHypervisors):
         try:
             stdout, _ = ssh.safe_execute(cmd)
         finally:
-            self.upload_to_bucket(builder, [f'aws_ami_build*.log'])
+            self.upload_to_bucket(builder, ['aws_ami_build*.log'])
         sftp = ssh.open_sftp()
         sftp.get(
             f'{self.sftp_path}{aws_build_log}',
@@ -571,23 +575,36 @@ class KVM(LinuxHypervisors):
         logging.info('AWS AMI built')
         aws_hypervisor = AwsStage2(self.arch)
         tfvars = {'ami_id': ami}
-        tf_vars_file = os.path.join(aws_hypervisor.terraform_dir, 'terraform.tfvars.json')
+        tf_vars_file = os.path.join(aws_hypervisor.terraform_dir,
+                                    'terraform.tfvars.json')
         with open(tf_vars_file, 'w') as tf_file_fd:
             json.dump(tfvars, tf_file_fd)
-        cloudinit_script_path = os.path.join(self.cloud_images_path, 'build-tools-on-ec2-userdata.yml')
+        cloudinit_script_path = os.path.join(
+            self.cloud_images_path, 'build-tools-on-ec2-userdata.yml'
+        )
         sftp.get(
             cloudinit_script_path,
-            os.path.join(aws_hypervisor.terraform_dir, 'build-tools-on-ec2-userdata.yml')
+            os.path.join(
+                aws_hypervisor.terraform_dir, 'build-tools-on-ec2-userdata.yml'
+            )
         )
         ssh.close()
         logging.info('Connection closed')
 
     def test_aws_stage(self, builder: Builder):
+        """
+        builder: Builder
+            Main builder configuration.
+
+        Runs Testinfra tests for AWS AMI.
+        """
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         sftp = ssh.open_sftp()
-        sftp.put(str(builder.AWS_KEY_PATH.absolute()), '/home/ec2-user/.ssh/alcib_rsa4096')
+        sftp.put(str(builder.AWS_KEY_PATH.absolute()),
+                 '/home/ec2-user/.ssh/alcib_rsa4096')
 
-        cmd = 'sudo chmod 700 /home/ec2-user/.ssh && sudo chmod 600 /home/ec2-user/.ssh/alcib_rsa4096'
+        cmd = 'sudo chmod 700 /home/ec2-user/.ssh && ' \
+              'sudo chmod 600 /home/ec2-user/.ssh/alcib_rsa4096'
         stdout, _ = ssh.safe_execute(cmd)
 
         arch = self.arch if self.arch == 'aarch64' else 'amd64'
@@ -602,18 +619,17 @@ class KVM(LinuxHypervisors):
         terraform_commands = ['terraform init', 'terraform fmt',
                               'terraform validate',
                               f'{cmd_export} && terraform apply --auto-approve']
-        for c in terraform_commands:
-            stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && {c}')
+        for command in terraform_commands:
+            stdout, _ = ssh.safe_execute(
+                f'cd {test_path_tf} && {command}'
+            )
             logging.info(stdout.read().decode())
         logging.info('Checking if test instances are ready')
         output_cmd = f'cd {test_path_tf} && {cmd_export} && terraform output --json'
         stdout, _ = ssh.safe_execute(output_cmd)
-        f = stdout.read().decode()
-        logging.info(type(f))
-        logging.info(f)
-        output_json = json.loads(f)
-        logging.info(output_json)
-        logging.info(type(output_json))
+        output = stdout.read().decode()
+        logging.info(output)
+        output_json = json.loads(output)
 
         instance_id1 = output_json['instance_id1']['value']
         instance_id2 = output_json['instance_id2']['value']
@@ -641,19 +657,23 @@ class KVM(LinuxHypervisors):
             f'{self.arch}-{aws_test_log}')
         logging.info(stdout.read().decode())
         logging.info('Tested')
-        stdout, _ = ssh.safe_execute(f'cd {test_path_tf} && {cmd_export} && terraform destroy --auto-approve')
+        stdout, _ = ssh.safe_execute(
+            f'cd {test_path_tf} && {cmd_export} && '
+            f'terraform destroy --auto-approve'
+        )
         ssh.close()
         logging.info('Connection closed')
 
-    def generate_clouds(self, yaml_template) -> str:
-        env = Environment(loader=DictLoader({'clouds': yaml_template}))
-        template = env.get_template('clouds')
-        return template.render(config=settings)
-
     def test_openstack(self, builder: Builder):
+        """
+        builder: Builder
+            Main Builder Configuration.
+
+        Runs Testinfra tests for the built openstack image.
+        """
         yaml = os.path.join(os.getcwd(), 'clouds.yaml.j2')
         content = open(yaml, 'r').read()
-        yaml_content = self.generate_clouds(content)
+        yaml_content = generate_clouds(content)
 
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         sftp = ssh.open_sftp()
@@ -661,7 +681,8 @@ class KVM(LinuxHypervisors):
 
         sftp.put(str(builder.AWS_KEY_PATH.absolute()), '/home/ec2-user/.ssh/alcib_rsa4096')
 
-        cmd = 'sudo chmod 700 /home/ec2-user/.ssh && sudo chmod 600 /home/ec2-user/.ssh/alcib_rsa4096'
+        cmd = 'sudo chmod 700 /home/ec2-user/.ssh && ' \
+              'sudo chmod 600 /home/ec2-user/.ssh/alcib_rsa4096'
         stdout, _ = ssh.safe_execute(cmd)
 
         yaml_file = sftp.file('/home/ec2-user/.config/openstack/clouds.yaml', "w")
@@ -669,7 +690,7 @@ class KVM(LinuxHypervisors):
         yaml_file.flush()
 
         arch = self.arch if self.arch == 'aarch64' else 'amd64'
-        test_path_tf = f'/home/ec2-user/cloud-images/tests/genericcloud'
+        test_path_tf = '/home/ec2-user/cloud-images/tests/genericcloud'
         logging.info('Uploading openstack image')
 
         stdout, _ = ssh.safe_execute(
@@ -679,17 +700,19 @@ class KVM(LinuxHypervisors):
         terraform_commands = ['terraform init', 'terraform fmt',
                               'terraform validate',
                               'terraform apply --auto-approve']
-        for c in terraform_commands:
-            stdout, _ = ssh.safe_execute(f'cd {test_path_tf}/upload_image/{arch}/ && {c}')
+        for command in terraform_commands:
+            stdout, _ = ssh.safe_execute(
+                f'cd {test_path_tf}/upload_image/{arch}/ && {command}'
+            )
             logging.info(stdout.read().decode())
 
         logging.info('Creating test instances')
-        for c in terraform_commands:
-            stdout, _ = ssh.safe_execute(f'cd {test_path_tf}/launch_test_instances/{arch}/ && {c}')
+        for command in terraform_commands:
+            stdout, _ = ssh.safe_execute(
+                f'cd {test_path_tf}/launch_test_instances/{arch}/ && {command}'
+            )
             logging.info(stdout.read().decode())
 
-        # logging.info('Checking if test instances are ready')
-        # time.sleep(300)
         logging.info('Test instances are ready')
         logging.info('Starting testing')
         timestamp = str(datetime.date(datetime.today())).replace('-', '')
@@ -702,26 +725,38 @@ class KVM(LinuxHypervisors):
             stdout, _ = ssh.safe_execute(cmd)
             logging.info(stdout.read().decode())
         finally:
-            self.upload_to_bucket(builder, ['genericclout_test*.log'])
-            # stdout, _ = ssh.safe_execute(f'cd {test_path_tf}/launch_test_instances/{arch} && terraform destroy --auto-approve')
+            self.upload_to_bucket(builder, ['genericcloud_test*.log'])
             logging.info(stdout.read().decode())
 
-        sftp.get(
-            f'{self.cloud_images_path}/{gc_test_log}',
-            f'{self.arch}-{gc_test_log}')
-        logging.info(stdout.read().decode())
-        logging.info('Tested')
-        stdout, _ = ssh.safe_execute(
-            f'cd {test_path_tf}/launch_test_instances/{arch}/ && '
-            f'terraform destroy --auto-approve')
-        stdout, _ = ssh.safe_execute(
-            f'cd {test_path_tf}/upload_image/{arch}/ && '
-            f'terraform destroy --auto-approve')
+            sftp.get(
+                f'{self.cloud_images_path}/{gc_test_log}',
+                f'{self.arch}-{gc_test_log}')
+            logging.info(stdout.read().decode())
+            logging.info('Tested')
+            stdout, _ = ssh.safe_execute(
+                f'cd {test_path_tf}/launch_test_instances/{arch}/ && '
+                f'terraform destroy --auto-approve')
+            stdout, _ = ssh.safe_execute(
+                f'cd {test_path_tf}/upload_image/{arch}/ && '
+                f'terraform destroy --auto-approve')
         ssh.close()
         logging.info('Connection closed')
 
 
+def generate_clouds(yaml_template) -> str:
+    """
+    Generates clouds.yaml
+    """
+    env = Environment(loader=DictLoader({'clouds': yaml_template}))
+    template = env.get_template('clouds')
+    return template.render(config=settings)
+
+
 class AwsStage2(KVM):
+
+    """
+    AWS Stage 2 for building x86_64 AWS AMI.
+    """
 
     def __init__(self, arch):
         super().__init__('aws-stage-2', arch)
@@ -769,12 +804,12 @@ class AwsStage2(KVM):
         )
         stdout = stdout.read().decode()
         logging.info(stdout)
-        output = Popen(['aws', 's3', 'cp', f'{self.name}-{aws2_build_log}',
-                        f's3://{settings.bucket}/{settings.build_number}-{settings.image.replace(" ", "_")}-{self.arch}-{timestamp}/',
-                        '--metadata', f'sha256={checksum}'], shell=True,
-                       stderr=STDOUT, stdout=PIPE)
-        # self.upload_to_bucket(builder, ['aws_ami_stage2_build_*.log'])
-        # logging.info(stdout.read().decode())
+        output = Popen(
+            ['aws', 's3', 'cp', f'{self.name}-{aws2_build_log}',
+             f's3://{settings.bucket}/{settings.build_number}-{settings.image.replace(" ", "_")}-{self.arch}-{timestamp}/',
+             '--metadata', f'sha256={checksum}'], shell=True,
+            stderr=STDOUT, stdout=PIPE
+        )
         for line in output.stdout:
             logging.info(line.decode())
         ssh.close()
@@ -783,23 +818,28 @@ class AwsStage2(KVM):
 
 class Equinix(BaseHypervisor):
 
+    """
+    Equnix Server for building and testing images.
+    """
+
     def __init__(self, name='equinix', arch='aarch64'):
         """
         KVM initialization.
         """
         super().__init__(name, arch)
 
-    def generate_clouds(self, yaml_template) -> str:
-        env = Environment(loader=DictLoader({'clouds': yaml_template}))
-        template = env.get_template('clouds')
-        return template.render(config=settings)
+    @staticmethod
+    def init_stage(builder: Builder):
+        """
+        builder: Builder
+            Main Builder Configuration.
 
-    def init_stage(self, builder: Builder):
+        Makes initialization of Equinix Server for the image building.
+        """
         ssh = builder.ssh_equinix_connect()
         logging.info('Connection is good')
         stdout, _ = ssh.safe_execute(
-            'git clone https://github.com/LKHN/cloud-images.git &&'
-            ' cd cloud-images && git checkout test-genericcloud')
+            'git clone https://github.com/AlmaLinux/cloud-images.git')
         logging.info(stdout.read().decode())
         ssh.close()
         logging.info('Connection closed')
@@ -843,9 +883,15 @@ class Equinix(BaseHypervisor):
         logging.info('Connection closed')
 
     def test_openstack(self, builder: Builder):
+        """
+        builder: Builder
+            Main Builder Configuration.
+
+        Run Testinfra tests for the built openstack image.
+        """
         yaml = os.path.join(os.getcwd(), 'clouds.yaml.j2')
         content = open(yaml, 'r').read()
-        yaml_content = self.generate_clouds(content)
+        yaml_content = generate_clouds(content)
 
         ssh = builder.ssh_equinix_connect()
         sftp = ssh.open_sftp()
@@ -861,7 +907,7 @@ class Equinix(BaseHypervisor):
         yaml_file.flush()
 
         arch = self.arch if self.arch == 'aarch64' else 'amd64'
-        test_path_tf = f'/root/cloud-images/tests/genericcloud'
+        test_path_tf = '/root/cloud-images/tests/genericcloud'
         logging.info('Uploading openstack image')
 
         stdout, _ = ssh.safe_execute(
@@ -871,17 +917,19 @@ class Equinix(BaseHypervisor):
         terraform_commands = ['terraform init', 'terraform fmt',
                               'terraform validate',
                               'terraform apply --auto-approve']
-        for c in terraform_commands:
-            stdout, _ = ssh.safe_execute(f'cd {test_path_tf}/upload_image/{arch}/ && {c}')
+        for command in terraform_commands:
+            stdout, _ = ssh.safe_execute(
+                f'cd {test_path_tf}/upload_image/{arch}/ && {command}'
+            )
             logging.info(stdout.read().decode())
 
         logging.info('Creating test instances')
-        for c in terraform_commands:
-            stdout, _ = ssh.safe_execute(f'cd {test_path_tf}/launch_test_instances/{arch}/ && {c}')
+        for command in terraform_commands:
+            stdout, _ = ssh.safe_execute(
+                f'cd {test_path_tf}/launch_test_instances/{arch}/ && {command}'
+            )
             logging.info(stdout.read().decode())
 
-        #logging.info('Checking if test instances are ready')
-        #time.sleep(300)
         logging.info('Test instances are ready')
         logging.info('Starting testing')
         timestamp = str(datetime.date(datetime.today())).replace('-', '')
@@ -905,7 +953,7 @@ class Equinix(BaseHypervisor):
             logging.info('Uploaded')
 
         sftp.get(
-            f'/root/clout-images/{gc_test_log}',
+            f'/root/cloud-images/{gc_test_log}',
             f'{self.arch}-{gc_test_log}')
         logging.info(stdout.read().decode())
         logging.info('Tested')
@@ -918,7 +966,14 @@ class Equinix(BaseHypervisor):
         ssh.close()
         logging.info('Connection closed')
 
-    def teardown_equinix_stage(self, builder: Builder):
+    @staticmethod
+    def teardown_equinix_stage(builder: Builder):
+        """
+        builder: Builder
+            Main Builder Configuration.
+
+        Cleans up Equinix Server.
+        """
         ssh = builder.ssh_equinix_connect()
         cmd = 'sudo rm -r /root/cloud-images/ && sudo rm /root/.ssh/alcib_rsa4096'
         stdout, _ = ssh.safe_execute(cmd)

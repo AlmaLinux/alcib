@@ -41,6 +41,7 @@ pipeline {
       AMD_PASSWORD = credentials('amd_password')
       AARCH_PROJECT_ID = credentials('aarch_project_id')
       AMD_PROJECT_ID = credentials('amd_project_id')
+      EQUINIX_IP = credentials('equinix_ip')
   }
 
   stages {

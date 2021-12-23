@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     amd_password: str = ''
     aarch_project_id: str = ''
     amd_project_id: str = ''
+    equinix_ip: str = ''
 
 
 settings = Settings()

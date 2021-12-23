@@ -140,8 +140,8 @@ class Builder:
         return ssh_client
 
     def ssh_equinix_connect(self):
-        equinix_ip = '145.40.99.22'
-        logging.info(f'Connecting to instance {equinix_ip}')
+        equinix_ip = settings.equinix_ip
+        logging.info('Connecting to Equinix Server')
         ssh_client = self.get_ssh_client()
         ssh_client.connect(equinix_ip, username='root', pkey=self.private_key)
         return ssh_client

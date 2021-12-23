@@ -23,10 +23,9 @@
   become_user: root
   become: true
   git:
-    # repo: 'https://github.com/AlmaLinux/cloud-images.git'
-    repo: 'https://github.com/LKHN/cloud-images.git'
+    repo: 'https://github.com/AlmaLinux/cloud-images.git'
     dest: './cloud-images'
-    version: test-genericcloud
+    # version: master
     force: yes
 
 - name: Change permissions

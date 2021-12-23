@@ -13,6 +13,7 @@ from datetime import datetime
 from subprocess import PIPE, Popen, STDOUT
 from io import BufferedReader
 import logging
+import time
 
 import requests
 import boto3
@@ -712,7 +713,7 @@ class KVM(LinuxHypervisors):
                 f'cd {test_path_tf}/launch_test_instances/{arch}/ && {command}'
             )
             logging.info(stdout.read().decode())
-
+        time.sleep(120)
         logging.info('Test instances are ready')
         logging.info('Starting testing')
         timestamp = str(datetime.date(datetime.today())).replace('-', '')
@@ -929,7 +930,7 @@ class Equinix(BaseHypervisor):
                 f'cd {test_path_tf}/launch_test_instances/{arch}/ && {command}'
             )
             logging.info(stdout.read().decode())
-
+        time.sleep(120)
         logging.info('Test instances are ready')
         logging.info('Starting testing')
         timestamp = str(datetime.date(datetime.today())).replace('-', '')

@@ -1,0 +1,153 @@
+def performCreateStages(String arch) {
+    return {
+        sh "python3 -u main.py --stage init --hypervisor KVM --arch ${arch}"
+    }
+}
+
+def performDestroyStages(String arch) {
+    return {
+        sh "python3 -u main.py --stage destroy --hypervisor KVM --arch ${arch}"
+    }
+}
+
+def performTestStages(String arch) {
+    return {
+        sh "python3 -u main.py --stage test --hypervisor KVM --arch ${arch}"
+    }
+}
+
+def performBuildStages(String arch) {
+    return {
+            sh "python3 -u main.py --stage build --hypervisor KVM --arch ${arch}"
+    }
+}
+
+pipeline {
+  agent any
+  parameters {
+      choice(name: 'IMAGE', choices: ['AWS AMI', 'Vagrant Box', 'Generic Cloud'], description: 'Cloud image to update: build, test, release')
+      extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64', visibleItemCount: 2)
+      string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
+      booleanParam(defaultValue: true, description: 'Destroy AWS instance', name: 'DESTROY')
+  }
+  environment {
+      AWS_ACCESS_KEY_ID = credentials('jenkins-aws-access-key-id')
+      AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws-secret-access-key')
+      SSH_KEY_FILE = credentials('jenkins-aclib-ssh-private-key')
+  }
+
+  stages {
+      stage('Create AWS instance for AWS AMI') {
+          steps {
+              script {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[arch] = performCreateStages(arch)
+                  }
+                  parallel jobs
+              }
+          }
+      }
+      stage('Build AWS AMI') {
+        stages {
+            stage('Build stage 1') {
+                steps {
+                      script {
+                          def jobs = [:]
+                          for (arch in params.ARCH.replace('"', '').split(',')) {
+                              jobs[arch] = performBuildStages(arch)
+                          }
+                          parallel jobs
+                      }
+                  }
+            }
+              stage('Build AWS AMI stage 2') {
+                  steps {
+                      script {
+                          def jobs = [:]
+                          for (arch in params.ARCH.replace('"', '').split(',')) {
+                              if (arch == 'x86_64') {
+                                 sh "python3 -u main.py --stage build --hypervisor AWS-STAGE-2 --arch ${arch}"
+                              }
+                          }
+
+                      }
+                  }
+              }
+        }
+      }
+      stage('Test AWS AMI') {
+          steps {
+              script {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[arch] = performTestStages(arch)
+                  }
+                  parallel jobs
+              }
+          }
+      }
+      stage('Destroy AWS instance') {
+          when {
+              expression { params.DESTROY == true }
+          }
+          steps {
+              script {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[arch] = performDestroyStages(arch)
+                      if (arch == 'x86_64') {
+                        sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
+                      }
+                  }
+                  parallel jobs
+              }
+          }
+      }
+  }
+
+  post {
+      always {
+          archiveArtifacts artifacts: '*.log'
+      }
+      success {
+          slackSend channel: '#test-auto-vagrant',
+                    color: 'good',
+                    message: "The build ${currentBuild.fullDisplayName} completed successfully : ${currentBuild.absoluteUrl}"
+      }
+      failure {
+          slackSend channel: '#test-auto-vagrant',
+                    color: 'danger',
+                    message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
+          script {
+              if (params.DESTROY == true) {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[arch] = performDestroyStages(arch)
+                      if (arch == 'x86_64') {
+                        sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
+                      }
+                  }
+                  parallel jobs
+              }
+          }
+      }
+      aborted {
+          slackSend channel: '#test-auto-vagrant',
+                    color: 'warning',
+                    message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
+          script {
+              if (params.DESTROY == true) {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[arch] = performDestroyStages(arch)
+                      if (arch == 'x86_64') {
+                        sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
+                      }
+                  }
+                  parallel jobs
+              }
+          }
+      }
+  }
+}

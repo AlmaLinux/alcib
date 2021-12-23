@@ -10,6 +10,7 @@
     - git
     - python3-devel
     - jq
+    - terraform
 
 - name: Installing testinfra
   pip:
@@ -23,16 +24,8 @@
   become: true
   git:
     repo: 'https://github.com/AlmaLinux/cloud-images.git'
-    # repo: 'https://github.com/LKHN/cloud-images.git'
     dest: './cloud-images'
-    force: yes
-
-- name: Clone vagrant tests repo
-  become_user: root
-  become: true
-  git:
-    repo: 'https://github.com/LKHN/testrepo_vagrantboxauto.git'
-    dest: './testrepo_vagrantboxauto'
+    # version: master
     force: yes
 
 - name: Change permissions

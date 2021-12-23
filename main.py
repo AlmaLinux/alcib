@@ -12,6 +12,7 @@ import logging
 
 from lib.builder import Builder
 from lib.hypervisors import get_hypervisor
+from lib.config import settings
 
 
 def init_args_parser() -> argparse.ArgumentParser:
@@ -26,12 +27,15 @@ def init_args_parser() -> argparse.ArgumentParser:
         description='Cloud Images autobuilder'
     )
     parser.add_argument('--hypervisor', type=str,
-                        choices=['VirtualBox', 'KVM', 'VMWare_Desktop', 'HyperV'],
+                        choices=['VirtualBox', 'KVM', 'VMWare_Desktop', 'HyperV',
+                                 'AWS-STAGE-2', 'Equinix'],
                         help='Hypervisor name')
     parser.add_argument('--stage', type=str,
                         choices=['init', 'build', 'destroy',
                                  'test', 'release'],
                         help='Stage')
+    parser.add_argument('--arch', type=str, choices=['x86_64', 'aarch64'],
+                        help='Architecture')
     return parser
 
 
@@ -59,18 +63,35 @@ def main(sys_args):
 
     setup_logger()
     builder = Builder()
-    hypervisor = get_hypervisor(args.hypervisor.lower())
+
+    if args.arch == 'aarch64':
+        hypervisor = get_hypervisor(args.hypervisor.lower(), args.arch)
+    else:
+        hypervisor = get_hypervisor(args.hypervisor.lower())
 
     if args.stage == 'init':
         hypervisor.init_stage(builder)
-    elif args.stage == 'build':
+    elif args.stage == 'build' and settings.image in ['Vagrant Box', 'Generic Cloud']:
         hypervisor.build_stage(builder)
+    elif args.stage == 'build' and settings.image == 'AWS AMI' and args.hypervisor != 'AWS-STAGE-2':
+        hypervisor.build_aws_stage(builder, args.arch)
     elif args.stage == 'test':
-        hypervisor.test_stage(builder)
+        if settings.image == 'AWS AMI':
+            hypervisor.test_aws_stage(builder)
+        elif settings.image == 'Generic Cloud':
+            hypervisor.test_openstack(builder)
+        else:
+            hypervisor.test_stage(builder)
     elif args.stage == 'release':
         hypervisor.release_stage(builder)
     elif args.stage == 'destroy':
-        hypervisor.teardown_stage()
+        if settings.image == 'Generic Cloud' and args.arch == 'aarch64':
+            hypervisor.teardown_equinix_stage(builder)
+        else:
+            hypervisor.teardown_stage()
+    elif args.hypervisor == 'AWS-STAGE-2' and args.stage != 'destroy':
+        hypervisor.init_stage2()
+        hypervisor.build_aws_stage(builder, args.arch)
 
 
 if __name__ == '__main__':

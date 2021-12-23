@@ -1,0 +1,165 @@
+def performCreateStages(String hypervisor, String arch) {
+    return {
+        sh "python3 -u main.py --stage init --hypervisor ${hypervisor} --arch ${arch}"
+    }
+}
+
+def performDestroyStages(String hypervisor, String arch) {
+    return {
+        sh "python3 -u main.py --stage destroy --hypervisor ${hypervisor} --arch ${arch}"
+    }
+}
+
+def performBuildStages(String hypervisor, String arch) {
+    return {
+            sh "python3 -u main.py --stage build --hypervisor ${hypervisor} --arch ${arch}"
+    }
+}
+
+def performTestStages(String hypervisor, String arch) {
+    return {
+        sh "python3 -u main.py --stage test --hypervisor ${hypervisor} --arch ${arch}"
+    }
+}
+
+
+pipeline {
+  agent any
+  parameters {
+      choice(name: 'IMAGE', choices: ['Generic Cloud', 'AWS AMI', 'Vagrant Box'], description: 'Cloud image to update: build, test, release')
+      extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64', visibleItemCount: 2)
+      string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
+      booleanParam(defaultValue: true, description: 'Destroy AWS instance', name: 'DESTROY')
+  }
+  environment {
+      AWS_ACCESS_KEY_ID = credentials('jenkins-aws-access-key-id')
+      AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws-secret-access-key')
+      SSH_KEY_FILE = credentials('jenkins-aclib-ssh-private-key')
+      AARCH_USERNAME = credentials('aarch_username')
+      AMD_USERNAME = credentials('amd-username')
+      AARCH_PASSWORD = credentials('aarch_password')
+      AMD_PASSWORD = credentials('amd_password')
+      AARCH_PROJECT_ID = credentials('aarch_project_id')
+      AMD_PROJECT_ID = credentials('amd_project_id')
+      EQUINIX_IP = credentials('equinix_ip')
+  }
+
+  stages {
+      stage('Create build environment') {
+          steps {
+              script {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      if (arch == 'x86_64') {
+                        jobs[arch] = performCreateStages('KVM', arch)
+                      }
+                      else {
+                        jobs[arch] = performCreateStages('Equinix', arch)
+                      }
+                  }
+                  parallel jobs
+              }
+          }
+      }
+      stage('Build Generic Cloud Image') {
+            steps {
+                  script {
+                      def jobs = [:]
+                      for (arch in params.ARCH.replace('"', '').split(',')) {
+                          if (arch == 'x86_64') {
+                              jobs[arch] = performBuildStages('KVM', arch)
+                          }
+                          else {
+                              jobs[arch] = performBuildStages('Equinix', arch)
+                          }
+                      }
+                      parallel jobs
+                  }
+            }
+      }
+      stage('Test Generic Cloud') {
+          steps {
+              script {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      if (arch == 'x86_64') {
+                        jobs[arch] = performTestStages('KVM', arch)
+                      }
+                      else {
+                        jobs[arch] = performTestStages('Equinix', arch)
+                      }
+                  }
+                  parallel jobs
+              }
+          }
+      }
+      stage('Destroy AWS instance') {
+          when {
+              expression { params.DESTROY == true }
+          }
+          steps {
+              script {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                    if (arch == 'x86_64') {
+                          jobs[arch] = performDestroyStages('KVM', arch)
+                      }
+                      else {
+                          jobs[arch] = performDestroyStages('Equinix', arch)
+                      }
+                  }
+                  parallel jobs
+              }
+          }
+      }
+  }
+
+  post {
+      always {
+          archiveArtifacts artifacts: '*.log'
+      }
+      success {
+          slackSend channel: '#test-auto-vagrant',
+                    color: 'good',
+                    message: "The build ${currentBuild.fullDisplayName} completed successfully : ${currentBuild.absoluteUrl}"
+      }
+      failure {
+          slackSend channel: '#test-auto-vagrant',
+                    color: 'danger',
+                    message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
+          script {
+              if (params.DESTROY == true) {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      if (arch == 'x86_64') {
+                          jobs[arch] = performDestroyStages('KVM', arch)
+                      }
+                      else {
+                          jobs[arch] = performDestroyStages('Equinix', arch)
+                      }
+                  }
+                  parallel jobs
+              }
+          }
+      }
+      aborted {
+          slackSend channel: '#test-auto-vagrant',
+                    color: 'warning',
+                    message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
+          script {
+              if (params.DESTROY == true) {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      if (arch == 'x86_64') {
+                          jobs[arch] = performDestroyStages('KVM', arch)
+                      }
+                      else {
+                          jobs[arch] = performDestroyStages('Equinix', arch)
+                      }
+                  }
+                  parallel jobs
+              }
+          }
+      }
+  }
+}

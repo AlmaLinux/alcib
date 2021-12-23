@@ -688,8 +688,8 @@ class KVM(LinuxHypervisors):
             stdout, _ = ssh.safe_execute(f'cd {test_path_tf}/launch_test_instances/{arch}/ && {c}')
             logging.info(stdout.read().decode())
 
-        logging.info('Checking if test instances are ready')
-        time.sleep(300)
+        # logging.info('Checking if test instances are ready')
+        # time.sleep(300)
         logging.info('Test instances are ready')
         logging.info('Starting testing')
         timestamp = str(datetime.date(datetime.today())).replace('-', '')
@@ -703,7 +703,7 @@ class KVM(LinuxHypervisors):
             logging.info(stdout.read().decode())
         finally:
             self.upload_to_bucket(builder, ['genericclout_test*.log'])
-            stdout, _ = ssh.safe_execute(f'cd {test_path_tf}/launch_test_instances/{arch} && terraform destroy')
+            # stdout, _ = ssh.safe_execute(f'cd {test_path_tf}/launch_test_instances/{arch} && terraform destroy --auto-approve')
             logging.info(stdout.read().decode())
 
         sftp.get(
@@ -880,8 +880,8 @@ class Equinix(BaseHypervisor):
             stdout, _ = ssh.safe_execute(f'cd {test_path_tf}/launch_test_instances/{arch}/ && {c}')
             logging.info(stdout.read().decode())
 
-        logging.info('Checking if test instances are ready')
-        time.sleep(300)
+        #logging.info('Checking if test instances are ready')
+        #time.sleep(300)
         logging.info('Test instances are ready')
         logging.info('Starting testing')
         timestamp = str(datetime.date(datetime.today())).replace('-', '')

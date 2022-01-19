@@ -24,6 +24,31 @@ from lib.builder import Builder, ExecuteError
 from lib.config import settings
 
 
+def koji_release(ftp_path, qcow_name, builder):
+    ssh_koji = builder.ssh_koji_connect()
+    stdout, _ = ssh_koji.safe_execute(
+        f'ln -sf {ftp_path}/images/{qcow_name} '
+        f'{ftp_path}/AlmaLinux-8-GenericCloud-latest.x86_64.qcow2'
+    )
+    logging.info(stdout.read().decode())
+    stdout, _ = ssh_koji.safe_execute('sha256sum *.qcow2 > CHECKSUM')
+    logging.info(stdout.read().decode())
+    stdout, _ = ssh_koji.safe_execute(
+        f'rsync --dry-run -avSHP {ftp_path} deploy-repo-alma@192.168.246.161:/repo/almalinux/8/cloud/'
+    )
+    logging.info(stdout.read().decode())
+    stdout, _ = ssh_koji.safe_execute(
+        f'rsync -avSHP {ftp_path} deploy-repo-alma@192.168.246.161:/repo/almalinux/8/cloud/'
+    )
+    logging.info(stdout.read().decode())
+
+    ssh_deploy = builder.ssh_deploy_connect()
+    stdout, _ = ssh_deploy.safe_execute('systemctl start --no-block rsync-repo-alma')
+    logging.info(stdout.read().decode())
+    ssh_deploy.close()
+    ssh_koji.close()
+
+
 def execute_command(cmd: str, cwd_path: str):
     """
     Executes a local command.
@@ -529,6 +554,19 @@ class KVM(LinuxHypervisors):
         """
         super().__init__(name, arch)
 
+    def release_and_sign_stage(self, builder: Builder):
+        timestamp = str(datetime.date(datetime.today())).replace('-', '')
+        qcow_name = f'AlmaLinux-8-GenericCloud-8.5-{timestamp}.aarch64.qcow2'
+        ftp_path = '/var/ftp/pub/cloudlinux/almalinux/8/cloud/aarch64'
+        ssh_aws = builder.ssh_aws_connect(self.instance_ip, self.name)
+        stdout, _ = ssh_aws.safe_execute(
+            f'scp /home/ec2-user/cloud-images/*.qcow2 '
+            f'mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}'
+        )
+        logging.info(stdout.read().decode())
+        koji_release(ftp_path, qcow_name, builder)
+        ssh_aws.close()
+
     def build_aws_stage(self, builder: Builder, arch: str):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Packer initialization')
@@ -966,6 +1004,19 @@ class Equinix(BaseHypervisor):
                 f'terraform destroy --auto-approve')
         ssh.close()
         logging.info('Connection closed')
+
+    def release_and_sign_stage(self, builder: Builder):
+        timestamp = str(datetime.date(datetime.today())).replace('-', '')
+        qcow_name = f'AlmaLinux-8-GenericCloud-8.5-{timestamp}.aarch64.qcow2'
+        ftp_path = '/var/ftp/pub/cloudlinux/almalinux/8/cloud/aarch64'
+        ssh_equinix = builder.ssh_equinix_connect()
+        stdout, _ = ssh_equinix.safe_execute(
+            f'scp /root/cloud-images/*.qcow2 '
+            f'mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}'
+        )
+        logging.info(stdout.read().decode())
+        koji_release(ftp_path, qcow_name, builder)
+        ssh_equinix.close()
 
     @staticmethod
     def teardown_equinix_stage(builder: Builder):

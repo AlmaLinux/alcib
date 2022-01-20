@@ -113,29 +113,16 @@ pipeline {
                       if (env.RELEASE_SCOPE == 'yes') {
                         def jobs = [:]
                         for (arch in params.ARCH.replace('"', '').split(',')) {
-                      if (arch == 'x86_64') {
-                        jobs[arch] = performReleaseStages('KVM', arch)
-                      }
-                      else {
-                        jobs[arch] = performReleaseStages('Equinix', arch)
-                      }
-                  }
+                            if (arch == 'x86_64') {
+                                jobs[arch] = performReleaseStages('KVM', arch)
+                            }
+                            else {
+                                jobs[arch] = performReleaseStages('Equinix', arch)
+                            }
+                        }
                         parallel jobs
                       }
-
                   }
-              }
-              script {
-                  def jobs = [:]
-                  for (arch in params.ARCH.replace('"', '').split(',')) {
-                      if (arch == 'x86_64') {
-                        jobs[arch] = performReleaseStages('KVM', arch)
-                      }
-                      else {
-                        jobs[arch] = performReleaseStages('Equinix', arch)
-                      }
-                  }
-                  parallel jobs
               }
           }
       }

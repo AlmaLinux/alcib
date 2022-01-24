@@ -109,7 +109,7 @@ pipeline {
                         message: 'Release to public ?', ok: 'Starting releasing!',
                         parameters: [choice(name: 'RELEASE_SCOPE', choices: 'yes\nno')]
                       )
-                      env.RELEASE_SCOPE = userInput['RELEASE_SCOPE']
+                      env.RELEASE_SCOPE = userInput
                       if (env.RELEASE_SCOPE == 'yes') {
                         def jobs = [:]
                         for (arch in params.ARCH.replace('"', '').split(',')) {

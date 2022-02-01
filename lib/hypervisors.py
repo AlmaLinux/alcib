@@ -24,6 +24,18 @@ from lib.builder import Builder, ExecuteError
 from lib.config import settings
 
 
+def download_qcow(arch, builder, instance_ip, name, path):
+    timestamp = str(datetime.date(datetime.today())).replace('-', '')
+    qcow_name = f'AlmaLinux-8-GenericCloud-8.5.{arch}.qcow2'
+    qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{timestamp}.{arch}.qcow2'
+    # ftp_path = f'/var/ftp/pub/cloudlinux/almalinux/8/cloud/{arch}}'
+    ssh_aws = builder.ssh_aws_connect(instance_ip, name)
+    sftp = ssh_aws.open_sftp()
+    sftp.get(
+        f'{path}/{qcow_name}', f'{qcow_tm_name}'
+    )
+
+
 def koji_release(ftp_path, qcow_name, builder):
     ssh_koji = builder.ssh_koji_connect()
     stdout, _ = ssh_koji.safe_execute(
@@ -96,6 +108,7 @@ class BaseHypervisor:
         self.arch = arch
         self._instance_ip = None
         self._instance_id = None
+        self.ami_id = None
         self.build_number = settings.build_number
 
     @property
@@ -554,18 +567,49 @@ class KVM(LinuxHypervisors):
         """
         super().__init__(name, arch)
 
-    def release_and_sign_stage(self, builder: Builder):
-        timestamp = str(datetime.date(datetime.today())).replace('-', '')
-        qcow_name = f'AlmaLinux-8-GenericCloud-8.5-{timestamp}.aarch64.qcow2'
-        ftp_path = '/var/ftp/pub/cloudlinux/almalinux/8/cloud/aarch64'
-        ssh_aws = builder.ssh_aws_connect(self.instance_ip, self.name)
-        stdout, _ = ssh_aws.safe_execute(
-            f'scp /home/ec2-user/cloud-images/*.qcow2 '
-            f'mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}'
-        )
+    def publish_ami(self, builder: Builder):
+        ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
+        logging.info('Preparing csv and md')
+        stdout, _ = ssh.safe_execute(
+            f'/home/ec2-user/cloud-images/bin/aws_ami_mirror.py '
+            f'-a {self.ami_id} --csv-output aws_amis-{self.arch}.csv'
+            f' --md-output AWS_AMIS-{self.arch}.md --verbose')
         logging.info(stdout.read().decode())
-        koji_release(ftp_path, qcow_name, builder)
-        ssh_aws.close()
+        sftp = ssh.open_sftp()
+        sftp.get(
+            f'{self.sftp_path}/bin/aws_amis-{self.arch}.csv',
+            f'{self.name}-aws_amis-{self.arch}.csv'
+        )
+        sftp.get(
+            f'{self.sftp_path}/bin/AWS_AMIS-{self.arch}.md',
+            f'{self.name}-AWS_AMIS-{self.arch}.md'
+        )
+        ssh.close()
+
+    def release_and_sign_stage(self, builder: Builder):
+        download_qcow(self.arch, builder, self.instance_ip, self.name, self.sftp_path)
+        # timestamp = str(datetime.date(datetime.today())).replace('-', '')
+        # qcow_name = f'AlmaLinux-8-GenericCloud-8.5.aarch64.qcow2'
+        # qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{timestamp}.aarch64.qcow2'
+        # ftp_path = '/var/ftp/pub/cloudlinux/almalinux/8/cloud/aarch64'
+        # ssh_aws = builder.ssh_aws_connect(self.instance_ip, self.name)
+        # sftp = ssh_aws.open_sftp()
+        # sftp.get(
+        #     f'{self.sftp_path}/{qcow_name}',
+        #     f'{qcow_tm_name}'
+        # )
+        # proc = Popen(cmd.split(), cwd=cwd_path,
+        #              stderr=STDOUT, stdout=PIPE)
+        # for line in proc.stdout:
+        #     logging.info(line.decode())
+        # proc.wait()
+        # stdout, _ = ssh_aws.safe_execute(
+        #     f'scp /home/ec2-user/cloud-images/*.qcow2 '
+        #     f'mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}'
+        # )
+        # logging.info(stdout.read().decode())
+        # koji_release(ftp_path, qcow_name, builder)
+        # ssh_aws.close()
 
     def build_aws_stage(self, builder: Builder, arch: str):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
@@ -610,6 +654,7 @@ class KVM(LinuxHypervisors):
             logging.info(line)
             if line.startswith('us-east-1'):
                 ami = line.split(':')[-1].strip()
+                self.ami_id = ami
                 logging.info(ami)
         logging.info('AWS AMI built')
         aws_hypervisor = AwsStage2(self.arch)

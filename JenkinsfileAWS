@@ -22,6 +22,12 @@ def performBuildStages(String arch) {
     }
 }
 
+def performPublishStages(String arch) {
+    return {
+            sh "python3 -u main.py --stage release --hypervisor KVM --arch ${arch}"
+    }
+}
+
 pipeline {
   agent any
   parameters {
@@ -87,6 +93,27 @@ pipeline {
               }
           }
       }
+      stage('Publish new AMI's release) {
+        steps {
+              timeout(time:1, unit:'DAYS') {
+                  script {
+                      def userInput = input(
+                        id: 'userInput',
+                        message: 'AMI successfully scanned and ready for release ?', ok: 'Starting publishing!',
+                        parameters: [choice(name: 'RELEASE_SCOPE', choices: 'yes\nno')]
+                      )
+                      env.RELEASE_SCOPE = userInput
+                      if (env.RELEASE_SCOPE == 'yes') {
+                        def jobs = [:]
+                        for (arch in params.ARCH.replace('"', '').split(',')) {
+                            jobs[arch] = performPublishStages(arch)
+                        }
+                        parallel jobs
+                      }
+                  }
+              }
+          }
+      }
       stage('Destroy AWS instance') {
           when {
               expression { params.DESTROY == true }
@@ -108,7 +135,7 @@ pipeline {
 
   post {
       always {
-          archiveArtifacts artifacts: '*.log'
+          archiveArtifacts artifacts: '*.log', '*.md', '*.csv'
       }
       success {
           slackSend channel: '#test-auto-vagrant',

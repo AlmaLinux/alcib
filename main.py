@@ -85,6 +85,8 @@ def main(sys_args):
     elif args.stage == 'release':
         if settings.image in ['OpenNebula', 'Generic Cloud']:
             hypervisor.release_and_sign_stage(builder)
+        elif settings.image == 'AWS AMI':
+            hypervisor.publish_ami(builder)
         else:
             hypervisor.release_stage(builder)
     elif args.stage == 'destroy':

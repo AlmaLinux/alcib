@@ -122,6 +122,9 @@ pipeline {
                         }
                         parallel jobs
                       }
+                      node('nebula node') {
+
+                      }
                   }
               }
           }

@@ -95,7 +95,7 @@ def main(sys_args):
         else:
             hypervisor.teardown_stage()
     elif args.hypervisor == 'AWS-STAGE-2' and args.stage != 'destroy':
-        hypervisor.init_stage2()
+        hypervisor.init_stage()
         hypervisor.build_aws_stage(builder, args.arch)
 
 

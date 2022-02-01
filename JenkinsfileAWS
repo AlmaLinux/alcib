@@ -93,7 +93,7 @@ pipeline {
               }
           }
       }
-      stage('Publish new AMI's release) {
+      stage('Publish new AMIs release') {
         steps {
               timeout(time:1, unit:'DAYS') {
                   script {

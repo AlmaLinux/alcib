@@ -108,7 +108,6 @@ class BaseHypervisor:
         self.arch = arch
         self._instance_ip = None
         self._instance_id = None
-        self.ami_id = None
         self.build_number = settings.build_number
 
     @property
@@ -568,12 +567,21 @@ class KVM(LinuxHypervisors):
         super().__init__(name, arch)
 
     def publish_ami(self, builder: Builder):
+        ami_id = None
+        with open('ami_id.txt', 'r') as f:
+            ami_id = f.read()
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Preparing csv and md')
-        stdout, _ = ssh.safe_execute(
-            f'/home/ec2-user/cloud-images/bin/aws_ami_mirror.py '
-            f'-a {self.ami_id} --csv-output aws_amis-{self.arch}.csv'
-            f' --md-output AWS_AMIS-{self.arch}.md --verbose')
+        cmd = "export AWS_DEFAULT_REGION='us-east-1' && " \
+              "export AWS_ACCESS_KEY_ID='{}' " \
+              "&& export AWS_SECRET_ACCESS_KEY='{}' " \
+              "&& /home/ec2-user/cloud-images/bin/aws_ami_mirror.py " \
+              "-a {} --csv-output aws_amis-{}.csv " \
+              "--md-output AWS_AMIS-{}.md --verbose".format(
+                  os.getenv('AWS_ACCESS_KEY_ID'),
+                  os.getenv('AWS_SECRET_ACCESS_KEY'),
+                  ami_id, self.arch, self.arch)
+        stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
         sftp = ssh.open_sftp()
         sftp.get(
@@ -654,8 +662,9 @@ class KVM(LinuxHypervisors):
             logging.info(line)
             if line.startswith('us-east-1'):
                 ami = line.split(':')[-1].strip()
-                self.ami_id = ami
                 logging.info(ami)
+        with open('ami_id.txt', 'w') as f:
+            f.write(ami)
         logging.info('AWS AMI built')
         aws_hypervisor = AwsStage2(self.arch)
         tfvars = {'ami_id': ami}
@@ -876,6 +885,17 @@ class AwsStage2(KVM):
                     aws2_build_log
                 )
             )
+            output = stdout.read().decode()
+            logging.info(output)
+            ami = None
+            for line in output.splitlines():
+                logging.info(line)
+                if line.startswith('us-east-1'):
+                    ami = line.split(':')[-1].strip()
+                    logging.info(ami)
+            with open('ami_id.txt', 'w') as f:
+                f.write(ami)
+            logging.info('AWS AMI built')
         finally:
             pass
         cmd = f'bash -c "sha256sum /home/ec2-user/cloud-images/{aws2_build_log}"'

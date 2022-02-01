@@ -110,6 +110,10 @@ pipeline {
                         }
                         parallel jobs
                       }
+                      if (params.ARCH.size() == 2) {
+                        sh('paste -d \\n aws_amis_x86_64.csv aws_amis_aarch64.csv > aws_amis.csv')
+                        sh('paste -d \\n AWS_AMIS_x86_64.md AWS_AMIS_aarch64.md > AWS_AMIS.md')
+                      }
                   }
               }
           }

@@ -48,6 +48,7 @@ pipeline {
               script {
                   echo params.ARCH
                   echo params.ARCH.size()
+                  echo params.ARCH.length
               }
           }
       }

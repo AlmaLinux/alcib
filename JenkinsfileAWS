@@ -47,7 +47,7 @@ pipeline {
           steps {
               script {
                   def arches = params.ARCH.replace('"', '').split(',')
-                  echo arches
+                  echo "arches"
               }
           }
       }

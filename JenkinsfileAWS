@@ -46,7 +46,8 @@ pipeline {
       stage('Create AWS instance for AWS AMI') {
           steps {
               script {
-                  echo params.ARCH.size()
+                  def arches = params.ARCH.replace('"', '').split(',')
+                  echo arches.size()
               }
           }
       }

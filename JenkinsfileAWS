@@ -46,8 +46,92 @@ pipeline {
       stage('Create AWS instance for AWS AMI') {
           steps {
               script {
-                  def arches = params.ARCH.replace('"', '').split(',')
-                  echo "$arches.length"
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[arch] = performCreateStages(arch)
+                  }
+                  parallel jobs
+              }
+          }
+      }
+      stage('Build AWS AMI') {
+        stages {
+            stage('Build stage 1') {
+                steps {
+                      script {
+                          def jobs = [:]
+                          for (arch in params.ARCH.replace('"', '').split(',')) {
+                              jobs[arch] = performBuildStages(arch)
+                          }
+                          parallel jobs
+                      }
+                  }
+            }
+              stage('Build AWS AMI stage 2') {
+                  steps {
+                      script {
+                          def jobs = [:]
+                          for (arch in params.ARCH.replace('"', '').split(',')) {
+                              if (arch == 'x86_64') {
+                                 sh "python3 -u main.py --stage build --hypervisor AWS-STAGE-2 --arch ${arch}"
+                              }
+                          }
+
+                      }
+                  }
+              }
+        }
+      }
+      stage('Test AWS AMI') {
+          steps {
+              script {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[arch] = performTestStages(arch)
+                  }
+                  parallel jobs
+              }
+          }
+      }
+      stage('Publish new AMIs release') {
+        steps {
+              timeout(time:1, unit:'DAYS') {
+                  script {
+                      def userInput = input(
+                        id: 'userInput',
+                        message: 'AMI successfully scanned and ready for release ?', ok: 'Starting publishing!',
+                        parameters: [choice(name: 'RELEASE_SCOPE', choices: 'yes\nno')]
+                      )
+                      env.RELEASE_SCOPE = userInput
+                      if (env.RELEASE_SCOPE == 'yes') {
+                        def jobs = [:]
+                        for (arch in params.ARCH.replace('"', '').split(',')) {
+                            jobs[arch] = performPublishStages(arch)
+                        }
+                        parallel jobs
+                      }"
+                      if ($arches.length == 2) {
+                        sh('paste -d \\n aws_amis_x86_64.csv aws_amis_aarch64.csv > aws_amis.csv')
+                        sh('paste -d \\n AWS_AMIS_x86_64.md AWS_AMIS_aarch64.md > AWS_AMIS.md')
+                      }
+                  }
+              }
+          }
+      }
+      stage('Destroy AWS instance') {
+          when {
+              expression { params.DESTROY == true }
+          }
+          steps {
+              script {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[arch] = performDestroyStages(arch)
+                      if (arch == 'x86_64') {
+                        sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
+                      }
+                  }
+                  parallel jobs
               }
           }
       }

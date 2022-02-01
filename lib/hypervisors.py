@@ -587,11 +587,11 @@ class KVM(LinuxHypervisors):
         sftp = ssh.open_sftp()
         sftp.get(
             f'{self.sftp_path}/bin/aws_amis-{self.arch}.csv',
-            f'{self.name}-aws_amis-{self.arch}.csv'
+            f'aws_amis-{self.arch}.csv'
         )
         sftp.get(
             f'{self.sftp_path}/bin/AWS_AMIS-{self.arch}.md',
-            f'{self.name}-AWS_AMIS-{self.arch}.md'
+            f'AWS_AMIS-{self.arch}.md'
         )
         ssh.close()
 

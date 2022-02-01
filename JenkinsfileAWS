@@ -135,7 +135,7 @@ pipeline {
 
   post {
       always {
-          archiveArtifacts artifacts: *.log, *.md, *.csv
+          archiveArtifacts artifacts: '*.log' , '*.md' , '*.csv'
       }
       success {
           slackSend channel: '#test-auto-vagrant',

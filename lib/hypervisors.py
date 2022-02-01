@@ -572,7 +572,8 @@ class KVM(LinuxHypervisors):
             ami_id = f.read()
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Preparing csv and md')
-        cmd = "export AWS_DEFAULT_REGION='us-east-1' && " \
+        cmd = "cd /home/ec2-user/cloud-images/bin/ && " \
+              "export AWS_DEFAULT_REGION='us-east-1' && " \
               "export AWS_ACCESS_KEY_ID='{}' " \
               "&& export AWS_SECRET_ACCESS_KEY='{}' " \
               "&& /home/ec2-user/cloud-images/bin/aws_ami_mirror.py " \

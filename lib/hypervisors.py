@@ -572,7 +572,7 @@ class KVM(LinuxHypervisors):
             ami_id = f.read()
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Preparing csv and md')
-        cmd = "cd /home/ec2-user/cloud-images/bin/ && " \
+        cmd = "cd /home/ec2-user/cloud-images/ && " \
               "export AWS_DEFAULT_REGION='us-east-1' && " \
               "export AWS_ACCESS_KEY_ID='{}' " \
               "&& export AWS_SECRET_ACCESS_KEY='{}' " \
@@ -584,15 +584,17 @@ class KVM(LinuxHypervisors):
                   ami_id, self.arch, self.arch)
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
+        self.upload_to_bucket(builder, ['aws_amis*.csv', 'aws_amis*.md'])
         sftp = ssh.open_sftp()
         sftp.get(
-            f'{self.sftp_path}/bin/aws_amis-{self.arch}.csv',
+            f'{self.sftp_path}/aws_amis-{self.arch}.csv',
             f'aws_amis-{self.arch}.csv'
         )
         sftp.get(
-            f'{self.sftp_path}/bin/AWS_AMIS-{self.arch}.md',
+            f'{self.sftp_path}/AWS_AMIS-{self.arch}.md',
             f'AWS_AMIS-{self.arch}.md'
         )
+
         ssh.close()
 
     def release_and_sign_stage(self, builder: Builder):

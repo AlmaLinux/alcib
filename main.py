@@ -9,9 +9,12 @@ Script for building Vagrant Boxes.
 import sys
 import argparse
 import logging
+import os
+import base64
+import hashlib
 
 from lib.builder import Builder
-from lib.hypervisors import get_hypervisor
+from lib.hypervisors import get_hypervisor, execute_command
 from lib.config import settings
 
 
@@ -29,14 +32,55 @@ def init_args_parser() -> argparse.ArgumentParser:
     parser.add_argument('--hypervisor', type=str,
                         choices=['VirtualBox', 'KVM', 'VMWare_Desktop', 'HyperV',
                                  'AWS-STAGE-2', 'Equinix'],
-                        help='Hypervisor name')
+                        help='Hypervisor name', required=False)
     parser.add_argument('--stage', type=str,
                         choices=['init', 'build', 'destroy',
-                                 'test', 'release'],
+                                 'test', 'release', 'pullrequest'],
                         help='Stage')
     parser.add_argument('--arch', type=str, choices=['x86_64', 'aarch64'],
-                        help='Architecture')
+                        help='Architecture', required=False)
     return parser
+
+
+def almalinux_wiki_pr():
+    cmd = f'curl -X POST -H "Authorization: token {settings.github}" ' \
+          f'-H "Accept: application/vnd.github.v3+json" ' \
+          f'https://api.github.com/repos/VanessaRish/wiki/merge-upstream ' \
+          f'-d \'{"branch":"master"}\''
+    path = os.path.join(os.getcwd(), 'wiki/')
+    execute_command(cmd, path)
+    aws_csv = os.path.join(os.getcwd(), 'wiki/aws_amis.csv')
+    aws_md = os.path.join(os.getcwd(), 'wiki/AWS_AMIS.md')
+    csv_content = base64.b64encode(open(aws_csv, "rb").read())
+    md_content = base64.b64encode(open(aws_md, "rb").read())
+    sha256_hash_csv = hashlib.sha256()
+    sha256_hash_md = hashlib.sha256()
+    with open(aws_md, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash_md.update(byte_block)
+        sha_md = sha256_hash_md.hexdigest()
+    with open(aws_csv, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash_csv.update(byte_block)
+        sha_csv = sha256_hash_csv.hexdigest()
+
+    cmd = f'curl -X POST -H "Authorization: token {settings.github}" ' \
+          f'-H "Accept: application/vnd.github.v3+json" ' \
+          f'https://api.github.com/repos/VanessaRish/wiki/docs/cloud/AWS_AMIS.md  ' \
+          f'-d \'{"message":"Updating AWS AMI version in MD file","content":"{md_content}","sha":"{sha_md}"}\''
+    execute_command(cmd, path)
+
+    cmd = f'curl -X POST -H "Authorization: token {settings.github}" ' \
+          f'-H "Accept: application/vnd.github.v3+json" ' \
+          f'https://api.github.com/repos/VanessaRish/wiki/docs/cloud/aws_amis.csv  ' \
+          f'-d \'{"message":"Updating AWS AMI version in CSV file","content":"{csv_content}","sha":"{sha_csv}"}\''
+    execute_command(cmd, path)
+
+    cmd = f'curl -X POST -H "Authorization: token {settings.github}" ' \
+          f'-H "Accept: application/vnd.github.v3+json" ' \
+          f'https://api.github.com/repos/VanessaRish/wiki/pulls  ' \
+          f'-d \'{"head":"master","base":"master","title":"Updating AWS AMI versions"}\''
+    execute_command(cmd, path)
 
 
 def setup_logger():
@@ -97,6 +141,8 @@ def main(sys_args):
     elif args.hypervisor == 'AWS-STAGE-2' and args.stage != 'destroy':
         hypervisor.init_stage(builder)
         hypervisor.build_aws_stage(builder, args.arch)
+    elif args.stage == 'pullrequest':
+        pass
 
 
 if __name__ == '__main__':

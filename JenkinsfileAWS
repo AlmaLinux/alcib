@@ -83,17 +83,6 @@ pipeline {
               }
         }
       }
-      stage('Test AWS AMI') {
-          steps {
-              script {
-                  def jobs = [:]
-                  for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[arch] = performTestStages(arch)
-                  }
-                  parallel jobs
-              }
-          }
-      }
       stage('Publish new AMIs release') {
         steps {
               timeout(time:2, unit:'DAYS') {
@@ -119,6 +108,23 @@ pipeline {
                         sh('paste -d \\n AWS_AMIS-x86_64.md AWS_AMIS-aarch64.md > wiki/AWS_AMIS.md')
                       }
                   }
+              }
+          }
+      }
+      stage('Destroy AWS instance') {
+          when {
+              expression { params.DESTROY == true }
+          }
+          steps {
+              script {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[arch] = performDestroyStages(arch)
+                      if (arch == 'x86_64') {
+                        sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
+                      }
+                  }
+                  parallel jobs
               }
           }
       }

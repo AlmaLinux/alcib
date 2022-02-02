@@ -112,8 +112,8 @@ pipeline {
                       }
                       def arches = params.ARCH.replace('"', '').split(',')
                       if (arches.length == 2) {
-                        sh('paste -d \\n aws_amis_x86_64.csv aws_amis_aarch64.csv > aws_amis.csv')
-                        sh('paste -d \\n AWS_AMIS_x86_64.md AWS_AMIS_aarch64.md > AWS_AMIS.md')
+                        sh('paste -d \\n aws_amis_x86_64.csv aws_amis-aarch64.csv > aws_amis.csv')
+                        sh('paste -d \\n AWS_AMIS_x86_64.md AWS_AMIS-aarch64.md > AWS_AMIS.md')
                       }
                   }
               }

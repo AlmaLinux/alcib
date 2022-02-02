@@ -142,7 +142,7 @@ def main(sys_args):
         hypervisor.init_stage(builder)
         hypervisor.build_aws_stage(builder, args.arch)
     elif args.stage == 'pullrequest':
-        pass
+        almalinux_wiki_pr()
 
 
 if __name__ == '__main__':

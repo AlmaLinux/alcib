@@ -584,7 +584,7 @@ class KVM(LinuxHypervisors):
                   ami_id, self.arch, self.arch)
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
-        self.upload_to_bucket(builder, ['aws_amis*.csv', 'aws_amis*.md'])
+        self.upload_to_bucket(builder, ['aws_amis*.csv', 'AWS_AMIS*.md'])
         sftp = ssh.open_sftp()
         sftp.get(
             f'{self.sftp_path}/aws_amis-{self.arch}.csv',

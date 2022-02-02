@@ -87,19 +87,19 @@ pipeline {
         steps {
               // timeout(time:2, unit:'DAYS') {
                   script {
-                      def userInput = input(
-                        id: 'userInput',
-                        message: 'AMI successfully scanned and ready for release ?', ok: 'Starting publishing!',
-                        parameters: [choice(name: 'RELEASE_SCOPE', choices: 'yes\nno')]
-                      )
-                      env.RELEASE_SCOPE = userInput
-                      if (env.RELEASE_SCOPE == 'yes') {
+                      //def userInput = input(
+                      //  id: 'userInput',
+                      //  message: 'AMI successfully scanned and ready for release ?', ok: 'Starting publishing!',
+                      //  parameters: [choice(name: 'RELEASE_SCOPE', choices: 'yes\nno')]
+                      //)
+                      //env.RELEASE_SCOPE = userInput
+                      //if (env.RELEASE_SCOPE == 'yes') {
                         def jobs = [:]
                         for (arch in params.ARCH.replace('"', '').split(',')) {
                             jobs[arch] = performPublishStages(arch)
                         }
                         parallel jobs
-                      }
+                      //}
                       def arches = params.ARCH.replace('"', '').split(',')
                       if (arches.length == 2) {
                         sh('echo $PWD')

@@ -40,7 +40,7 @@ pipeline {
       AWS_ACCESS_KEY_ID = credentials('jenkins-aws-access-key-id')
       AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws-secret-access-key')
       SSH_KEY_FILE = credentials('jenkins-aclib-ssh-private-key')
-      GITHUB_TOKEN = credentials('github')
+      GITHUB_TOKEN = credentials('github_token')
   }
 
   stages {

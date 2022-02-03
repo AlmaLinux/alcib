@@ -68,7 +68,7 @@ def almalinux_wiki_pr():
     data = f'{{"message":"Updating AWS AMI version in MD file",' \
            f'"content":"{md_content}","sha":"{sha_md}"}}'
     response = requests.put(
-        'https://api.github.com/repos/VanessaRish/wiki/docs/cloud/AWS_AMIS.md',
+        'https://api.github.com/repos/VanessaRish/wiki/contents/docs/cloud/AWS_AMIS.md',
         headers=headers, data=data
     )
     logging.info(response)

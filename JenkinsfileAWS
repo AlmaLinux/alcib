@@ -104,8 +104,8 @@ pipeline {
                       if (arches.length == 2) {
                         sh('echo $PWD')
                         sh('git clone https://github.com/VanessaRish/wiki.git')
-                        sh('paste -d \\n aws_amis-x86_64.csv aws_amis-aarch64.csv > wiki/aws_amis.csv')
-                        sh('paste -d \\n AWS_AMIS-x86_64.md AWS_AMIS-aarch64.md > wiki/AWS_AMIS.md')
+                        sh('paste -d \\\\n aws_amis-x86_64.csv aws_amis-aarch64.csv > wiki/aws_amis.csv')
+                        sh('paste -d \\\\n AWS_AMIS-x86_64.md AWS_AMIS-aarch64.md > wiki/AWS_AMIS.md')
                         sh('python3 -u main.py --stage pullrequest')
                       }
                   }

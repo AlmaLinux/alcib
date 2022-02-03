@@ -568,7 +568,7 @@ class KVM(LinuxHypervisors):
 
     def publish_ami(self, builder: Builder):
         ami_id = None
-        with open('ami_id.txt', 'r') as f:
+        with open(f'ami_id_{self.arch}.txt', 'r') as f:
             ami_id = f.read()
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Preparing csv and md')
@@ -666,7 +666,7 @@ class KVM(LinuxHypervisors):
             if line.startswith('us-east-1'):
                 ami = line.split(':')[-1].strip()
                 logging.info(ami)
-        with open('ami_id.txt', 'w') as f:
+        with open(f'ami_id_{self.arch}.txt', 'w') as f:
             f.write(ami)
         logging.info('AWS AMI built')
         aws_hypervisor = AwsStage2(self.arch)
@@ -896,7 +896,7 @@ class AwsStage2(KVM):
                 if line.startswith('us-east-1'):
                     ami = line.split(':')[-1].strip()
                     logging.info(ami)
-            with open('ami_id.txt', 'w') as f:
+            with open(f'ami_id_{self.arch}.txt', 'w') as f:
                 f.write(ami)
             logging.info('AWS AMI built')
         finally:

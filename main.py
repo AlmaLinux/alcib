@@ -11,8 +11,8 @@ import argparse
 import logging
 import os
 import base64
-import hashlib
 import requests
+import json
 
 from lib.builder import Builder
 from lib.hypervisors import get_hypervisor, execute_command
@@ -56,25 +56,18 @@ def almalinux_wiki_pr():
     logging.info(response)
     logging.info(response.content)
     logging.info(response.status_code)
-    path = os.path.join(os.getcwd(), 'wiki/')
-    aws_csv = os.path.join(os.getcwd(), 'wiki/aws_amis.csv')
     aws_md = os.path.join(os.getcwd(), 'wiki/AWS_AMIS.md')
-    csv_content = base64.b64encode(open(aws_csv, "rb").read())
-    md_content = base64.b64encode(open(aws_md, "rb").read())
-    sha256_hash_csv = hashlib.sha256()
-    sha256_hash_md = hashlib.sha256()
-    with open(aws_md, "rb") as f:
-        for byte_block in iter(lambda: f.read(4096), b""):
-            sha256_hash_md.update(byte_block)
-        sha_md = sha256_hash_md.hexdigest()
-    with open(aws_csv, "rb") as f:
-        for byte_block in iter(lambda: f.read(4096), b""):
-            sha256_hash_csv.update(byte_block)
-        sha_csv = sha256_hash_csv.hexdigest()
-
+    md_content = open(aws_md, "r").read()
+    md_content = md_content.encode('utf-8')
+    md_content = base64.b64encode(md_content)
+    md_content = md_content.decode('utf-8')
+    response = requests.get(
+        'https://api.github.com/repos/VanessaRish/wiki/contents/docs/cloud/AWS_AMIS.md',
+        headers=headers)
+    sha_md = json.loads(response.content.decode()).get('sha')
     data = f'{{"message":"Updating AWS AMI version in MD file",' \
            f'"content":"{md_content}","sha":"{sha_md}"}}'
-    response = requests.post(
+    response = requests.put(
         'https://api.github.com/repos/VanessaRish/wiki/docs/cloud/AWS_AMIS.md',
         headers=headers, data=data
     )
@@ -82,19 +75,9 @@ def almalinux_wiki_pr():
     logging.info(response.content)
     logging.info(response.status_code)
 
-    data = f'{{"message":"Updating AWS AMI version in CSV file",' \
-           f'"content":"{csv_content}","sha":"{sha_csv}"}}'
+    data = '{"head":"VanessaRish:master","base":"master","title":"Updating AWS AMI versions"}'
     response = requests.post(
-        'https://api.github.com/repos/VanessaRish/wiki/docs/cloud/aws_ami.csv',
-        headers=headers, data=data
-    )
-    logging.info(response)
-    logging.info(response.content)
-    logging.info(response.status_code)
-
-    data = '{"head":"master","base":"master","title":"Updating AWS AMI versions"}'
-    response = requests.post(
-        'https://api.github.com/repos/VanessaRish/wiki/pulls',
+        'https://api.github.com/repos/AlmaLinux/wiki/pulls',
         headers=headers, data=data
     )
     logging.info(response)

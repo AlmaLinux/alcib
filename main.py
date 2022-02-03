@@ -44,7 +44,7 @@ def init_args_parser() -> argparse.ArgumentParser:
 
 def almalinux_wiki_pr():
     cmd = f'curl -X POST -H "Authorization: token {settings.github_token}" ' \
-          f'-H "Accept: application/vnd.github.v3+json" ' \
+          f'-H "Accept:application/vnd.github.v3+json" ' \
           f'https://api.github.com/repos/VanessaRish/wiki/merge-upstream ' \
           f'-d \'{{"branch":"master"}}\''
     path = os.path.join(os.getcwd(), 'wiki/')
@@ -65,19 +65,19 @@ def almalinux_wiki_pr():
         sha_csv = sha256_hash_csv.hexdigest()
 
     cmd = f'curl -X POST -H "Authorization: token {settings.github_token}" ' \
-          f'-H "Accept: application/vnd.github.v3+json" ' \
+          f'-H "Accept:application/vnd.github.v3+json" ' \
           f'https://api.github.com/repos/VanessaRish/wiki/docs/cloud/AWS_AMIS.md  ' \
           f'-d \'{{"message":"Updating AWS AMI version in MD file","content":"{md_content}","sha":"{sha_md}"}}\''
     execute_command(cmd, path)
 
     cmd = f'curl -X POST -H "Authorization: token {settings.github_token}" ' \
-          f'-H "Accept: application/vnd.github.v3+json" ' \
+          f'-H "Accept:application/vnd.github.v3+json" ' \
           f'https://api.github.com/repos/VanessaRish/wiki/docs/cloud/aws_amis.csv  ' \
           f'-d \'{{"message":"Updating AWS AMI version in CSV file","content":"{csv_content}","sha":"{sha_csv}"}}\''
     execute_command(cmd, path)
 
     cmd = f'curl -X POST -H "Authorization: token {settings.github_token}" ' \
-          f'-H "Accept: application/vnd.github.v3+json" ' \
+          f'-H "Accept:application/vnd.github.v3+json" ' \
           f'https://api.github.com/repos/VanessaRish/wiki/pulls  ' \
           f'-d \'{{"head":"master","base":"master","title":"Updating AWS AMI versions"}}\''
     execute_command(cmd, path)

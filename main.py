@@ -12,6 +12,7 @@ import logging
 import os
 import base64
 import hashlib
+import requests
 
 from lib.builder import Builder
 from lib.hypervisors import get_hypervisor, execute_command
@@ -43,12 +44,19 @@ def init_args_parser() -> argparse.ArgumentParser:
 
 
 def almalinux_wiki_pr():
-    cmd = f'curl -X POST -H "Authorization:Bearer {settings.github_token}" ' \
-          f'-H "Accept:application/vnd.github.v3+json" ' \
-          f'https://api.github.com/repos/VanessaRish/wiki/merge-upstream ' \
-          f'-d \'{{"branch":"master"}}\''
+    headers = {
+        'Authorization': f'Bearer {settings.github_token}',
+        'Accept': 'application/vnd.github.v3+json',
+    }
+    data = '{"branch":"master"}'
+    response = requests.post(
+        'https://api.github.com/repos/VanessaRish/wiki/merge-upstream',
+        headers=headers, data=data
+    )
+    logging.info(response)
+    logging.info(response.content)
+    logging.info(response.status_code)
     path = os.path.join(os.getcwd(), 'wiki/')
-    execute_command(cmd, path)
     aws_csv = os.path.join(os.getcwd(), 'wiki/aws_amis.csv')
     aws_md = os.path.join(os.getcwd(), 'wiki/AWS_AMIS.md')
     csv_content = base64.b64encode(open(aws_csv, "rb").read())
@@ -64,23 +72,34 @@ def almalinux_wiki_pr():
             sha256_hash_csv.update(byte_block)
         sha_csv = sha256_hash_csv.hexdigest()
 
-    cmd = f'curl -X POST -H "Authorization:Bearer {settings.github_token}" ' \
-          f'-H "Accept:application/vnd.github.v3+json" ' \
-          f'https://api.github.com/repos/VanessaRish/wiki/docs/cloud/AWS_AMIS.md  ' \
-          f'-d \'{{"message":"Updating AWS AMI version in MD file","content":"{md_content}","sha":"{sha_md}"}}\''
-    execute_command(cmd, path)
+    data = f'{{"message":"Updating AWS AMI version in MD file",' \
+           f'"content":"{md_content}","sha":"{sha_md}"}}'
+    response = requests.post(
+        'https://api.github.com/repos/VanessaRish/wiki/docs/cloud/AWS_AMIS.md',
+        headers=headers, data=data
+    )
+    logging.info(response)
+    logging.info(response.content)
+    logging.info(response.status_code)
 
-    cmd = f'curl -X POST -H "Authorization:Bearer {settings.github_token}" ' \
-          f'-H "Accept:application/vnd.github.v3+json" ' \
-          f'https://api.github.com/repos/VanessaRish/wiki/docs/cloud/aws_amis.csv  ' \
-          f'-d \'{{"message":"Updating AWS AMI version in CSV file","content":"{csv_content}","sha":"{sha_csv}"}}\''
-    execute_command(cmd, path)
+    data = f'{{"message":"Updating AWS AMI version in CSV file",' \
+           f'"content":"{csv_content}","sha":"{sha_csv}"}}'
+    response = requests.post(
+        'https://api.github.com/repos/VanessaRish/wiki/docs/cloud/aws_ami.csv',
+        headers=headers, data=data
+    )
+    logging.info(response)
+    logging.info(response.content)
+    logging.info(response.status_code)
 
-    cmd = f'curl -X POST -H "Authorization:Bearer {settings.github_token}" ' \
-          f'-H "Accept:application/vnd.github.v3+json" ' \
-          f'https://api.github.com/repos/VanessaRish/wiki/pulls  ' \
-          f'-d \'{{"head":"master","base":"master","title":"Updating AWS AMI versions"}}\''
-    execute_command(cmd, path)
+    data = '{"head":"master","base":"master","title":"Updating AWS AMI versions"}'
+    response = requests.post(
+        'https://api.github.com/repos/VanessaRish/wiki/pulls',
+        headers=headers, data=data
+    )
+    logging.info(response)
+    logging.info(response.content)
+    logging.info(response.status_code)
 
 
 def setup_logger():

@@ -25,7 +25,6 @@ class ExecuteError(Exception):
     """
     Remote command execution Exception.
     """
-
     pass
 
 
@@ -45,14 +44,14 @@ class ParamikoWrapper(paramiko.SSHClient):
             A remote command to execute.
         """
         cmd = 'set -o pipefail; ' + cmd
-        logging.info(f'Executing {cmd}')
+        logging.info('Executing %s', cmd)
         stdin, stdout, stderr = self.exec_command(cmd, *args, **kwargs)
         stdin.flush()
         exit_status = stdout.channel.recv_exit_status()
         if exit_status != 0:
-            logging.info(f'Command output:\n{stdout.read().decode()}')
-            logging.error(f'Traceback:\n{stderr.read().decode()}')
-            raise ExecuteError(f'Command \'{cmd}\' execution failed.')
+            logging.info('Command output:\n%s', stdout.read().decode())
+            logging.error('Traceback:\n%s', stderr.read().decode())
+            raise ExecuteError('Command \'{cmd}\' execution failed.')
 
         return stdout, stderr
 
@@ -122,7 +121,7 @@ class Builder:
         -------
         builder.ParamikoWrapper
         """
-        logging.info(f'Connecting to instance {instance_ip}')
+        logging.info('Connecting to instance %s', instance_ip)
         instance = self.find_aws_instance(instance_ip)
         ssh_client = self.get_ssh_client()
         if hypervisor.lower() != 'hyperv':
@@ -140,6 +139,11 @@ class Builder:
         return ssh_client
 
     def ssh_equinix_connect(self):
+
+        """
+        Establishes connection to Equinix Server.
+        """
+
         equinix_ip = settings.equinix_ip
         logging.info('Connecting to Equinix Server')
         ssh_client = self.get_ssh_client()

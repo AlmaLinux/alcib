@@ -11,11 +11,11 @@ import argparse
 import logging
 import os
 import base64
-import requests
 import json
+import requests
 
 from lib.builder import Builder
-from lib.hypervisors import get_hypervisor, execute_command
+from lib.hypervisors import get_hypervisor
 from lib.config import settings
 
 
@@ -31,58 +31,83 @@ def init_args_parser() -> argparse.ArgumentParser:
         description='Cloud Images autobuilder'
     )
     parser.add_argument('--hypervisor', type=str,
-                        choices=['VirtualBox', 'KVM', 'VMWare_Desktop', 'HyperV',
-                                 'AWS-STAGE-2', 'Equinix'],
+                        choices=['VirtualBox', 'KVM', 'VMWare_Desktop',
+                                 'HyperV', 'AWS-STAGE-2', 'Equinix'],
                         help='Hypervisor name', required=False)
     parser.add_argument('--stage', type=str,
                         choices=['init', 'build', 'destroy',
                                  'test', 'release', 'pullrequest'],
                         help='Stage')
     parser.add_argument('--arch', type=str, choices=['x86_64', 'aarch64'],
-                        help='Architecture', required=False)
+                        help='Architecture', required=False, default='x86_64')
     return parser
 
 
 def almalinux_wiki_pr():
+
+    """
+    Executes Github API calls for making commit and pull request.
+    """
+
     headers = {
         'Authorization': f'Bearer {settings.github_token}',
         'Accept': 'application/vnd.github.v3+json',
     }
-    data = '{"branch":"master"}'
+    repo = 'https://api.github.com/repos/VanessaRish/wiki'
     response = requests.post(
-        'https://api.github.com/repos/VanessaRish/wiki/merge-upstream',
-        headers=headers, data=data
+        f'{repo}/merge-upstream',
+        headers=headers, data='{"branch":"master"}'
     )
-    logging.info(response)
-    logging.info(response.content)
-    logging.info(response.status_code)
-    aws_md = os.path.join(os.getcwd(), 'wiki/AWS_AMIS.md')
-    md_content = open(aws_md, "r").read()
-    md_content = md_content.encode('utf-8')
-    md_content = base64.b64encode(md_content)
-    md_content = md_content.decode('utf-8')
+    logging.info(response.status_code, response.content.decode())
+
+    aws_md = os.path.join(os.getcwd(), 'wiki/docs/cloud/AWS_AMIS.md')
+    aws_csv = os.path.join(os.getcwd(), 'wiki/docs/.vuepress/public/ci-data/aws_amis.csv')
+    md_content = base64.b64encode(
+        open(aws_md, "r").read().encode('utf-8')
+    ).decode('utf-8')
+    csv_content = base64.b64encode(
+        open(aws_csv, "r").read().encode('utf-8')
+    ).decode('utf-8')
+    # md_content = open(aws_md, "r").read()
+    # md_content = md_content.encode('utf-8')
+    # md_content = base64.b64encode(md_content)
+    # md_content = md_content.decode('utf-8')
+    # csv_content = open(aws_csv, "r").read()
+    # csv_content = csv_content.encode('utf-8')
+    # csv_content = base64.b64encode(csv_content)
+    # csv_content = csv_content.decode('utf-8')
     response = requests.get(
-        'https://api.github.com/repos/VanessaRish/wiki/contents/docs/cloud/AWS_AMIS.md',
-        headers=headers)
+        f'{repo}/contents/docs/cloud/AWS_AMIS.md',
+        headers=headers
+    )
     sha_md = json.loads(response.content.decode()).get('sha')
+    response = requests.get(
+        f'{repo}/contents/docs/.vuepress/public/ci-data/aws_amis.csv',
+        headers=headers
+    )
+    sha_csv = json.loads(response.content.decode()).get('sha')
     data = f'{{"message":"Updating AWS AMI version in MD file",' \
            f'"content":"{md_content}","sha":"{sha_md}"}}'
     response = requests.put(
-        'https://api.github.com/repos/VanessaRish/wiki/contents/docs/cloud/AWS_AMIS.md',
+        f'{repo}/contents/docs/cloud/AWS_AMIS.md',
         headers=headers, data=data
     )
-    logging.info(response)
-    logging.info(response.content)
-    logging.info(response.status_code)
+    logging.info(response.status_code, response.content.decode())
+
+    data = f'{{"message":"Updating AWS AMI version in CSV file",' \
+           f'"content":"{csv_content}","sha":"{sha_csv}"}}'
+    response = requests.put(
+        f'{repo}/contents/docs/cloud/AWS_AMIS.md',
+        headers=headers, data=data
+    )
+    logging.info(response.status_code, response.content.decode())
 
     data = '{"head":"VanessaRish:master","base":"master","title":"Updating AWS AMI versions"}'
     response = requests.post(
         'https://api.github.com/repos/AlmaLinux/wiki/pulls',
         headers=headers, data=data
     )
-    logging.info(response)
-    logging.info(response.content)
-    logging.info(response.status_code)
+    logging.info(response.status_code, response.content.decode())
 
 
 def setup_logger():
@@ -112,18 +137,16 @@ def main(sys_args):
 
     if args.stage == 'pullrequest':
         almalinux_wiki_pr()
-    elif args.hypervisor:
-        if args.arch == 'aarch64':
-            hypervisor = get_hypervisor(args.hypervisor.lower(), args.arch)
-        else:
-            hypervisor = get_hypervisor(args.hypervisor.lower())
+    else:
+        hypervisor = get_hypervisor(args.hypervisor.lower(), args.arch)
 
         if args.stage == 'init':
             hypervisor.init_stage(builder)
-        elif args.stage == 'build' and settings.image in ['Vagrant Box', 'Generic Cloud']:
-            hypervisor.build_stage(builder)
-        elif args.stage == 'build' and settings.image == 'AWS AMI' and args.hypervisor != 'AWS-STAGE-2':
-            hypervisor.build_aws_stage(builder, args.arch)
+        elif args.stage == 'build':
+            if settings.image in ['Vagrant Box', 'Generic Cloud']:
+                hypervisor.build_stage(builder)
+            elif settings.image == 'AWS AMI' and args.hypervisor != 'AWS-STAGE-2':
+                hypervisor.build_aws_stage(builder, args.arch)
         elif args.stage == 'test':
             if settings.image == 'AWS AMI':
                 hypervisor.test_aws_stage(builder)

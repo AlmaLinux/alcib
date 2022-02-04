@@ -61,6 +61,9 @@ def almalinux_wiki_pr():
     logging.info(response.status_code, response.content.decode())
 
     aws_md = os.path.join(os.getcwd(), 'wiki/docs/cloud/AWS_AMIS.md')
+    lines = open(aws_md, 'r').readlines()
+    lines = lines[:1] + lines[3:]
+    open(aws_md, 'w').write('\n'.join(lines))
     aws_csv = os.path.join(os.getcwd(), 'wiki/docs/.vuepress/public/ci-data/aws_amis.csv')
     md_content = base64.b64encode(
         open(aws_md, "r").read().encode('utf-8')

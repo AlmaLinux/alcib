@@ -100,7 +100,7 @@ def almalinux_wiki_pr():
     data = f'{{"message":"Updating AWS AMI version in CSV file",' \
            f'"content":"{csv_content}","sha":"{sha_csv}"}}'
     response = requests.put(
-        f'{repo}/contents/docs/cloud/AWS_AMIS.md',
+        f'{repo}/contents/docs/.vuepress/public/ci-data/aws_amis.csv',
         headers=headers, data=data
     )
     logging.info(response.status_code, response.content.decode())

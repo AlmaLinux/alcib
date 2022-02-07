@@ -24,4 +24,9 @@ resource "aws_instance" "ALCIB-VMWare" {
   tags = {
     Name = "ALCIB-VMWare"
   }
+
+  root_block_device = {
+    volume_size = "100"
+    volume_type = "gp2"
+  }
 }

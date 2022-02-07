@@ -868,14 +868,14 @@ class AwsStage2(KVM):
         )
         logging.info(stdout.read().decode())
         # doesn't actually uploads due to uninstalled aws cli, requieres another option
-        output = Popen(
-            ['aws', 's3', 'cp', f'{self.name}-{aws2_build_log}',
-             f's3://{settings.bucket}/{settings.build_number}-{IMAGE}-{self.arch}-{TIMESTAMP}/',
-             '--metadata', f'sha256={stdout.read().decode().split()[0]}'],
-            shell=True, stderr=STDOUT, stdout=PIPE
-        )
-        for line in output.stdout:
-            logging.info(line.decode())
+        # output = Popen(
+        #     ['aws', 's3', 'cp', f'{self.name}-{aws2_build_log}',
+        #      f's3://{settings.bucket}/{settings.build_number}-{IMAGE}-{self.arch}-{TIMESTAMP}/',
+        #      '--metadata', f'sha256={stdout.read().decode().split()[0]}'],
+        #     shell=True, stderr=STDOUT, stdout=PIPE
+        # )
+        # for line in output.stdout:
+        #     logging.info(line.decode())
         ssh.close()
         logging.info('Connection closed')
 

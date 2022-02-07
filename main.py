@@ -63,7 +63,7 @@ def almalinux_wiki_pr():
     aws_md = os.path.join(os.getcwd(), 'wiki/docs/cloud/AWS_AMIS.md')
     lines = open(aws_md, 'r').readlines()
     lines = lines[:1] + lines[3:]
-    open(aws_md, 'w').write('\n'.join(lines))
+    open(aws_md, 'w').write(''.join(lines))
     aws_csv = os.path.join(os.getcwd(), 'wiki/docs/.vuepress/public/ci-data/aws_amis.csv')
     md_content = base64.b64encode(
         open(aws_md, "r").read().encode('utf-8')
@@ -71,14 +71,6 @@ def almalinux_wiki_pr():
     csv_content = base64.b64encode(
         open(aws_csv, "r").read().encode('utf-8')
     ).decode('utf-8')
-    # md_content = open(aws_md, "r").read()
-    # md_content = md_content.encode('utf-8')
-    # md_content = base64.b64encode(md_content)
-    # md_content = md_content.decode('utf-8')
-    # csv_content = open(aws_csv, "r").read()
-    # csv_content = csv_content.encode('utf-8')
-    # csv_content = base64.b64encode(csv_content)
-    # csv_content = csv_content.decode('utf-8')
     response = requests.get(
         f'{repo}/contents/docs/cloud/AWS_AMIS.md',
         headers=headers

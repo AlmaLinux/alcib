@@ -150,6 +150,9 @@ def main(sys_args):
                 hypervisor.build_stage(builder)
             elif settings.image == 'AWS AMI' and args.hypervisor != 'AWS-STAGE-2':
                 hypervisor.build_aws_stage(builder, args.arch)
+            elif args.hypervisor == 'AWS-STAGE-2':
+                hypervisor.init_stage(builder)
+                hypervisor.build_aws_stage(builder, args.arch)
         elif args.stage == 'test':
             if settings.image == 'AWS AMI':
                 hypervisor.test_aws_stage(builder)
@@ -169,9 +172,6 @@ def main(sys_args):
                 hypervisor.teardown_equinix_stage(builder)
             else:
                 hypervisor.teardown_stage()
-        elif args.hypervisor == 'AWS-STAGE-2' and args.stage != 'destroy':
-            hypervisor.init_stage(builder)
-            hypervisor.build_aws_stage(builder, args.arch)
 
 
 if __name__ == '__main__':

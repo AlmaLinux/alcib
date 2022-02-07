@@ -26,7 +26,7 @@ resource "aws_instance" "ALCIB-VMWare" {
   }
 
   root_block_device {
-    volume_size = "100"
+    volume_size = "25"
     volume_type = "gp2"
   }
 }

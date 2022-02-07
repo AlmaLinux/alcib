@@ -93,6 +93,13 @@ pipeline {
                   parallel jobs
               }
           }
+          post {
+              success {
+                  slackSend channel: '#test-auto-vagrant',
+                            color: 'good',
+                            message: "The build ${currentBuild.fullDisplayName} ready to be released as new AWS AMIs, please, approve: ${currentBuild.absoluteUrl}"
+              }
+          }
       }
       stage('Publish new AMIs release') {
         steps {

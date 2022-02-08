@@ -41,18 +41,6 @@ def save_ami_id(stdout, arch: str) -> str:
     return ami
 
 
-def download_qcow(
-        arch: str, builder: Builder, instance_ip: str, name: str, path: str
-):
-    qcow_name = f'AlmaLinux-8-GenericCloud-8.5.{arch}.qcow2'
-    qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.{arch}.qcow2'
-    ssh_aws = builder.ssh_aws_connect(instance_ip, name)
-    sftp = ssh_aws.open_sftp()
-    sftp.get(
-        f'{path}/{qcow_name}', f'{qcow_tm_name}'
-    )
-
-
 def koji_release(ftp_path, qcow_name, builder):
     ssh_koji = builder.ssh_koji_connect()
     stdout, _ = ssh_koji.safe_execute(
@@ -164,6 +152,31 @@ class BaseHypervisor:
         if not self._instance_id:
             self.get_instance_info()
         return self._instance_id
+
+    def download_qcow(self):
+        # {self.build_number} - {IMAGE} - {self.name} - {self.arch} - {TIMESTAMP}
+        s3_bucket = boto3.client(
+            service_name='s3', region_name='us-east-1',
+            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+        )
+        bucket_path = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
+        work_dir = os.path.join(os.getcwd(), bucket_path)
+        os.mkdir(work_dir)
+        qcow_name = f'AlmaLinux-8-GenericCloud-8.5.{self.arch}.qcow2'
+        qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.{self.arch}.qcow2'
+        # s3.download_file('your_bucket', 'k.png', '/Users/username/Desktop/k.png')
+        s3_bucket.download_file(settings.bucket, f'{bucket_path}/{qcow_name}',
+                                f'{work_dir}/{qcow_tm_name}')
+        # if hypervisor == 'KVM':
+        #     ssh = builder.ssh_aws_connect(instance_ip, name)
+        # else:
+        #     ssh = builder.ssh_equinix_connect()
+        # sftp = ssh.open_sftp()
+        # sftp.put(
+        #     f'{path}/{qcow_name}', f'{qcow_tm_name}'
+        # )
+        return f'{work_dir}/{qcow_tm_name}'
 
     def get_instance_info(self):
         """
@@ -620,7 +633,15 @@ class KVM(LinuxHypervisors):
         ssh.close()
 
     def release_and_sign_stage(self, builder: Builder):
-        download_qcow(self.arch, builder, self.instance_ip, self.name, self.sftp_path)
+        qcow_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.x86_64.qcow2'
+        ftp_path = '/var/ftp/pub/cloudlinux/almalinux/8/cloud/x86_64'
+        qcow_path = self.download_qcow()
+        ssh_aws = builder.ssh_aws_connect(self.instance_ip, self.name)
+        sftp = ssh_aws.open_sftp()
+        sftp.put(qcow_path,
+                 f'mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}')
+        koji_release(ftp_path, qcow_name, builder)
+        ssh_aws.close()
 
     def build_aws_stage(self, builder: Builder, arch: str):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
@@ -1003,12 +1024,11 @@ class Equinix(BaseHypervisor):
     def release_and_sign_stage(self, builder: Builder):
         qcow_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.aarch64.qcow2'
         ftp_path = '/var/ftp/pub/cloudlinux/almalinux/8/cloud/aarch64'
+        qcow_path = self.download_qcow()
         ssh_equinix = builder.ssh_equinix_connect()
-        stdout, _ = ssh_equinix.safe_execute(
-            f'scp /root/cloud-images/*.qcow2 '
-            f'mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}'
-        )
-        logging.info(stdout.read().decode())
+        sftp = ssh_equinix.open_sftp()
+        sftp.put(qcow_path,
+                 f'mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}')
         koji_release(ftp_path, qcow_name, builder)
         ssh_equinix.close()
 

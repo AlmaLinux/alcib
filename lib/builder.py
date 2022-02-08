@@ -139,11 +139,9 @@ class Builder:
         return ssh_client
 
     def ssh_equinix_connect(self):
-
         """
         Establishes connection to Equinix Server.
         """
-
         equinix_ip = settings.equinix_ip
         logging.info('Connecting to Equinix Server')
         ssh_client = self.get_ssh_client()

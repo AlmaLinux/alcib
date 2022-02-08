@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     amd_project_id: str = ''
     equinix_ip: str = ''
     github_token: str = ''
+    opennebula_node: str = ''
 
 
 settings = Settings()

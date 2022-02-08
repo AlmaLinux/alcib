@@ -163,7 +163,7 @@ class BaseHypervisor:
         logging.info(os.getenv('AWS_ACCESS_KEY_ID'))
         logging.info(os.getenv('AWS_SECRET_ACCESS_KEY'))
         bucket_path = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
-        work_dir = os.path.join(os.getcwd(), bucket_path)
+        work_dir = os.path.join(os.getcwd(), f'alcib/{bucket_path}')
         os.mkdir(work_dir)
         logging.info(work_dir)
         qcow_name = f'almaLinux-8-GenericCloud-8.5.{self.arch}.qcow2'
@@ -173,7 +173,7 @@ class BaseHypervisor:
         logging.info(settings.bucket)
         # s3.download_file('your_bucket', 'k.png', '/Users/username/Desktop/k.png')
         s3_bucket.download_file(settings.bucket, f'{bucket_path}/{qcow_name}',
-                                f'{work_dir}/{qcow_tm_name}')
+                                f'./{bucket_path}/{qcow_tm_name}')
         # if hypervisor == 'KVM':
         #     ssh = builder.ssh_aws_connect(instance_ip, name)
         # else:

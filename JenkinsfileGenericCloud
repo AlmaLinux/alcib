@@ -122,9 +122,9 @@ pipeline {
                       //  }
                       //  parallel jobs
                       // }
-                      node('nebula_node') {
-                        sh('echo hello world')
-                        if (env.RELEASE_SCOPE == 'yes') {
+                      if (env.RELEASE_SCOPE == 'yes') {
+                        node('nebula_node') {
+                            sh('echo hello world')
                             def jobs = [:]
                             for (arch in params.ARCH.replace('"', '').split(',')) {
                                 if (arch == 'x86_64') {

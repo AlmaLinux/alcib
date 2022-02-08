@@ -160,11 +160,17 @@ class BaseHypervisor:
             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
         )
+        logging.info(os.getenv('AWS_ACCESS_KEY_ID'))
+        logging.info(os.getenv('AWS_SECRET_ACCESS_KEY'))
         bucket_path = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
         work_dir = os.path.join(os.getcwd(), bucket_path)
         os.mkdir(work_dir)
-        qcow_name = f'AlmaLinux-8-GenericCloud-8.5.{self.arch}.qcow2'
+        logging.info(work_dir)
+        qcow_name = f'almaLinux-8-GenericCloud-8.5.{self.arch}.qcow2'
         qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.{self.arch}.qcow2'
+        logging.info(qcow_tm_name)
+        logging.info(bucket_path)
+        logging.info(settings.bucket)
         # s3.download_file('your_bucket', 'k.png', '/Users/username/Desktop/k.png')
         s3_bucket.download_file(settings.bucket, f'{bucket_path}/{qcow_name}',
                                 f'{work_dir}/{qcow_tm_name}')

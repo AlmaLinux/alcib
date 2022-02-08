@@ -25,7 +25,7 @@ def performTestStages(String hypervisor, String arch) {
 
 def performReleaseStages(String hypervisor, String arch) {
     return {
-        sh "python3 -u main.py --stage release --hypervisor ${hypervisor} --arch ${arch}"
+        sh "python3 -u alcib/main.py --stage release --hypervisor ${hypervisor} --arch ${arch}"
     }
 }
 

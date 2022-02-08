@@ -172,8 +172,13 @@ class BaseHypervisor:
         logging.info(bucket_path)
         logging.info(settings.bucket)
         # s3.download_file('your_bucket', 'k.png', '/Users/username/Desktop/k.png')
-        s3_bucket.download_file(settings.bucket, f'{bucket_path}/{qcow_name}',
-                                f'./{bucket_path}/{qcow_tm_name}')
+        try:
+            s3_bucket.download_file(settings.bucket, f'{bucket_path}/{qcow_name}',
+                                    f'./{bucket_path}/{qcow_tm_name}')
+        except Exception as e:
+            logging.exception(e)
+            logging.info("Full path: %s", f'{bucket_path}/{qcow_name}')
+            logging.info("Bucket objects: %s", [item.key for item in s3_bucket.objects.all()])
         # if hypervisor == 'KVM':
         #     ssh = builder.ssh_aws_connect(instance_ip, name)
         # else:

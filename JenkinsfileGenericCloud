@@ -125,7 +125,7 @@ pipeline {
                       if (env.RELEASE_SCOPE == 'yes') {
                         node('nebula_node') {
                             sh('echo hello world')
-                            // sh('git clone https://github.com/VanessaRish/alcib.git')
+                            sh('git clone https://github.com/VanessaRish/alcib.git')
                             def jobs = [:]
                             for (arch in params.ARCH.replace('"', '').split(',')) {
                                 if (arch == 'x86_64') {
@@ -136,6 +136,7 @@ pipeline {
                                 }
                             }
                             parallel jobs
+                            sh('rm -r alcib/')
                         }
                       }
                   }

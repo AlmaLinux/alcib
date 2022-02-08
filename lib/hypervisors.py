@@ -178,7 +178,7 @@ class BaseHypervisor:
         except Exception as e:
             logging.exception(e)
             logging.info("Full path: %s", f'{bucket_path}/{qcow_name}')
-            logging.info("Bucket objects: %s", [item.key for item in s3_bucket.objects.all()])
+            logging.info("Bucket objects: %s", [o['Key'] for o in s3_bucket.list_objects(Bucket='alcib-dev')['Contents']])
             raise
         # if hypervisor == 'KVM':
         #     ssh = builder.ssh_aws_connect(instance_ip, name)

@@ -162,13 +162,16 @@ class BaseHypervisor:
         )
         logging.info(os.getenv('AWS_ACCESS_KEY_ID'))
         logging.info(os.getenv('AWS_SECRET_ACCESS_KEY'))
-        bucket_path = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
+        # bucket_path = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
+        bucket_path = '19-Generic_Cloud-kvm-x86_64-20220208'
         work_dir = os.path.join(os.getcwd(), f'alcib/{bucket_path}')
-        os.mkdir(work_dir)
-        os.mkdir(os.path.join(os.getcwd(), f'{bucket_path}'))
+        os.mkdir(work_dir, mode=0o777)
+        os.mkdir(os.path.join(os.getcwd(), f'{bucket_path}'), mode=0o777)
         logging.info(work_dir)
-        qcow_name = f'almaLinux-8-GenericCloud-8.5.{self.arch}.qcow2'
-        qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.{self.arch}.qcow2'
+        # qcow_name = f'almaLinux-8-GenericCloud-8.5.{self.arch}.qcow2'
+        # qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.{self.arch}.qcow2'
+        qcow_name = f'almaLinux-8-GenericCloud-8.5.x86_64.qcow2'
+        qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.x86_64.qcow2'
         logging.info(qcow_tm_name)
         logging.info(bucket_path)
         logging.info(settings.bucket)
@@ -184,7 +187,7 @@ class BaseHypervisor:
                             )
         bucket = s3.Bucket(settings.bucket)
         try:
-            for o in bucket.list_objects(Bucket=settings.bucket)['Contents']:
+            for o in s3_bucket.list_objects(Bucket=settings.bucket)['Contents']:
                 if o['Key'] == key:
                     s3_bucket.download_file(settings.bucket, o['Key'],
                                             to)
@@ -200,9 +203,14 @@ class BaseHypervisor:
                 s3.Bucket(settings.bucket).download_file(key, to)
             except Exception as e:
                 logging.exception(e)
-                data = s3.get_object(Bucket=settings.bucket, Key=key)['Body'].read()
+                data = s3_bucket.get_object(Bucket=settings.bucket, Key=key)['Body'].read()
                 logging.info(data)
-                raise
+                try:
+                    s3_bucket.download_file(settings.bucket, key,
+                                            f'/root/var/lib/jenkins/workspaces/workspace/GC-dev-master/{qcow_tm_name}')
+                except Exception as e:
+                    logging.exception(e)
+                    raise
         # if hypervisor == 'KVM':
         #     ssh = builder.ssh_aws_connect(instance_ip, name)
         # else:

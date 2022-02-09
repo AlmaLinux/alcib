@@ -155,50 +155,58 @@ class BaseHypervisor:
 
     def download_qcow(self):
         # {self.build_number} - {IMAGE} - {self.name} - {self.arch} - {TIMESTAMP}
-        s3_bucket = boto3.client(
-            service_name='s3', region_name='us-east-1',
-            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
-        )
-        logging.info(os.getenv('AWS_ACCESS_KEY_ID'))
-        logging.info(os.getenv('AWS_SECRET_ACCESS_KEY'))
-        # bucket_path = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
-        bucket_path = '19-Generic_Cloud-kvm-x86_64-20220208'
-        work_dir = os.path.join(os.getcwd(), f'alcib/{bucket_path}')
+        # s3_bucket = boto3.client(
+        #     service_name='s3', region_name='us-east-1',
+        #     aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+        #     aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+        # )
+        # logging.info(os.getenv('AWS_ACCESS_KEY_ID'))
+        # logging.info(os.getenv('AWS_SECRET_ACCESS_KEY'))
+        bucket_path = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
+        # bucket_path = '19-Generic_Cloud-kvm-x86_64-20220208'
+        work_dir = os.path.join(os.getcwd(), f'{bucket_path}')
         os.mkdir(work_dir, mode=0o777)
-        os.mkdir(os.path.join(os.getcwd(), f'{bucket_path}'), mode=0o777)
+        # os.mkdir(os.path.join(os.getcwd(), f'{bucket_path}'), mode=0o777)
         logging.info(work_dir)
-        # qcow_name = f'almaLinux-8-GenericCloud-8.5.{self.arch}.qcow2'
-        # qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.{self.arch}.qcow2'
-        qcow_name = f'almaLinux-8-GenericCloud-8.5.x86_64.qcow2'
-        qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.x86_64.qcow2'
+        qcow_name = f'almaLinux-8-GenericCloud-8.5.{self.arch}.qcow2'
+        qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.{self.arch}.qcow2'
+        # qcow_name = f'almaLinux-8-GenericCloud-8.5.x86_64.qcow2'
+        # qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.x86_64.qcow2'
+        logging.info(qcow_name)
         logging.info(qcow_tm_name)
         logging.info(bucket_path)
+        logging.info(work_dir)
         logging.info(settings.bucket)
-        # s3.download_file('your_bucket', 'k.png', '/Users/username/Desktop/k.png')
-        key = f'{bucket_path}/{qcow_name}'
-        logging.info(key)
-        to = f'{bucket_path}/{qcow_tm_name}'
-        logging.info(to)
-        logging.info(os.getcwd())
-        s3 = boto3.resource('s3', region_name='us-east-1',
-                            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-                            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
-                            )
-        for i in range(5):
-            try:
-                s3_bucket.download_file(settings.bucket, key, to)
-            except Exception as e:
-                logging.exception(e)
-                execute_command(
-                    f'aws s3 cp s3://alcib-dev/19-Generic_Cloud-kvm-x86_64-20220208/almalinux-8-GenericCloud-8.5.x86_64.qcow2 {to}',
-                    os.getcwd())
-                logging.info("Full path: %s", f'{bucket_path}/{qcow_name}')
-                logging.info("Bucket objects: %s", [o['Key'] for o in s3_bucket.list_objects(Bucket='alcib-dev')['Contents']])
-                time.sleep(60)
-                if i == 4:
-                    execute_command(f'aws s3 cp s3://alcib-dev/19-Generic_Cloud-kvm-x86_64-20220208/almalinux-8-GenericCloud-8.5.x86_64.qcow2 {to}', os.getcwd())
-                    raise
+        try:
+            execute_command(
+                f'aws s3 cp s3://{settings.bucket}/{bucket_path}/{qcow_tm_name} '
+                f'./{qcow_tm_name}', work_dir
+            )
+        except Exception as e:
+            logging.exception('%s', e)
+        # # s3.download_file('your_bucket', 'k.png', '/Users/username/Desktop/k.png')
+        # key = f'{bucket_path}/{qcow_name}'
+        # logging.info(key)
+        # to = f'{bucket_path}/{qcow_tm_name}'
+        # logging.info(to)
+        # logging.info(os.getcwd())
+        # s3 = boto3.resource('s3', region_name='us-east-1',
+        #                     aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+        #                     aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+        #                     )
+        # for i in range(5):
+        #     try:
+        #         s3_bucket.download_file(settings.bucket, key, to)
+        #     except Exception as e:
+        #         logging.exception(e)
+        #         execute_command(
+        #             f'aws s3 cp s3://alcib-dev/19-Generic_Cloud-kvm-x86_64-20220208/almalinux-8-GenericCloud-8.5.x86_64.qcow2 {to}',
+        #             os.getcwd())
+        #         logging.info("Full path: %s", f'{bucket_path}/{qcow_name}')
+        #         logging.info("Bucket objects: %s", [o['Key'] for o in s3_bucket.list_objects(Bucket='alcib-dev')['Contents']])
+        #         time.sleep(60)
+        #         if i == 4:
+        #             raise
         # if hypervisor == 'KVM':
         #     ssh = builder.ssh_aws_connect(instance_ip, name)
         # else:

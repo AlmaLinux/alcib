@@ -176,7 +176,7 @@ class BaseHypervisor:
         logging.info(bucket_path)
         logging.info(settings.bucket)
         # s3.download_file('your_bucket', 'k.png', '/Users/username/Desktop/k.png')
-        key = f'{bucket_path}/{qcow_name}'
+        key = f'/{bucket_path}/{qcow_name}'
         logging.info(key)
         to = f'{bucket_path}/{qcow_tm_name}'
         logging.info(to)
@@ -185,16 +185,8 @@ class BaseHypervisor:
                             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
                             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
                             )
-        bucket = s3.Bucket(settings.bucket)
         try:
-            for o in s3_bucket.list_objects(Bucket=settings.bucket)['Contents']:
-                logging.info(o)
-                if o['Key'] == key:
-                    s3_bucket.download_file(settings.bucket, o['Key'],
-                                            to)
-                else:
-                    s3_bucket.download_file(settings.bucket, key,
-                                            to)
+            s3_bucket.download_file(settings.bucket, key, to)
         except Exception as e:
             logging.exception(e)
             logging.info("Full path: %s", f'{bucket_path}/{qcow_name}')

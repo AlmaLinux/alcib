@@ -155,11 +155,11 @@ class BaseHypervisor:
 
     def download_qcow(self):
         # {self.build_number} - {IMAGE} - {self.name} - {self.arch} - {TIMESTAMP}
-        # s3_bucket = boto3.client(
-        #     service_name='s3', region_name='us-east-1',
-        #     aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-        #     aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
-        # )
+        s3_bucket = boto3.client(
+            service_name='s3', region_name='us-east-1',
+            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+        )
         # logging.info(os.getenv('AWS_ACCESS_KEY_ID'))
         # logging.info(os.getenv('AWS_SECRET_ACCESS_KEY'))
         bucket_path = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
@@ -168,7 +168,7 @@ class BaseHypervisor:
         os.mkdir(work_dir, mode=0o777)
         # os.mkdir(os.path.join(os.getcwd(), f'{bucket_path}'), mode=0o777)
         logging.info(work_dir)
-        qcow_name = f'almaLinux-8-GenericCloud-8.5.{self.arch}.qcow2'
+        qcow_name = f'almalinux-8-GenericCloud-8.5.{self.arch}.qcow2'
         qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.{self.arch}.qcow2'
         # qcow_name = f'almaLinux-8-GenericCloud-8.5.x86_64.qcow2'
         # qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.x86_64.qcow2'
@@ -179,10 +179,11 @@ class BaseHypervisor:
         logging.info(settings.bucket)
         for i in range(5):
             try:
-                execute_command(
-                    f'aws s3 cp s3://{settings.bucket}/{bucket_path}/{qcow_name} '
-                    f'{bucket_path}', os.getcwd()
-                )
+                s3_bucket.dowload_file(settings.bucket, f'{bucket_path}/{qcow_name}', f'{work_dir}/{qcow_tm_name}')
+                # execute_command(
+                #     f'aws s3 cp s3://{settings.bucket}/{bucket_path}/{qcow_name} '
+                #     f'{bucket_path}', os.getcwd()
+                # )
             except Exception as e:
                 logging.exception('%s', e)
                 time.sleep(60)

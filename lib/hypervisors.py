@@ -189,7 +189,7 @@ class BaseHypervisor:
                 if i == 4:
                     try:
                         execute_command(
-                            f'aws s3 sync s3://{settings.bucket}/{bucket_path}/'
+                            f'aws s3 sync s3://{settings.bucket}/{bucket_path}/ '
                             f'{bucket_path}', os.getcwd()
                         )
                     except Exception as e:

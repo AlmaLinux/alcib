@@ -104,12 +104,12 @@ pipeline {
           steps {
               timeout(time:1, unit:'DAYS') {
                   script {
-                      def userInput = input(
-                        id: 'userInput',
-                        message: 'Release to public ?', ok: 'Starting releasing!',
-                        parameters: [choice(name: 'RELEASE_SCOPE', choices: 'yes\nno')]
-                      )
-                      env.RELEASE_SCOPE = userInput
+                      //def userInput = input(
+                      //  id: 'userInput',
+                      //  message: 'Release to public ?', ok: 'Starting releasing!',
+                      //  parameters: [choice(name: 'RELEASE_SCOPE', choices: 'yes\nno')]
+                      //)
+                      // env.RELEASE_SCOPE = userInput
                       // if (env.RELEASE_SCOPE == 'yes') {
                       //  def jobs = [:]
                       //  for (arch in params.ARCH.replace('"', '').split(',')) {
@@ -122,7 +122,7 @@ pipeline {
                       //  }
                       //  parallel jobs
                       // }
-                      if (env.RELEASE_SCOPE == 'yes') {
+                      // if (env.RELEASE_SCOPE == 'yes') {
                         node('nebula_node') {
                             sh('echo hello world')
                             // sh('git clone https://github.com/VanessaRish/alcib.git')

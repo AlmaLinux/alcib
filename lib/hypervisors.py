@@ -188,8 +188,12 @@ class BaseHypervisor:
         bucket = s3.Bucket(settings.bucket)
         try:
             for o in s3_bucket.list_objects(Bucket=settings.bucket)['Contents']:
+                logging.info(o)
                 if o['Key'] == key:
                     s3_bucket.download_file(settings.bucket, o['Key'],
+                                            to)
+                else:
+                    s3_bucket.download_file(settings.bucket, key,
                                             to)
         except Exception as e:
             logging.exception(e)

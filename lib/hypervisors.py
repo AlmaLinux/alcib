@@ -179,7 +179,7 @@ class BaseHypervisor:
         logging.info(settings.bucket)
         for i in range(5):
             try:
-                s3_bucket.dowload_file(settings.bucket, f'{bucket_path}/{qcow_name}', f'{work_dir}/{qcow_tm_name}')
+                s3_bucket.download_file(settings.bucket, f'{bucket_path}/{qcow_name}', f'{work_dir}/{qcow_tm_name}')
                 # execute_command(
                 #     f'aws s3 cp s3://{settings.bucket}/{bucket_path}/{qcow_name} '
                 #     f'{bucket_path}', os.getcwd()
@@ -687,7 +687,8 @@ class KVM(LinuxHypervisors):
         qcow_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.x86_64.qcow2'
         ftp_path = '/var/ftp/pub/cloudlinux/almalinux/8/cloud/x86_64'
         qcow_path = self.download_qcow()
-        execute_command(f'scp {qcow_name} mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}',
+        execute_command(f'scp -i /var/lib/jenkins/workspaces/workspace/GC-dev_master/.ssh/alcib_rsa4096.pub '
+                        f'{qcow_name} mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}',
                         qcow_path)
         # ssh_aws = builder.ssh_aws_connect(self.instance_ip, self.name)
         # sftp = ssh_aws.open_sftp()

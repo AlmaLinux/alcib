@@ -126,7 +126,7 @@ pipeline {
                         node('nebula_node') {
                             sh('echo hello world')
                             // sh('git clone https://github.com/VanessaRish/alcib.git')
-                            sh('cd alcib && git pull')
+                            sh('cd alcib && git reset --hard && git checkout master && git pull')
                             def jobs = [:]
                             for (arch in params.ARCH.replace('"', '').split(',')) {
                                 if (arch == 'x86_64') {

@@ -178,21 +178,30 @@ class BaseHypervisor:
         to = f'{bucket_path}/{qcow_tm_name}'
         logging.info(to)
         logging.info(os.getcwd())
+        s3 = boto3.resource('s3', region_name='us-east-1',
+                            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+                            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+                            )
+        bucket = s3.Bucket(settings.bucket)
         try:
-            s3_bucket.download_file(settings.bucket, key,
-                                    to)
+            for o in bucket.list_objects(Bucket=settings.bucket)['Contents']:
+                if o['Key'] == key:
+                    s3_bucket.download_file(settings.bucket, o['Key'],
+                                            to)
         except Exception as e:
             logging.exception(e)
             logging.info("Full path: %s", f'{bucket_path}/{qcow_name}')
             logging.info("Bucket objects: %s", [o['Key'] for o in s3_bucket.list_objects(Bucket='alcib-dev')['Contents']])
+            s3 = boto3.resource('s3', region_name='us-east-1',
+                                aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+                                aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+                                )
             try:
-                s3 = boto3.resource('s3', region_name='us-east-1',
-                                    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-                                    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
-                                    )
                 s3.Bucket(settings.bucket).download_file(key, to)
             except Exception as e:
                 logging.exception(e)
+                data = s3.get_object(Bucket=settings.bucket, Key=key)['Body'].read()
+                logging.info(data)
                 raise
         # if hypervisor == 'KVM':
         #     ssh = builder.ssh_aws_connect(instance_ip, name)

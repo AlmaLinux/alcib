@@ -165,6 +165,7 @@ class BaseHypervisor:
         bucket_path = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
         work_dir = os.path.join(os.getcwd(), f'alcib/{bucket_path}')
         os.mkdir(work_dir)
+        os.mkdir(os.path.join(os.getcwd(), f'{bucket_path}'))
         logging.info(work_dir)
         qcow_name = f'almaLinux-8-GenericCloud-8.5.{self.arch}.qcow2'
         qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.{self.arch}.qcow2'
@@ -174,11 +175,12 @@ class BaseHypervisor:
         # s3.download_file('your_bucket', 'k.png', '/Users/username/Desktop/k.png')
         key = f'{bucket_path}/{qcow_name}'
         logging.info(key)
-        to = f'./{bucket_path}/{qcow_tm_name}'
+        to = f'{bucket_path}/{qcow_tm_name}'
         logging.info(to)
+        logging.info(os.getcwd())
         try:
             s3_bucket.download_file(settings.bucket, key,
-                                    '.')
+                                    to)
         except Exception as e:
             logging.exception(e)
             logging.info("Full path: %s", f'{bucket_path}/{qcow_name}')

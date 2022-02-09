@@ -687,7 +687,7 @@ class KVM(LinuxHypervisors):
         qcow_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.x86_64.qcow2'
         ftp_path = '/var/ftp/pub/cloudlinux/almalinux/8/cloud/x86_64'
         qcow_path = self.download_qcow()
-        execute_command(f'scp -i /var/lib/jenkins/.ssh/alcib_rsa4096.pub '
+        execute_command(f'scp -i /var/lib/jenkins/.ssh/alcib_rsa4096 '
                         f'{qcow_name} mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}',
                         qcow_path)
         # ssh_aws = builder.ssh_aws_connect(self.instance_ip, self.name)

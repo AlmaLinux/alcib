@@ -177,6 +177,7 @@ class BaseHypervisor:
         logging.info(bucket_path)
         logging.info(work_dir)
         logging.info(settings.bucket)
+        time.sleep(600)
         try:
             execute_command(
                 f'aws s3 cp s3://{settings.bucket}/{bucket_path}/{qcow_name} '

@@ -139,7 +139,7 @@ pipeline {
                             parallel jobs
                             // sh('rm -r alcib/')
                         }
-                      }
+                      //}
                   }
               }
           }

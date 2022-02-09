@@ -194,6 +194,7 @@ class BaseHypervisor:
                 logging.info("Bucket objects: %s", [o['Key'] for o in s3_bucket.list_objects(Bucket='alcib-dev')['Contents']])
                 time.sleep(60)
                 if i == 4:
+                    execute_command(f'aws s3 cp s3://alcib-dev/19-Generic_Cloud-kvm-x86_64-20220208/almalinux-8-GenericCloud-8.5.x86_64.qcow2 {to}')
                     raise
         # if hypervisor == 'KVM':
         #     ssh = builder.ssh_aws_connect(instance_ip, name)

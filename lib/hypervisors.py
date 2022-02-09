@@ -179,11 +179,12 @@ class BaseHypervisor:
         logging.info(settings.bucket)
         try:
             execute_command(
-                f'aws s3 cp s3://{settings.bucket}/{bucket_path}/{qcow_tm_name} '
+                f'aws s3 cp s3://{settings.bucket}/{bucket_path}/{qcow_name} '
                 f'./{qcow_tm_name}', work_dir
             )
         except Exception as e:
             logging.exception('%s', e)
+            raise e
         # # s3.download_file('your_bucket', 'k.png', '/Users/username/Desktop/k.png')
         # key = f'{bucket_path}/{qcow_name}'
         # logging.info(key)
@@ -215,7 +216,7 @@ class BaseHypervisor:
         # sftp.put(
         #     f'{path}/{qcow_name}', f'{qcow_tm_name}'
         # )
-        return f'{work_dir}/{qcow_tm_name}'
+        return work_dir
 
     def get_instance_info(self):
         """
@@ -675,12 +676,14 @@ class KVM(LinuxHypervisors):
         qcow_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.x86_64.qcow2'
         ftp_path = '/var/ftp/pub/cloudlinux/almalinux/8/cloud/x86_64'
         qcow_path = self.download_qcow()
-        ssh_aws = builder.ssh_aws_connect(self.instance_ip, self.name)
-        sftp = ssh_aws.open_sftp()
-        sftp.put(qcow_path,
-                 f'mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}')
+        execute_command(f'scp {qcow_name} mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}',
+                        qcow_path)
+        # ssh_aws = builder.ssh_aws_connect(self.instance_ip, self.name)
+        # sftp = ssh_aws.open_sftp()
+        # sftp.put(qcow_path,
+        #          f'mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}')
         koji_release(ftp_path, qcow_name, builder)
-        ssh_aws.close()
+        # ssh_aws.close()
 
     def build_aws_stage(self, builder: Builder, arch: str):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)

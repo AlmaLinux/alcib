@@ -176,7 +176,7 @@ class BaseHypervisor:
         logging.info(bucket_path)
         logging.info(settings.bucket)
         # s3.download_file('your_bucket', 'k.png', '/Users/username/Desktop/k.png')
-        key = f'/{bucket_path}/{qcow_name}'
+        key = f'{bucket_path}/{qcow_name}'
         logging.info(key)
         to = f'{bucket_path}/{qcow_tm_name}'
         logging.info(to)
@@ -185,27 +185,15 @@ class BaseHypervisor:
                             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
                             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
                             )
-        try:
-            s3_bucket.download_file(settings.bucket, key, to)
-        except Exception as e:
-            logging.exception(e)
-            logging.info("Full path: %s", f'{bucket_path}/{qcow_name}')
-            logging.info("Bucket objects: %s", [o['Key'] for o in s3_bucket.list_objects(Bucket='alcib-dev')['Contents']])
-            s3 = boto3.resource('s3', region_name='us-east-1',
-                                aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-                                aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
-                                )
+        for i in range(5):
             try:
-                s3.Bucket(settings.bucket).download_file(key, to)
+                s3_bucket.download_file(settings.bucket, key, to)
             except Exception as e:
                 logging.exception(e)
-                data = s3_bucket.get_object(Bucket=settings.bucket, Key=key)['Body'].read()
-                logging.info(data)
-                try:
-                    s3_bucket.download_file(settings.bucket, key,
-                                            f'/root/var/lib/jenkins/workspaces/workspace/GC-dev-master/{qcow_tm_name}')
-                except Exception as e:
-                    logging.exception(e)
+                logging.info("Full path: %s", f'{bucket_path}/{qcow_name}')
+                logging.info("Bucket objects: %s", [o['Key'] for o in s3_bucket.list_objects(Bucket='alcib-dev')['Contents']])
+                time.sleep(60)
+                if i == 4:
                     raise
         # if hypervisor == 'KVM':
         #     ssh = builder.ssh_aws_connect(instance_ip, name)

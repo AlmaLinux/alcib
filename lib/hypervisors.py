@@ -177,15 +177,24 @@ class BaseHypervisor:
         logging.info(bucket_path)
         logging.info(work_dir)
         logging.info(settings.bucket)
-        time.sleep(600)
-        try:
-            execute_command(
-                f'aws s3 cp s3://{settings.bucket}/{bucket_path}/{qcow_name} '
-                f'./{qcow_tm_name}', work_dir
-            )
-        except Exception as e:
-            logging.exception('%s', e)
-            raise e
+        for i in range(5):
+            try:
+                execute_command(
+                    f'aws s3 cp s3://{settings.bucket}/{bucket_path}/{qcow_name} '
+                    f'{bucket_path}', os.getcwd()
+                )
+            except Exception as e:
+                logging.exception('%s', e)
+                time.sleep(60)
+                if i == 4:
+                    try:
+                        execute_command(
+                            f'aws s3 sync s3://{settings.bucket}/{bucket_path}/'
+                            f'{bucket_path}', os.getcwd()
+                        )
+                    except Exception as e:
+                        logging.exception('%s', e)
+                        raise e
         # # s3.download_file('your_bucket', 'k.png', '/Users/username/Desktop/k.png')
         # key = f'{bucket_path}/{qcow_name}'
         # logging.info(key)

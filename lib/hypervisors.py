@@ -48,7 +48,7 @@ def koji_release(ftp_path, qcow_name, builder):
         f'{ftp_path}/AlmaLinux-8-GenericCloud-latest.x86_64.qcow2'
     )
     logging.info(stdout.read().decode())
-    stdout, _ = ssh_koji.safe_execute('sha256sum *.qcow2 > CHECKSUM')
+    stdout, _ = ssh_koji.safe_execute(f'sha256sum {ftp_path}/images/*.qcow2 > CHECKSUM')
     logging.info(stdout.read().decode())
     deploy_path = 'deploy-repo-alma@192.168.246.161:/repo/almalinux/8/cloud/'
     stdout, _ = ssh_koji.safe_execute(

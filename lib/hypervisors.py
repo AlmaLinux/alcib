@@ -305,8 +305,10 @@ class BaseHypervisor:
             f'scp -i /var/lib/jenkins/.ssh/alcib_rsa4096 '
             f'{qcow_name} mockbuild@{settings.koji_ip}:{ftp_path}/images/{qcow_name}',
             qcow_path)
-        self.koji_release(ftp_path, qcow_name, builder)
-        shutil.rmtree(qcow_path)
+        try:
+            self.koji_release(ftp_path, qcow_name, builder)
+        finally:
+            shutil.rmtree(qcow_path)
 
     def build_stage(self, builder: Builder):
         """
@@ -1001,7 +1003,7 @@ class Equinix(BaseHypervisor):
         stdout, _ = ssh.safe_execute(cmd)
         stdout, _ = ssh.safe_execute(
             f'bash -c "aws s3 cp /root/cloud-images/{file} '
-            f's3://{settings.bucket}/{settings.build_number}-{IMAGE}-{self.arch}-{TIMESTAMP}/ '
+            f's3://{settings.bucket}/{settings.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}/ '
             f'--metadata sha256={stdout.read().decode().split()[0]}"')
         logging.info(stdout.read().decode())
         logging.info('Uploaded')

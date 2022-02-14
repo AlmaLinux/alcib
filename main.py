@@ -136,7 +136,7 @@ def main(sys_args):
         if args.stage == 'init':
             hypervisor.init_stage(builder)
         elif args.stage == 'build':
-            if settings.image in ['Vagrant Box', 'Generic Cloud']:
+            if settings.image in ['Vagrant Box', 'GenericCloud', 'OpenNebula']:
                 hypervisor.build_stage(builder)
             elif settings.image == 'AWS AMI' and args.hypervisor != 'AWS-STAGE-2':
                 hypervisor.build_aws_stage(builder, args.arch)
@@ -146,19 +146,19 @@ def main(sys_args):
         elif args.stage == 'test':
             if settings.image == 'AWS AMI':
                 hypervisor.test_aws_stage(builder)
-            elif settings.image == 'Generic Cloud':
+            elif settings.image == 'GenericCloud':
                 hypervisor.test_openstack(builder)
             else:
                 hypervisor.test_stage(builder)
         elif args.stage == 'release':
-            if settings.image in ['OpenNebula', 'Generic Cloud']:
+            if settings.image in ['OpenNebula', 'GenericCloud']:
                 hypervisor.release_and_sign_stage(builder)
             elif settings.image == 'AWS AMI':
                 hypervisor.publish_ami(builder)
             else:
                 hypervisor.release_stage(builder)
         elif args.stage == 'destroy':
-            if settings.image == 'Generic Cloud' and args.arch == 'aarch64':
+            if settings.image == 'GenericCloud' and args.arch == 'aarch64':
                 hypervisor.teardown_equinix_stage(builder)
             else:
                 hypervisor.teardown_stage()

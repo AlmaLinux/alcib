@@ -31,7 +31,7 @@ def performPublishStages(String arch) {
 pipeline {
   agent any
   parameters {
-      choice(name: 'IMAGE', choices: ['AWS AMI', 'Vagrant Box', 'Generic Cloud'], description: 'Cloud image to update: build, test, release')
+      choice(name: 'IMAGE', choices: ['AWS AMI', 'Vagrant Box', 'GenericCloud', 'OpenNebula'], description: 'Cloud image to update: build, test, release')
       extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64', visibleItemCount: 2)
       string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
       booleanParam(defaultValue: true, description: 'Destroy AWS instance', name: 'DESTROY')

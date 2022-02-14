@@ -18,7 +18,8 @@ def performBuildStages(String hypervisor, String arch) {
 
 def performTestStages(String hypervisor, String arch) {
     return {
-        sh "python3 -u main.py --stage test --hypervisor ${hypervisor} --arch ${arch}"
+        // sh "python3 -u main.py --stage test --hypervisor ${hypervisor} --arch ${arch}"
+        sh "echo Hello"
     }
 }
 
@@ -32,7 +33,7 @@ def performReleaseStages(String hypervisor, String arch) {
 pipeline {
   agent any
   parameters {
-      choice(name: 'IMAGE', choices: ['GenericCloud', 'AWS AMI', 'Vagrant Box', 'OpenNebula'], description: 'Cloud image to update: build, test, release')
+      choice(name: 'IMAGE', choices: ['OpenNebula', 'GenericCloud', 'AWS AMI', 'Vagrant Box'], description: 'Cloud image to update: build, test, release')
       extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64', visibleItemCount: 2)
       string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
       booleanParam(defaultValue: true, description: 'Destroy AWS instance', name: 'DESTROY')
@@ -69,7 +70,7 @@ pipeline {
               }
           }
       }
-      stage('Build Generic Cloud Images') {
+      stage('Build OpenNebula Image') {
           steps {
               script {
                   def jobs = [:]
@@ -85,7 +86,7 @@ pipeline {
               }
           }
       }
-      stage('Test Generic Cloud images') {
+      stage('Test OpenNebula images') {
           steps {
               script {
                   def jobs = [:]
@@ -108,7 +109,7 @@ pipeline {
               }
           }
       }
-      stage('Release Generic Cloud images') {
+      stage('Release OpenNebula images') {
           steps {
               timeout(time:1, unit:'DAYS') {
                   script {

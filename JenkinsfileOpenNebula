@@ -49,7 +49,7 @@ pipeline {
       AARCH_PROJECT_ID = credentials('aarch_project_id')
       AMD_PROJECT_ID = credentials('amd_project_id')
       EQUINIX_IP = credentials('equinix_ip')
-      KOJI_IP = credentials('koji_api')
+      KOJI_IP = credentials('koji_ip')
       ALMA_REPO_IP = credentials('alma_repo_ip')
   }
 

@@ -175,7 +175,6 @@ pipeline {
                     color: 'danger',
                     message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
           script {
-            node('Built-In Node') {
               if (params.DESTROY == true) {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
@@ -188,7 +187,6 @@ pipeline {
                   }
                   parallel jobs
               }
-            }
           }
       }
       aborted {

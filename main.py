@@ -44,11 +44,9 @@ def init_args_parser() -> argparse.ArgumentParser:
 
 
 def almalinux_wiki_pr():
-
     """
     Executes Github API calls for making commit and pull request.
     """
-
     headers = {
         'Authorization': f'Bearer {settings.github_token}',
         'Accept': 'application/vnd.github.v3+json',

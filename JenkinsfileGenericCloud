@@ -84,48 +84,42 @@ pipeline {
               }
           }
       }
-      // stage('Test Generic Cloud') {
-      //    steps {
-      //        script {
-      //            def jobs = [:]
-      //            for (arch in params.ARCH.replace('"', '').split(',')) {
-      //                if (arch == 'x86_64') {
-      //                  jobs[arch] = performTestStages('KVM', arch)
-      //                }
-      //                else {
-      //                  jobs[arch] = performTestStages('Equinix', arch)
-      //                }
-      //            }
-      //            parallel jobs
-      //        }
-      //    }
-      // }
+      stage('Test Generic Cloud') {
+          steps {
+              script {
+                  def jobs = [:]
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      if (arch == 'x86_64') {
+                        jobs[arch] = performTestStages('KVM', arch)
+                      }
+                      else {
+                        jobs[arch] = performTestStages('Equinix', arch)
+                      }
+                  }
+                  parallel jobs
+              }
+          }
+          post {
+              success {
+                  slackSend channel: '#test-auto-vagrant',
+                            color: 'good',
+                            message: "The build ${currentBuild.fullDisplayName} ready to be uploaded to be released , please, approve: ${currentBuild.absoluteUrl}"
+              }
+          }
+      }
       stage('Release Generic Cloud images') {
           steps {
               timeout(time:1, unit:'DAYS') {
                   script {
-                      //def userInput = input(
-                      //  id: 'userInput',
-                      //  message: 'Release to public ?', ok: 'Starting releasing!',
-                      //  parameters: [choice(name: 'RELEASE_SCOPE', choices: 'yes\nno')]
-                      //)
-                      // env.RELEASE_SCOPE = userInput
-                      // if (env.RELEASE_SCOPE == 'yes') {
-                      //  def jobs = [:]
-                      //  for (arch in params.ARCH.replace('"', '').split(',')) {
-                      //      if (arch == 'x86_64') {
-                      //          jobs[arch] = performReleaseStages('KVM', arch)
-                      //      }
-                      //      else {
-                      //          jobs[arch] = performReleaseStages('Equinix', arch)
-                      //      }
-                      //  }
-                      //  parallel jobs
-                      // }
-                      // if (env.RELEASE_SCOPE == 'yes') {
+                      def userInput = input(
+                        id: 'userInput',
+                        message: 'Release to public ?', ok: 'Starting releasing!',
+                        parameters: [choice(name: 'RELEASE_SCOPE', choices: 'yes\nno')]
+                      )
+                      env.RELEASE_SCOPE = userInput
+                      if (env.RELEASE_SCOPE == 'yes') {
                         node('nebula_node') {
                             sh('echo hello world')
-                            // sh('git clone https://github.com/VanessaRish/alcib.git')
                             sh('cd alcib && git reset --hard && git checkout master && git pull')
                             def jobs = [:]
                             for (arch in params.ARCH.replace('"', '').split(',')) {
@@ -137,9 +131,8 @@ pipeline {
                                 }
                             }
                             parallel jobs
-                            // sh('rm -r alcib/')
                         }
-                      //}
+                      }
                   }
               }
           }

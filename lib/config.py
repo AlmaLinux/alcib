@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     equinix_ip: str = ''
     github_token: str = ''
     opennebula_node: str = ''
+    koji_ip: str = ''
+    alma_repo_ip: str = ''
 
 
 settings = Settings()

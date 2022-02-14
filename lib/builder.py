@@ -138,26 +138,20 @@ class Builder:
             )
         return ssh_client
 
-    def ssh_equinix_connect(self):
-        """
-        Establishes connection to Equinix Server.
-        """
-        equinix_ip = settings.equinix_ip
-        logging.info('Connecting to Equinix Server')
+    def ssh_remote_connect(self, ip, user, server_name):
+        logging.info('Connecting to %s Server', server_name)
         ssh_client = self.get_ssh_client()
-        ssh_client.connect(equinix_ip, username='root', pkey=self.private_key)
+        ssh_client.connect(ip, username=user, pkey=self.private_key)
         return ssh_client
 
     def ssh_koji_connect(self):
-        koji_ip = '192.168.246.161'
         logging.info('Connecting to Koji Server')
         ssh_client = self.get_ssh_client()
-        ssh_client.connect(koji_ip, username='mockbuild', pkey=self.private_key)
+        ssh_client.connect(settings.koji_ip, username='mockbuild', pkey=self.private_key)
         return ssh_client
 
     def ssh_deploy_connect(self):
-        koji_ip = '192.168.246.161'
         logging.info('Connecting to Koji Server')
         ssh_client = self.get_ssh_client()
-        ssh_client.connect(koji_ip, username='deploy-repo-alma', pkey=self.private_key)
+        ssh_client.connect(settings.alma_repo_ip, username='deploy-repo-alma', pkey=self.private_key)
         return ssh_client

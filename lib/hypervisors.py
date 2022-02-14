@@ -41,29 +41,6 @@ def save_ami_id(stdout, arch: str) -> str:
     return ami
 
 
-def koji_release(ftp_path, qcow_name, builder):
-    ssh_koji = builder.ssh_koji_connect()
-    stdout, _ = ssh_koji.safe_execute(
-        f'ln -sf {ftp_path}/images/{qcow_name} '
-        f'{ftp_path}/AlmaLinux-8-GenericCloud-latest.x86_64.qcow2'
-    )
-    logging.info(stdout.read().decode())
-    stdout, _ = ssh_koji.safe_execute(f'sha256sum {ftp_path}/images/*.qcow2 > CHECKSUM')
-    logging.info(stdout.read().decode())
-    deploy_path = 'deploy-repo-alma@192.168.246.161:/repo/almalinux/8/cloud/'
-    stdout, _ = ssh_koji.safe_execute(
-        f'rsync --dry-run -avSHP {ftp_path} {deploy_path}'
-    )
-    logging.info(stdout.read().decode())
-    stdout, _ = ssh_koji.safe_execute(f'rsync -avSHP {ftp_path} {deploy_path}')
-    logging.info(stdout.read().decode())
-    ssh_deploy = builder.ssh_deploy_connect()
-    stdout, _ = ssh_deploy.safe_execute('systemctl start --no-block rsync-repo-alma')
-    logging.info(stdout.read().decode())
-    ssh_deploy.close()
-    ssh_koji.close()
-
-
 def execute_command(cmd: str, cwd_path: str):
     """
     Executes a local command.
@@ -110,6 +87,16 @@ class BaseHypervisor:
         self._instance_ip = None
         self._instance_id = None
         self.build_number = settings.build_number
+        self.s3_bucket = boto3.client(
+            service_name='s3', region_name='us-east-1',
+            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+        )
+        self.ec2_client = boto3.client(
+            service_name='ec2', region_name='us-east-1',
+            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+        )
 
     @property
     def terraform_dir(self):
@@ -124,6 +111,20 @@ class BaseHypervisor:
         if self.arch == 'aarch64':
             return os.path.join(os.getcwd(), 'terraform/{0}'.format(self.arch))
         return os.path.join(os.getcwd(), 'terraform/{0}'.format(self.name))
+
+    def wait_instance_ready(self, ec2_ids):
+        """
+        Waits for EC2 instances to be ready for ssh connection.
+
+        Parameters
+        ----------
+        ec2_ids: list
+            List of EC2 instances ids.
+        """
+        logging.info('Checking if ready instances are ready...')
+        waiter = self.ec2_client.get_waiter('instance_status_ok')
+        waiter.wait(InstanceIds=ec2_ids)
+        logging.info('Instances are ready')
 
     @property
     def instance_ip(self):
@@ -153,39 +154,28 @@ class BaseHypervisor:
             self.get_instance_info()
         return self._instance_id
 
-    def download_qcow(self):
-        # {self.build_number} - {IMAGE} - {self.name} - {self.arch} - {TIMESTAMP}
-        s3_bucket = boto3.client(
-            service_name='s3', region_name='us-east-1',
-            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
-        )
-        # logging.info(os.getenv('AWS_ACCESS_KEY_ID'))
-        # logging.info(os.getenv('AWS_SECRET_ACCESS_KEY'))
+    def download_qcow(self) -> str:
+        """
+        Downloads qcow image from S3 bucket to jenkins node.
+
+        Returns
+        -------
+        work_dir: str
+            Working directory with downloaded image.
+        """
         bucket_path = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
-        # bucket_path = '19-Generic_Cloud-kvm-x86_64-20220208'
         work_dir = os.path.join(os.getcwd(), f'{bucket_path}')
         os.mkdir(work_dir, mode=0o777)
-        # os.mkdir(os.path.join(os.getcwd(), f'{bucket_path}'), mode=0o777)
-        logging.info(work_dir)
         qcow_name = f'almalinux-8-GenericCloud-8.5.{self.arch}.qcow2'
         qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.{self.arch}.qcow2'
-        # qcow_name = f'almaLinux-8-GenericCloud-8.5.x86_64.qcow2'
-        # qcow_tm_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.x86_64.qcow2'
-        logging.info(qcow_name)
-        logging.info(qcow_tm_name)
-        logging.info(bucket_path)
-        logging.info(work_dir)
-        logging.info(settings.bucket)
         for i in range(5):
             try:
-                s3_bucket.download_file(settings.bucket, f'{bucket_path}/{qcow_name}', f'{work_dir}/{qcow_tm_name}')
-                # execute_command(
-                #     f'aws s3 cp s3://{settings.bucket}/{bucket_path}/{qcow_name} '
-                #     f'{bucket_path}', os.getcwd()
-                # )
-            except Exception as e:
-                logging.exception('%s', e)
+                self.s3_bucket.download_file(
+                    settings.bucket, f'{bucket_path}/{qcow_name}',
+                    f'{work_dir}/{qcow_tm_name}'
+                )
+            except Exception as error:
+                logging.exception('%s', error)
                 time.sleep(60)
                 if i == 4:
                     try:
@@ -193,41 +183,49 @@ class BaseHypervisor:
                             f'aws s3 sync s3://{settings.bucket}/{bucket_path}/ '
                             f'{bucket_path}', os.getcwd()
                         )
-                    except Exception as e:
-                        logging.exception('%s', e)
-                        raise e
-        # # s3.download_file('your_bucket', 'k.png', '/Users/username/Desktop/k.png')
-        # key = f'{bucket_path}/{qcow_name}'
-        # logging.info(key)
-        # to = f'{bucket_path}/{qcow_tm_name}'
-        # logging.info(to)
-        # logging.info(os.getcwd())
-        # s3 = boto3.resource('s3', region_name='us-east-1',
-        #                     aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-        #                     aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
-        #                     )
-        # for i in range(5):
-        #     try:
-        #         s3_bucket.download_file(settings.bucket, key, to)
-        #     except Exception as e:
-        #         logging.exception(e)
-        #         execute_command(
-        #             f'aws s3 cp s3://alcib-dev/19-Generic_Cloud-kvm-x86_64-20220208/almalinux-8-GenericCloud-8.5.x86_64.qcow2 {to}',
-        #             os.getcwd())
-        #         logging.info("Full path: %s", f'{bucket_path}/{qcow_name}')
-        #         logging.info("Bucket objects: %s", [o['Key'] for o in s3_bucket.list_objects(Bucket='alcib-dev')['Contents']])
-        #         time.sleep(60)
-        #         if i == 4:
-        #             raise
-        # if hypervisor == 'KVM':
-        #     ssh = builder.ssh_aws_connect(instance_ip, name)
-        # else:
-        #     ssh = builder.ssh_equinix_connect()
-        # sftp = ssh.open_sftp()
-        # sftp.put(
-        #     f'{path}/{qcow_name}', f'{qcow_tm_name}'
-        # )
+                    except Exception as error:
+                        logging.exception('%s', error)
+                        raise error
         return work_dir
+
+    def koji_release(self, ftp_path: str, qcow_name: str, builder: Builder):
+        """
+        Performs images release to koji.cloudlinux.com and
+        repo-alma.corp.cloudlinux.com.
+
+        Parameters
+        ----------
+        ftp_path: str
+            FTP path to perform releases
+        qcow_name: str
+            Image's qcow full name.
+        builder: Builder
+            Main builder configuration.
+        """
+        ssh_koji = builder.ssh_remote_connect(
+            settings.koji_ip, 'mockbuild', 'koji.cloudlinux.com'
+        )
+        deploy_path = f'deploy-repo-alma@{settings.alma_repo_ip}:/repo/almalinux/8/cloud/'
+        koji_commands = [
+            f'ln -sf {ftp_path}/images/{qcow_name} '
+            f'{ftp_path}/images/AlmaLinux-8-GenericCloud-latest.{self.arch}.qcow2',
+            f'sha256sum {ftp_path}/images/*.qcow2 > CHECKSUM',
+            f'rsync --dry-run -avSHP {ftp_path} {deploy_path}',
+            f'rsync -avSHP {ftp_path} {deploy_path}'
+        ]
+        for cmd in koji_commands:
+            try:
+                stdout, _ = ssh_koji.safe_execute(cmd)
+            except Exception as error:
+                logging.exception(error)
+        ssh_koji.close()
+        ssh_deploy = builder.ssh_remote_connect(
+            settings.alma_repo_ip, 'deploy-repo-alma',
+            'repo-alma.corp.cloudlinux.com'
+        )
+        stdout, _ = ssh_deploy.safe_execute('systemctl start --no-block rsync-repo-alma')
+        logging.info(stdout.read().decode())
+        ssh_deploy.close()
 
     def get_instance_info(self):
         """
@@ -290,6 +288,25 @@ class BaseHypervisor:
             logging.info('Uploaded')
         ssh.close()
         logging.info('Connection closed')
+
+    def release_and_sign_stage(self, builder: Builder):
+        """
+        Signs and releases qcow2 image.
+
+        Parameters
+        ----------
+        builder: Builder
+            Main builder configuration.
+        """
+        qcow_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.{self.arch}.qcow2'
+        ftp_path = f'/var/ftp/pub/cloudlinux/almalinux/8/cloud/{self.arch}'
+        qcow_path = self.download_qcow()
+        execute_command(
+            f'scp -i /var/lib/jenkins/.ssh/alcib_rsa4096 '
+            f'{qcow_name} mockbuild@{settings.koji_ip}:{ftp_path}/images/{qcow_name}',
+            qcow_path)
+        self.koji_release(ftp_path, qcow_name, builder)
+        shutil.rmtree(qcow_path)
 
     def build_stage(self, builder: Builder):
         """
@@ -443,11 +460,7 @@ class LinuxHypervisors(BaseHypervisor):
             Builder on AWS Instance.
         """
         self.create_aws_instance()
-        logging.info('Checking if ready')
-        ec2_client = boto3.client(service_name='ec2', region_name='us-east-1')
-        waiter = ec2_client.get_waiter('instance_status_ok')
-        waiter.wait(InstanceIds=[self.instance_id])
-        logging.info('Instance is ready')
+        self.wait_instance_ready([self.instance_id])
         hosts_file = open('./ansible/hosts', 'w')
         lines = ['[aws_instance_public_ip]\n', self.instance_ip, '\n']
         hosts_file.writelines(lines)
@@ -541,11 +554,7 @@ class HyperV(BaseHypervisor):
             Builder on AWS Instance.
         """
         self.create_aws_instance()
-        logging.info('Checking if ready')
-        ec2_client = boto3.client(service_name='ec2', region_name='us-east-1')
-        waiter = ec2_client.get_waiter('instance_status_ok')
-        waiter.wait(InstanceIds=[self.instance_id])
-        logging.info('Instance is ready')
+        self.wait_instance_ready([self.instance_id])
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         stdout, _ = ssh.safe_execute(
             'git clone https://github.com/AlmaLinux/cloud-images.git'
@@ -683,21 +692,17 @@ class KVM(LinuxHypervisors):
                  f'AWS_AMIS-{self.arch}.md')
         ssh.close()
 
-    def release_and_sign_stage(self, builder: Builder):
-        qcow_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.x86_64.qcow2'
-        ftp_path = '/var/ftp/pub/cloudlinux/almalinux/8/cloud/x86_64'
-        qcow_path = self.download_qcow()
-        execute_command(f'scp -i /var/lib/jenkins/.ssh/alcib_rsa4096 '
-                        f'{qcow_name} mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}',
-                        qcow_path)
-        # ssh_aws = builder.ssh_aws_connect(self.instance_ip, self.name)
-        # sftp = ssh_aws.open_sftp()
-        # sftp.put(qcow_path,
-        #          f'mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}')
-        koji_release(ftp_path, qcow_name, builder)
-        # ssh_aws.close()
-
     def build_aws_stage(self, builder: Builder, arch: str):
+        """
+        Builds new AWS EC2 instance.
+
+        Parameters
+        ----------
+        builder: Builder
+            Main AWS builder configuration.
+        arch: str
+            Architecture to build.
+        """
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Packer initialization')
         stdout, _ = ssh.safe_execute('packer init ./cloud-images 2>&1')
@@ -769,7 +774,7 @@ class KVM(LinuxHypervisors):
         sftp = ssh.open_sftp()
         sftp.put(str(builder.AWS_KEY_PATH.absolute()),
                  '/home/ec2-user/.ssh/alcib_rsa4096')
-        stdout, _ = ssh.safe_execute(
+        ssh.safe_execute(
             'sudo chmod 700 /home/ec2-user/.ssh && '
             'sudo chmod 600 /home/ec2-user/.ssh/alcib_rsa4096'
         )
@@ -797,12 +802,8 @@ class KVM(LinuxHypervisors):
         output = stdout.read().decode()
         logging.info(output)
         output_json = json.loads(output)
-        instance_id1 = output_json['instance_id1']['value']
-        instance_id2 = output_json['instance_id2']['value']
-        ec2_client = boto3.client(service_name='ec2', region_name='us-east-1')
-        waiter = ec2_client.get_waiter('instance_status_ok')
-        waiter.wait(InstanceIds=[instance_id1, instance_id2])
-        logging.info('Test instances are ready')
+        self.wait_instance_ready([output_json['instance_id1']['value'],
+                                 output_json['instance_id2']['value']])
         logging.info('Starting testing')
         aws_test_log = f'aws_ami_test_{TIMESTAMP}.log'
         try:
@@ -898,17 +899,6 @@ class AwsStage2(KVM):
     def __init__(self, arch):
         super().__init__('aws-stage-2', arch)
 
-    def init_stage2(self):
-        """
-        Creates and provisions AWS Instance.
-        """
-        self.create_aws_instance()
-        logging.info('Checking if ready')
-        ec2_client = boto3.client(service_name='ec2', region_name='us-east-1')
-        waiter = ec2_client.get_waiter('instance_status_ok')
-        waiter.wait(InstanceIds=[self.instance_id])
-        logging.info('Instance is ready')
-
     def build_aws_stage(self, builder: Builder, arch: str):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Packer initialization')
@@ -942,15 +932,13 @@ class AwsStage2(KVM):
             f'{self.name}-{aws2_build_log}'
         )
         logging.info(stdout.read().decode())
-        # doesn't actually uploads due to uninstalled aws cli, requieres another option
-        # output = Popen(
-        #     ['aws', 's3', 'cp', f'{self.name}-{aws2_build_log}',
-        #      f's3://{settings.bucket}/{settings.build_number}-{IMAGE}-{self.arch}-{TIMESTAMP}/',
-        #      '--metadata', f'sha256={stdout.read().decode().split()[0]}'],
-        #     shell=True, stderr=STDOUT, stdout=PIPE
-        # )
-        # for line in output.stdout:
-        #     logging.info(line.decode())
+
+        try:
+            self.s3_bucket.upload_file(
+                f'{self.name}-{aws2_build_log}', settings.bucket,
+                f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}/{aws2_build_log}')
+        except Exception as error:
+            logging.exception('%s', error)
         ssh.close()
         logging.info('Connection closed')
 
@@ -974,7 +962,8 @@ class Equinix(BaseHypervisor):
         builder: Builder
             Main Builder Configuration.
         """
-        ssh = builder.ssh_equinix_connect()
+        # ssh = builder.ssh_equinix_connect()
+        ssh = builder.ssh_remote_connect(settings.equinix_ip, 'root', 'Equinix')
         logging.info('Connection is good')
         stdout, _ = ssh.safe_execute(
             'git clone https://github.com/AlmaLinux/cloud-images.git'
@@ -997,7 +986,7 @@ class Equinix(BaseHypervisor):
         logging.info('Uploaded')
 
     def build_stage(self, builder: Builder):
-        ssh = builder.ssh_equinix_connect()
+        ssh = builder.ssh_remote_connect(settings.equinix_ip, 'root', 'Equinix')
         logging.info('Packer initialization')
         stdout, _ = ssh.safe_execute('packer.io init /root/cloud-images 2>&1')
         logging.info(stdout.read().decode())
@@ -1035,7 +1024,7 @@ class Equinix(BaseHypervisor):
         yaml = os.path.join(os.getcwd(), 'clouds.yaml.j2')
         content = open(yaml, 'r').read()
         yaml_content = generate_clouds(content)
-        ssh = builder.ssh_equinix_connect()
+        ssh = builder.ssh_remote_connect(settings.equinix_ip, 'root', 'Equinix')
         sftp = ssh.open_sftp()
         sftp.put(str(builder.AWS_KEY_PATH.absolute()),
                  '/root/.ssh/alcib_rsa4096')
@@ -1075,17 +1064,6 @@ class Equinix(BaseHypervisor):
         ssh.close()
         logging.info('Connection closed')
 
-    def release_and_sign_stage(self, builder: Builder):
-        qcow_name = f'AlmaLinux-8-GenericCloud-8.5-{TIMESTAMP}.aarch64.qcow2'
-        ftp_path = '/var/ftp/pub/cloudlinux/almalinux/8/cloud/aarch64'
-        qcow_path = self.download_qcow()
-        ssh_equinix = builder.ssh_equinix_connect()
-        sftp = ssh_equinix.open_sftp()
-        sftp.put(qcow_path,
-                 f'mockbuild@192.168.246.161:{ftp_path}/images/{qcow_name}')
-        koji_release(ftp_path, qcow_name, builder)
-        ssh_equinix.close()
-
     @staticmethod
     def teardown_equinix_stage(builder: Builder):
         """
@@ -1094,7 +1072,7 @@ class Equinix(BaseHypervisor):
 
         Cleans up Equinix Server.
         """
-        ssh = builder.ssh_equinix_connect()
+        ssh = builder.ssh_remote_connect(settings.equinix_ip, 'root', 'Equinix')
         cmd = 'sudo rm -r /root/cloud-images/ && sudo rm /root/.ssh/alcib_rsa4096'
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())

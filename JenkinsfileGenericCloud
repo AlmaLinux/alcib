@@ -120,7 +120,6 @@ pipeline {
                       env.RELEASE_SCOPE = userInput
                       if (env.RELEASE_SCOPE == 'yes') {
                         node('nebula_node') {
-                            sh('echo hello world')
                             sh('cd alcib && git reset --hard && git checkout master && git pull')
                             def jobs = [:]
                             for (arch in params.ARCH.replace('"', '').split(',')) {

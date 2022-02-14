@@ -959,7 +959,7 @@ class Equinix(BaseHypervisor):
 
     packer_build_opennebula = (
         "cd cloud-images && "
-        "packer build -var qemu_binary='/usr/libexec/qemu-kvm' "
+        "packer.io build -var qemu_binary='/usr/libexec/qemu-kvm' "
         "-only=qemu.almalinux-8-opennebula-aarch64 . 2>&1 | tee ./{}"
     )
 

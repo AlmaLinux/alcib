@@ -1021,9 +1021,9 @@ class Equinix(BaseHypervisor):
             stdout, _ = ssh.safe_execute(cmd)
         finally:
             if settings.image == 'GenericCloud':
-                file = 'output-almalinux-8-gencloud-x86_64/*.qcow2'
+                file = 'output-almalinux-8-gencloud-aarch64/*.qcow2'
             else:
-                file = 'output-almalinux-8-opennebula-x86_64/*.qcow2'
+                file = 'output-almalinux-8-opennebula-aarch64/*.qcow2'
             for file in [f'{IMAGE}_{self.arch}_build*.log', file]:
                 self.upload_to_s3(ssh, file)
         sftp = ssh.open_sftp()

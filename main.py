@@ -158,7 +158,7 @@ def main(sys_args):
             else:
                 hypervisor.release_stage(builder)
         elif args.stage == 'destroy':
-            if settings.image == 'GenericCloud' and args.arch == 'aarch64':
+            if settings.image in ['OpenNebula', 'GenericCloud'] and args.arch == 'aarch64':
                 hypervisor.teardown_equinix_stage(builder)
             else:
                 hypervisor.teardown_stage()

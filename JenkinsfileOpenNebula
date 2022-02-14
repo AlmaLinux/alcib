@@ -122,6 +122,7 @@ pipeline {
                       if (env.RELEASE_SCOPE == 'yes') {
                         node('nebula_node') {
                             sh('echo hello world')
+                            sh('[ ! -d "/alcib/" ] && git clone https://github.com/VanessaRish/alcib.git alcib')
                             sh('cd alcib && git reset --hard && git checkout master && git pull')
                             def jobs = [:]
                             for (arch in params.ARCH.replace('"', '').split(',')) {

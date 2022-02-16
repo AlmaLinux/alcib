@@ -218,23 +218,27 @@ class BaseHypervisor:
                 logging.exception(error)
         stdout, _ = ssh_koji.safe_execute(f'cat {ftp_path}/images/CHECKSUM')
         checksum_file = stdout.read().decode()
-        logging.debug(checksum_file)
-        logging.debug(type(checksum_file))
+        logging.info(checksum_file)
+        logging.info(type(checksum_file))
 
         stdout, _ = ssh_koji.safe_execute(
-            f"curl -X 'POST' 'https://build.almalinux.org/api/v1/sign-tasks/sync_sign_task/' "
+            f"responce=$(curl -X 'POST' 'https://build.almalinux.org/api/v1/sign-tasks/sync_sign_task/' "
             f"-H 'accept: application/json' -H 'Content-Type: application/json' "
             f"-H 'Authorization: Bearer {settings.sign_jwt_token}'"
-            f" -d '{{\"content\": \"{checksum_file}\",\"pgp_keyid\": \"488FCF7C3ABB34F8\"}}'"
+            f" -d '{{\"content\": \"{checksum_file}\",\"pgp_keyid\": \"488FCF7C3ABB34F8\"}}')"
         )
 
         response = stdout.read().decode()
-        logging.debug(response)
+        logging.info(response)
         logging.info(type(response))
 
-        content = json.loads(response)
-        logging.debug(content)
-        logging.debug(type(content))
+        responce = ssh_koji.safe_execute('echo $responce')
+        logging.info(responce)
+        logging.info(type(responce))
+
+        content = json.loads(responce)
+        logging.info(content)
+        logging.info(type(content))
 
         stdout, _ = ssh_koji.safe_execute(f'echo {content["asc_content"]} > {ftp_path}/images/CHECKSUM.asc')
         logging.debug(stdout.read().decode())

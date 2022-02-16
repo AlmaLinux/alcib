@@ -216,6 +216,7 @@ class BaseHypervisor:
                 stdout, _ = ssh_koji.safe_execute(cmd)
             except Exception as error:
                 logging.exception(error)
+
         # stdout, _ = ssh_koji.safe_execute(f'cat {ftp_path}/images/CHECKSUM')
         stdout, _ = ssh_koji.safe_execute(f"awk '$1=$1' ORS='\\n' {ftp_path}/images/CHECKSUM")
         checksum_file = stdout.read().decode()
@@ -261,7 +262,9 @@ class BaseHypervisor:
         logging.info(content)
         logging.info(type(content))
 
-        stdout, _ = ssh_koji.safe_execute(f'echo {content["asc_content"]} > {ftp_path}/images/CHECKSUM.asc')
+        ssh_koji.upload_file(content["asc_content"], f'{ftp_path}/images/CHECKSUM.asc')
+
+        # stdout, _ = ssh_koji.safe_execute(f'echo {content["asc_content"]} > {ftp_path}/images/CHECKSUM.asc')
         logging.debug(stdout.read().decode())
 
         stdout, _ = ssh_koji.safe_execute(f'rsync -avSHP {ftp_path} {deploy_path}')

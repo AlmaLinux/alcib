@@ -55,6 +55,10 @@ class ParamikoWrapper(paramiko.SSHClient):
 
         return stdout, stderr
 
+    def upload_file(self, content, file_path):
+        sftp = self.open_sftp()
+        sftp.putfo(io.StringIO(content), file_path)
+
 
 class Builder:
 
@@ -142,16 +146,4 @@ class Builder:
         logging.info('Connecting to %s Server', server_name)
         ssh_client = self.get_ssh_client()
         ssh_client.connect(ip, username=user, pkey=self.private_key)
-        return ssh_client
-
-    def ssh_koji_connect(self):
-        logging.info('Connecting to Koji Server')
-        ssh_client = self.get_ssh_client()
-        ssh_client.connect(settings.koji_ip, username='mockbuild', pkey=self.private_key)
-        return ssh_client
-
-    def ssh_deploy_connect(self):
-        logging.info('Connecting to Koji Server')
-        ssh_client = self.get_ssh_client()
-        ssh_client.connect(settings.alma_repo_ip, username='deploy-repo-alma', pkey=self.private_key)
         return ssh_client

@@ -222,21 +222,17 @@ class BaseHypervisor:
         logging.info(type(checksum_file))
 
         stdout, _ = ssh_koji.safe_execute(
-            f"responce=$(curl -X 'POST' 'https://build.almalinux.org/api/v1/sign-tasks/sync_sign_task/' "
+            f"curl -X 'POST' 'https://build.almalinux.org/api/v1/sign-tasks/sync_sign_task/' "
             f"-H 'accept: application/json' -H 'Content-Type: application/json' "
             f"-H 'Authorization: Bearer {settings.sign_jwt_token}'"
-            f" -d '{{\"content\": \"{checksum_file}\",\"pgp_keyid\": \"488FCF7C3ABB34F8\"}}')"
+            f" -d '{{\"content\": \"{checksum_file}\",\"pgp_keyid\": \"488FCF7C3ABB34F8\"}}'"
         )
 
         response = stdout.read().decode()
         logging.info(response)
         logging.info(type(response))
 
-        responce = ssh_koji.safe_execute('echo $responce')
-        logging.info(responce)
-        logging.info(type(responce))
-
-        content = json.loads(responce)
+        content = json.loads(response)
         logging.info(content)
         logging.info(type(content))
 

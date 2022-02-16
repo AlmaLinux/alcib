@@ -216,7 +216,7 @@ class BaseHypervisor:
                 stdout, _ = ssh_koji.safe_execute(cmd)
             except Exception as error:
                 logging.exception(error)
-        stdout, _ = ssh_koji.safe_execute(f'cat {ftp_path}/images/CHEKSUM')
+        stdout, _ = ssh_koji.safe_execute(f'cat {ftp_path}/images/CHECKSUM')
         checksum_file = stdout.read().decode()
         logging.debug(checksum_file)
         logging.debug(type(checksum_file))

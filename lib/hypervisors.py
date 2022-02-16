@@ -1145,7 +1145,7 @@ class Equinix(BaseHypervisor):
         Cleans up Equinix Server.
         """
         ssh = builder.ssh_remote_connect(settings.equinix_ip, 'root', 'Equinix')
-        cmd = 'sudo rm -r /root/cloud-images/ && sudo rm /root/.ssh/alcib_rsa4096'
+        cmd = 'sudo rm -r /root/cloud-images/'
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
         ssh.close()

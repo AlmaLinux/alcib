@@ -51,6 +51,7 @@ pipeline {
       EQUINIX_IP = credentials('equinix_ip')
       KOJI_IP = credentials('koji_ip')
       ALMA_REPO_IP = credentials('alma_repo_ip')
+      SIGN_JWT_TOKEN = credentials('sign_jwt_token')
   }
 
   stages {

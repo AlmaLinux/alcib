@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     opennebula_node: str = ''
     koji_ip: str = ''
     alma_repo_ip: str = ''
+    sign_jwt_token: str = ''
 
 
 settings = Settings()

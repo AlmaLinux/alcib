@@ -209,15 +209,37 @@ class BaseHypervisor:
         koji_commands = [
             f'ln -sf {ftp_path}/images/{qcow_name} '
             f'{ftp_path}/images/AlmaLinux-8-{settings.image}-latest.{self.arch}.qcow2',
-            f'sha256sum {ftp_path}/images/*.qcow2 > CHECKSUM',
-            f'rsync --dry-run -avSHP {ftp_path} {deploy_path}',
-            f'rsync -avSHP {ftp_path} {deploy_path}'
+            f'sha256sum {ftp_path}/images/*.qcow2 > {ftp_path}/images/CHECKSUM',
         ]
         for cmd in koji_commands:
             try:
                 stdout, _ = ssh_koji.safe_execute(cmd)
             except Exception as error:
                 logging.exception(error)
+        stdout, _ = ssh_koji.safe_execute(f'cat {ftp_path}/images/CHEKSUM')
+        checksum_file = stdout.read().decode()
+        logging.debug(checksum_file)
+        logging.debug(type(checksum_file))
+
+        stdout, _ = ssh_koji.safe_execute(
+            f"curl -X 'POST' 'https://build.almalinux.org/api/v1/sign-tasks/sync_sign_task/' "
+            f"-H 'accept: application/json' -H 'Content-Type: application/json' "
+            f"-H 'Authorization: Bearer {settings.sign_jwt_token}'"
+            f" -d '{{\"content\": \"{checksum_file}\",\"pgp_keyid\": \"488FCF7C3ABB34F8\"}}'"
+        )
+
+        response = stdout.read().decode()
+        logging.debug(response)
+        logging.info(type(response))
+
+        content = json.loads(response)
+        logging.debug(content)
+        logging.debug(type(content))
+
+        stdout, _ = ssh_koji.safe_execute(f'echo {content["asc_content"]} > {ftp_path}/images/CHECKSUM.asc')
+        logging.debug(stdout.read().decode())
+
+        stdout, _ = ssh_koji.safe_execute(f'rsync -avSHP {ftp_path} {deploy_path}')
         ssh_koji.close()
         ssh_deploy = builder.ssh_remote_connect(
             settings.alma_repo_ip, 'deploy-repo-alma',

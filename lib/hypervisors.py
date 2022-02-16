@@ -257,7 +257,7 @@ class BaseHypervisor:
         # logging.info(response)
         # logging.info(type(response))
         #
-        content = json.loads(response.content)
+        content = json.loads(response.content.decode())
         logging.info(content)
         logging.info(type(content))
 

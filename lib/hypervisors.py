@@ -216,8 +216,6 @@ class BaseHypervisor:
                 stdout, _ = ssh_koji.safe_execute(cmd)
             except Exception as error:
                 logging.exception(error)
-
-        # stdout, _ = ssh_koji.safe_execute(f'cat {ftp_path}/images/CHECKSUM')
         stdout, _ = ssh_koji.safe_execute(f"awk '$1=$1' ORS='\\n' {ftp_path}/images/CHECKSUM")
         checksum_file = stdout.read().decode()
         logging.info(checksum_file)
@@ -240,31 +238,12 @@ class BaseHypervisor:
         logging.info(response)
         logging.info(response.status_code)
         logging.info(response.content)
-
-        # Note: the data is posted as JSON, which might not be serialized by
-        # Requests exactly as it appears in the original command. So
-        # the original data is also given.
-        # data = '{\n  "content": "8ae56104deb0e3b9a7fbaffe9779ddbf5b500c0506c1ff783bf877446765195e /var/ftp/pub/cloudlinux/almalinux/8/cloud/x86_64/images/AlmaLinux-8-GenericCloud-8.5-20220209.x86_64.qcow2\\n09200b3760d4bddd6156aa29a5a48d6401afa515f36a681710b0c11449ce0cbc /var/ftp/pub/cloudlinux/almalinux/8/cloud/x86_64/images/AlmaLinux-8-GenericCloud-8.5-20220210.x86_64.qcow2\\n069234da91f09d68b5d78c591712475b97ad0b6411c4a54c7d596ae6684b2ea2 /var/ftp/pub/cloudlinux/almalinux/8/cloud/x86_64/images/AlmaLinux-8-OpenNebula-8.5-20220214.x86_64.qcow2\\n30aba84af8849ca09997fcbdc1f78f798aeddc71a73279f61c4b210c36449f1a /var/ftp/pub/cloudlinux/almalinux/8/cloud/x86_64/images/AlmaLinux-8-OpenNebula-8.5-20220216.x86_64.qcow2\\n30aba84af8849ca09997fcbdc1f78f798aeddc71a73279f61c4b210c36449f1a /var/ftp/pub/cloudlinux/almalinux/8/cloud/x86_64/images/AlmaLinux-8-OpenNebula-latest.x86_64.qcow2\\n","pgp_keyid": "488FCF7C3ABB34F8"\n}'
-        # response = requests.post('https://build.almalinux.org/api/v1/sign-tasks/sync_sign_task/', headers=headers, data=data)
-
-        # stdout, _ = ssh_koji.safe_execute(
-        #     f"curl -X 'POST' 'https://build.almalinux.org/api/v1/sign-tasks/sync_sign_task/' "
-        #     f"-H 'accept: application/json' -H 'Content-Type: application/json' "
-        #     f"-H 'Authorization: Bearer {settings.sign_jwt_token}'"
-        #     f" -d '{{\"content\": \"{checksum_file}\",\"pgp_keyid\": \"488FCF7C3ABB34F8\"}}'"
-        # )
-        #
-        # response = stdout.read().decode()
-        # logging.info(response)
-        # logging.info(type(response))
-        #
         content = json.loads(response.content.decode())
         logging.info(content)
         logging.info(type(content))
 
         ssh_koji.upload_file(content["asc_content"], f'{ftp_path}/images/CHECKSUM.asc')
 
-        # stdout, _ = ssh_koji.safe_execute(f'echo {content["asc_content"]} > {ftp_path}/images/CHECKSUM.asc')
         logging.debug(stdout.read().decode())
 
         stdout, _ = ssh_koji.safe_execute(f'rsync -avSHP {ftp_path} {deploy_path}')
@@ -300,9 +279,9 @@ class BaseHypervisor:
         apply = 'terraform apply --auto-approve'
         if settings.image == 'Docker':
             if self.arch == 'aarch64':
-                apply = 'terraform apply -var="ami_id=ami-070a38d61ee1ea697" -var="instance_type=t4g.medium" --auto-approve'
+                apply = 'terraform apply -var=ami_id=ami-070a38d61ee1ea697 -var=instance_type=t4g.medium --auto-approve'
             elif self.arch == 'x86_64':
-                apply = 'terraform apply -var="ami_id=ami-00964f8756a53c964" -var="instance_type=t3.medium" --auto-approve'
+                apply = 'terraform apply -var=ami_id=ami-00964f8756a53c964 -var=instance_type=t3.medium --auto-approve'
         terraform_commands.append(apply)
         for cmd in terraform_commands:
             execute_command(cmd, self.terraform_dir)

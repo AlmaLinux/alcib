@@ -35,6 +35,7 @@ pipeline {
   parameters {
       choice(name: 'IMAGE', choices: ['Docker', 'Vagrant Box', 'AWS AMI', 'GenericCloud', 'OpenNebula'], description: 'Cloud image to update: build, test, release')
       extendedChoice(defaultValue: 'KVM', description: 'Hypervisors options to  build Vagrant Box', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'HYPERVISORS', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'KVM', visibleItemCount: 1)
+      extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64', visibleItemCount: 2)
       string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
       extendedChoice(defaultValue: 'DOCKER_CONFIGURATION', description: 'Image to  build Docker Container', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'IMAGE', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'default, minimal, base, init, micro', visibleItemCount: 5)
       booleanParam(defaultValue: true, description: 'Destroy AWS instance', name: 'DESTROY')
@@ -52,8 +53,8 @@ pipeline {
           steps {
               script {
                   def jobs = [:]
-                  for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
-                      jobs[hv] = performCreateStages(hv)
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[hv] = performCreateStages('KVM', arch)
                   }
                   parallel jobs
               }
@@ -63,8 +64,8 @@ pipeline {
           steps {
               script {
                   def jobs = [:]
-                  for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
-                      jobs[hv] = performBuildStages(hv)
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[hv] = performBuildStages('KVM', arch)
                   }
                   parallel jobs
               }
@@ -74,8 +75,8 @@ pipeline {
           steps {
               script {
                   def jobs = [:]
-                  for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
-                      jobs[hv] = performTestStages(hv)
+                  for (arch in params.ARCH.replace('"', '').split(','))) {
+                      jobs[hv] = performTestStages('KVM', arch)
                   }
                   parallel jobs
               }
@@ -125,8 +126,8 @@ pipeline {
           steps {
               script {
                   def jobs = [:]
-                  for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
-                      jobs[hv] = performDestroyStages(hv)
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[hv] = performDestroyStages('KVM', arch)
                   }
                   parallel jobs
               }
@@ -150,8 +151,8 @@ pipeline {
           script {
               if (params.DESTROY == true) {
                   def jobs = [:]
-                  for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
-                      jobs[hv] = performDestroyStages(hv)
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[hv] = performDestroyStages('KVM', arch)
                   }
                   parallel jobs
               }
@@ -164,8 +165,8 @@ pipeline {
           script {
               if (params.DESTROY == true) {
                   def jobs = [:]
-                  for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
-                      jobs[hv] = performDestroyStages(hv)
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
+                      jobs[hv] = performDestroyStages('KVM', arch)
                   }
                   parallel jobs
               }

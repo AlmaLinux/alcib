@@ -54,7 +54,7 @@ pipeline {
               script {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[hv] = performCreateStages('KVM', arch)
+                      jobs[arch] = performCreateStages('KVM', arch)
                   }
                   parallel jobs
               }
@@ -65,7 +65,7 @@ pipeline {
               script {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[hv] = performBuildStages('KVM', arch)
+                      jobs[arch] = performBuildStages('KVM', arch)
                   }
                   parallel jobs
               }
@@ -76,7 +76,7 @@ pipeline {
               script {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[hv] = performTestStages('KVM', arch)
+                      jobs[arch] = performTestStages('KVM', arch)
                   }
                   parallel jobs
               }
@@ -106,7 +106,7 @@ pipeline {
 //                      if (env.RELEASE_SCOPE == 'yes') {
 //                        def jobs = [:]
 //                        for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
-//                            jobs[hv] = performReleaseStages(hv)
+//                            jobs[arch] = performReleaseStages(hv)
 //                        }
 //                        parallel jobs
 //                      }
@@ -127,7 +127,7 @@ pipeline {
               script {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[hv] = performDestroyStages('KVM', arch)
+                      jobs[arch] = performDestroyStages('KVM', arch)
                   }
                   parallel jobs
               }
@@ -152,7 +152,7 @@ pipeline {
               if (params.DESTROY == true) {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[hv] = performDestroyStages('KVM', arch)
+                      jobs[arch] = performDestroyStages('KVM', arch)
                   }
                   parallel jobs
               }
@@ -166,7 +166,7 @@ pipeline {
               if (params.DESTROY == true) {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[hv] = performDestroyStages('KVM', arch)
+                      jobs[arch] = performDestroyStages('KVM', arch)
                   }
                   parallel jobs
               }

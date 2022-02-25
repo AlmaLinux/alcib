@@ -10,18 +10,6 @@ def performBuildStages(String hypervisor, String arch) {
     }
 }
 
-def performTestStages(String hypervisor, String arch) {
-    return {
-        sh "Hello World"
-    }
-}
-
-def performReleaseStages(String hypervisor, String arch) {
-    return {
-        sh "Hello World"z
-    }
-}
-
 def performDestroyStages(String hypervisor, String arch) {
     return {
         sh "python3 -u main.py --stage destroy --hypervisor ${hypervisor} --arch ${arch}"
@@ -69,54 +57,6 @@ pipeline {
               }
           }
       }
-      stage('Test Docker Container) {
-          steps {
-              script {
-                  def jobs = [:]
-                  for (arch in params.ARCH.replace('"', '').split(',')) {
-                      jobs[arch] = performTestStages('KVM', arch)
-                  }
-                  parallel jobs
-              }
-          }
-          post {
-              success {
-                  slackSend channel: '#test-auto-vagrant',
-                            color: 'good',
-                            message: "The build ${currentBuild.fullDisplayName} ready to be uploaded, please, approve: ${currentBuild.absoluteUrl}"
-              }
-          }
-      }
-//      stage('Vagrant Cloud') {
-//          steps {
-//              timeout(time:1, unit:'DAYS') {
-//                  script {
-//                      def userInput = input(
-//                        id: 'userInput',
-//                        message: 'Upload to Vagrant Cloud', ok: 'Starting uploading!',
-//                        parameters: [choice(name: 'RELEASE_SCOPE', choices: 'yes\nno'),
-//                                     string(name: 'VERSION', description: 'Release version', defaultValue: '8.5.20211111'),
-//                                     string(name: 'CHANGELOG', description: 'Vagrant box changelog', defaultValue: 'Test')]
-//                      )
-//                      env.RELEASE_SCOPE = userInput['RELEASE_SCOPE']
-//                      env.VERSION = userInput['VERSION']
-//                      env.CHANGELOG = userInput['CHANGELOG']
-//                      if (env.RELEASE_SCOPE == 'yes') {
-//                        def jobs = [:]
-//                        for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
-//                            jobs[arch] = performReleaseStages(hv)
-//                        }
-//                        parallel jobs
-//                      }
-//                      if (env.RELEASE_SCOPE == 'yes') {
-//                        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-//                            sh('curl --header \"Authorization: Bearer $VAGRANT_CLOUD_ACCESS_KEY\" https://app.vagrantup.com/api/v1/box/$VAGRANT/version/$VERSION/release --request PUT')
-//                        }
-//                      }
-//                  }
-//              }
-//          }
-//      }
       stage('Destroy AWS instance') {
           when {
               expression { params.DESTROY == true }
@@ -132,7 +72,6 @@ pipeline {
           }
       }
   }
-
   post {
       always {
           archiveArtifacts artifacts: '*.log'

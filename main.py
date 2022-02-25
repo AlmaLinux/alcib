@@ -143,6 +143,8 @@ def main(sys_args):
             elif args.hypervisor == 'AWS-STAGE-2':
                 hypervisor.init_stage(builder)
                 hypervisor.build_aws_stage(builder, args.arch)
+            elif settings.image == 'Docker':
+                hypervisor.build_docker_stage(builder)
         elif args.stage == 'test':
             if settings.image == 'AWS AMI':
                 hypervisor.test_aws_stage(builder)

@@ -1,32 +1,30 @@
 def performCreateStages(String hypervisor, String arch) {
     return {
-        sh "python3 -u main.py --stage init --hypervisor ${hypervisor}"
+        sh "python3 -u main.py --stage init --hypervisor ${hypervisor} --arch ${arch}"
     }
 }
 
 def performBuildStages(String hypervisor, String arch) {
     return {
-        sh "python3 -u main.py --stage build --hypervisor ${hypervisor}"
+        sh "python3 -u main.py --stage build --hypervisor ${hypervisor} --arch ${arch}"
     }
 }
 
 def performTestStages(String hypervisor, String arch) {
     return {
-        // sh "python3 -u main.py --stage test --hypervisor ${hypervisor}"
         sh "Hello World"
     }
 }
 
 def performReleaseStages(String hypervisor, String arch) {
     return {
-        //sh "python3 -u main.py --stage release --hypervisor ${hypervisor}"
         sh "Hello World"z
     }
 }
 
 def performDestroyStages(String hypervisor, String arch) {
     return {
-        sh "python3 -u main.py --stage destroy --hypervisor ${hypervisor}"
+        sh "python3 -u main.py --stage destroy --hypervisor ${hypervisor} --arch ${arch}"
     }
 }
 
@@ -49,7 +47,7 @@ pipeline {
   }
 
   stages {
-      stage('Create AWS instance for Vagrant') {
+      stage('Create AWS instance for Docker') {
           steps {
               script {
                   def jobs = [:]
@@ -60,7 +58,7 @@ pipeline {
               }
           }
       }
-      stage('Build Vagrant Box') {
+      stage('Build Docker Container') {
           steps {
               script {
                   def jobs = [:]
@@ -71,7 +69,7 @@ pipeline {
               }
           }
       }
-      stage('Test Vagrant Box') {
+      stage('Test Docker Container) {
           steps {
               script {
                   def jobs = [:]

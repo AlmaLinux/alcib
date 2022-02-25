@@ -28,6 +28,15 @@
     # version: master
     force: yes
 
+- name: Clone Docker images repo
+  become_user: root
+  become: true
+  git:
+    repo: 'https://github.com/AlmaLinux/docker-images.git'
+    dest: './docker-images'
+    # version: master
+    force: yes
+
 - name: Change permissions
   file:
     path: './cloud-images'

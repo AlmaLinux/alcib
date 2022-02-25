@@ -590,7 +590,7 @@ class LinuxHypervisors(BaseHypervisor):
         #     cmd = self.packer_build_cmd.format(vb_build_log)
         try:
             stdout, _ = ssh.safe_execute(
-                f'cd {self.cloud_images_path} && '
+                f'cd /home/ec2-user/docker-images/ && '
                 f'./build.sh -o {settings.docker_configuration} '
                 f'-t {settings.docker_configuration} 2>&1 | tee ./{build_log}'
             )

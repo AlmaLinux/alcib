@@ -296,8 +296,14 @@ class BaseHypervisor:
             shutil.copytree(kvm_terraform, self.terraform_dir)
         logging.info('Creating AWS VM')
         terraform_commands = ['terraform init', 'terraform fmt',
-                              'terraform validate',
-                              'terraform apply --auto-approve']
+                              'terraform validate']
+        apply = 'terraform apply --auto-approve'
+        if settings.image == 'Docker':
+            if self.arch == 'aarch64':
+                apply = 'terraform apply -var="image_id=ami-070a38d61ee1ea697" -var="instance_type=t3.medium" --auto-approve'
+            elif self.arch == 'x86_64':
+                apply = 'terraform apply -var="image_id=ami-00964f8756a53c964" -var="instance_type=t4g.medium" --auto-approve'
+        terraform_commands.append(apply)
         for cmd in terraform_commands:
             execute_command(cmd, self.terraform_dir)
 
@@ -577,6 +583,53 @@ class LinuxHypervisors(BaseHypervisor):
             logging.info('Tested')
         finally:
             self.upload_to_bucket(builder, ['vagrant_box_test*.log'])
+        ssh.close()
+        logging.info('Connection closed')
+
+    def build_docker_stage(self, builder: Builder):
+        """
+        Executes packer commands to build Vagrant Box.
+
+        Parameters
+        ----------
+        builder : Builder
+            Builder on AWS Instance.
+        """
+        build_log = f'{IMAGE}_{self.arch}_build_{TIMESTAMP}.log'
+        ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
+
+        # logging.info('Packer initialization')
+        # stdout, _ = ssh.safe_execute('packer init ./cloud-images 2>&1')
+
+        # logging.info('Building %s', settings.image)
+
+        # if settings.image == 'GenericCloud':
+        #     cmd = self.packer_build_gencloud.format(vb_build_log)
+        # elif settings.image == 'OpenNebula':
+        #     cmd = self.packer_build_opennebula.format(vb_build_log)
+        # else:
+        #     cmd = self.packer_build_cmd.format(vb_build_log)
+        try:
+            stdout, _ = ssh.safe_execute(
+                f'cd {self.cloud_images_path} && '
+                f'./build.sh -o {settings.docker_configuration} '
+                f'-t {settings.docker_configuration} 2>&1 | tee ./{build_log}'
+            )
+            logging.info(stdout.read().decode())
+            sftp = ssh.open_sftp()
+            sftp.get(f'{self.sftp_path}{build_log}',
+                     f'{self.name}-{build_log}')
+            logging.info('%s built', settings.image)
+            stdout, _ = ssh.safe_execute(
+                f'git stash && '
+                f'git checkout almalinux-8-{self.arch}-{settings.docker_configuration}'
+                f' && git stash pop && git diff'
+            )
+            logging.info(stdout.read().decode())
+        finally:
+            self.upload_to_bucket(
+                builder, [f'{IMAGE}_{self.arch}_build*.log', 'Dockerfile', 'rpm-packages', 'rootfs']
+            )
         ssh.close()
         logging.info('Connection closed')
 

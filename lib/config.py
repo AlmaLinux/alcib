@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     koji_ip: str = ''
     alma_repo_ip: str = ''
     sign_jwt_token: str = ''
+    docker_configuration: str = ''
 
 
 settings = Settings()

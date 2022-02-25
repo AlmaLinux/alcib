@@ -75,7 +75,7 @@ pipeline {
           steps {
               script {
                   def jobs = [:]
-                  for (arch in params.ARCH.replace('"', '').split(','))) {
+                  for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[hv] = performTestStages('KVM', arch)
                   }
                   parallel jobs

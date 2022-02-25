@@ -11,6 +11,9 @@
     - python3-devel
     - jq
     - terraform
+    - lorax
+    - anaconda-tui
+    - subscription-manager
 
 - name: Installing testinfra
   pip:
@@ -45,3 +48,6 @@
     group: ec2-user
     owner: ec2-user
   become: yes
+
+#- name: Disable SELinux
+#  shell: setenforce 0

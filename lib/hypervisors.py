@@ -595,6 +595,11 @@ class LinuxHypervisors(BaseHypervisor):
                          f'{self.name}-{build_log}')
                 logging.info('%s built', settings.image)
             finally:
+                stdout, _ = ssh.safe_execute(
+                    f'sudo chown ec2-user:ec2-user /home/ec2-user/docker-images/ &&'
+                    f' sudo chmod -R 777 /home/ec2-user/docker-images/'
+                )
+                logging.info(stdout.read().decode())
                 shutil.copytree('/home/ec2-user/docker-images/', docker_dir)
                 files = [
                     f'/home/ec2-user/docker-images/default_{self.arch}/logs/{IMAGE}_{self.arch}_build*.log',
@@ -604,10 +609,6 @@ class LinuxHypervisors(BaseHypervisor):
                 ]
                 timestamp_name = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
                 for file in files:
-                    stdout, _ = ssh.safe_execute(
-                        f'sudo chown ec2-user:ec2-user /home/ec2-user/docker-images/ &&'
-                        f' sudo chmod -R 777 /home/ec2-user/docker-images/'
-                    )
                     stdout, _ = ssh.safe_execute(
                         f'bash -c "sha256sum {file}"'
                     )

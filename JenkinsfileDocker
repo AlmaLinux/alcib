@@ -38,6 +38,7 @@ pipeline {
       stage('Create AWS instance for Docker') {
           steps {
               script {
+                  echo params.DOCKER_CONFIGURATION
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performCreateStages('KVM', arch)

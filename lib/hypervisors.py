@@ -583,7 +583,10 @@ class LinuxHypervisors(BaseHypervisor):
         logging.info(docker_list)
         logging.info(type(docker_list))
         for conf in docker_list:
-            docker_dir = tempfile.mkdtemp(prefix=conf)
+            stdout, _ = ssh.safe_execute(
+                f'mkdir /home/ec2-user/{conf}-tmp/'
+            )
+            logging.info(stdout.read().decode())
             try:
                 stdout, _ = ssh.safe_execute(
                     f'cd /home/ec2-user/docker-images/ && '
@@ -596,10 +599,18 @@ class LinuxHypervisors(BaseHypervisor):
                 logging.info('%s built', settings.image)
             finally:
                 stdout, _ = ssh.safe_execute(
-                    f'sudo chown -R ec2-user:ec2-user /home/ec2-user/docker-images/'
+                    f'sudo chown -R ec2-user:ec2-user /home/ec2-user/docker-images/ && '
+                    f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/'
+                )
+                stdout, _ = ssh.safe_execute(
+                    f'cd /home/ec2-user/docker-images/ && '
+                    f'sudo ./build.sh -o {conf} -t {conf} 2>&1 | tee ./{build_log}'
                 )
                 logging.info(stdout.read().decode())
-                shutil.copytree('/home/ec2-user/docker-images/', docker_dir)
+                stdout, _ = ssh.safe_execute(
+                    f'cp -r /home/ec2-user/docker-images /home/ec2-user/{conf}-tmp'
+                )
+                logging.info(stdout.read().decode())
                 files = [
                     f'/home/ec2-user/docker-images/default_{self.arch}/logs/{IMAGE}_{self.arch}_build*.log',
                     f'/home/ec2-user/docker-images/default_{self.arch}/Dockerfile',
@@ -618,7 +629,7 @@ class LinuxHypervisors(BaseHypervisor):
                         ExtraArgs={'Metadata': {'sha256': checksum}}
                     )
                 stdout, _ = ssh.safe_execute(
-                    f'cd {docker_dir} && git stash && '
+                    f'cd /home/ec2-user/{conf}-tmp/ && git stash && '
                     f'git checkout almalinux-8-{self.arch}-{conf}'
                     f' && git stash pop && git diff'
                 )

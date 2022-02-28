@@ -578,6 +578,11 @@ class LinuxHypervisors(BaseHypervisor):
         build_log = f'{IMAGE}_{self.arch}_build_{TIMESTAMP}.log'
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         docker_dir = tempfile.mkdtemp()
+        logging.info(settings.docker_configuration)
+        logging.info(type(settings.docker_configuration))
+        docker_list = settings.docker_configuration.split(',')
+        logging.info(docker_list)
+        logging.info(type(docker_list))
         for conf in settings.docker_configuration:
             try:
                 stdout, _ = ssh.safe_execute(

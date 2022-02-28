@@ -596,13 +596,7 @@ class LinuxHypervisors(BaseHypervisor):
                 logging.info('%s built', settings.image)
             finally:
                 stdout, _ = ssh.safe_execute(
-                    f'sudo chown ec2-user:ec2-user /home/ec2-user/docker-images/ &&'
-                    f' sudo chmod -R 777 /home/ec2-user/docker-images/'
-                )
-                logging.info(stdout.read().decode())
-                stdout, _ = ssh.safe_execute(
-                    f'sudo chown ec2-user:ec2-user /home/ec2-user/docker-images/default_{self.arch} &&'
-                    f' sudo chmod -R 777 /home/ec2-user/docker-images/default_{self.arch}'
+                    f'sudo chown -R ec2-user:ec2-user /home/ec2-user/docker-images/'
                 )
                 logging.info(stdout.read().decode())
                 shutil.copytree('/home/ec2-user/docker-images/', docker_dir)

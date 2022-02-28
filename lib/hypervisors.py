@@ -577,13 +577,13 @@ class LinuxHypervisors(BaseHypervisor):
         """
         build_log = f'{IMAGE}_{self.arch}_build_{TIMESTAMP}.log'
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
-        docker_dir = tempfile.mkdtemp()
         logging.info(settings.docker_configuration)
         logging.info(type(settings.docker_configuration))
         docker_list = settings.docker_configuration.split(',')
         logging.info(docker_list)
         logging.info(type(docker_list))
         for conf in docker_list:
+            docker_dir = tempfile.mkdtemp(prefix=conf)
             try:
                 stdout, _ = ssh.safe_execute(
                     f'cd /home/ec2-user/docker-images/ && '
@@ -598,6 +598,11 @@ class LinuxHypervisors(BaseHypervisor):
                 stdout, _ = ssh.safe_execute(
                     f'sudo chown ec2-user:ec2-user /home/ec2-user/docker-images/ &&'
                     f' sudo chmod -R 777 /home/ec2-user/docker-images/'
+                )
+                logging.info(stdout.read().decode())
+                stdout, _ = ssh.safe_execute(
+                    f'sudo chown ec2-user:ec2-user /home/ec2-user/docker-images/default_{self.arch} &&'
+                    f' sudo chmod -R 777 /home/ec2-user/docker-images/default_{self.arch}'
                 )
                 logging.info(stdout.read().decode())
                 shutil.copytree('/home/ec2-user/docker-images/', docker_dir)

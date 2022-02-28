@@ -596,7 +596,7 @@ class LinuxHypervisors(BaseHypervisor):
                 logging.info('%s built', settings.image)
             finally:
                 files = [
-                    f'/home/ec2-user/docker-images/{IMAGE}_{self.arch}_build*.log',
+                    f'/home/ec2-user/docker-images/default_{self.arch}/logs/{IMAGE}_{self.arch}_build*.log',
                     f'/home/ec2-user/docker-images/default_{self.arch}/Dockerfile',
                     f'/home/ec2-user/docker-images/default_{self.arch}/rpm-packages',
                     f'/home/ec2-user/docker-images/default_{self.arch}/almalinux-8-docker.default.tar.xz'

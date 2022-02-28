@@ -591,10 +591,11 @@ class LinuxHypervisors(BaseHypervisor):
                 )
                 logging.info(stdout.read().decode())
                 sftp = ssh.open_sftp()
-                sftp.get(f'/home/ec2-user/docker-images/{build_log}',
+                sftp.get(f'/home/ec2-user/docker-images/default_{self.arch}/logs/{build_log}',
                          f'{self.name}-{build_log}')
                 logging.info('%s built', settings.image)
             finally:
+                shutil.copytree('/home/ec2-user/docker-images/', docker_dir)
                 files = [
                     f'/home/ec2-user/docker-images/default_{self.arch}/logs/{IMAGE}_{self.arch}_build*.log',
                     f'/home/ec2-user/docker-images/default_{self.arch}/Dockerfile',
@@ -604,6 +605,10 @@ class LinuxHypervisors(BaseHypervisor):
                 timestamp_name = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
                 for file in files:
                     stdout, _ = ssh.safe_execute(
+                        f'sudo chown ec2-user:ec2-user /home/ec2-user/docker-images/ &&'
+                        f' sudo chmod -R 777 /home/ec2-user/docker-images/'
+                    )
+                    stdout, _ = ssh.safe_execute(
                         f'bash -c "sha256sum {file}"'
                     )
                     checksum = stdout.read().decode().split()[0]
@@ -612,7 +617,6 @@ class LinuxHypervisors(BaseHypervisor):
                         f"{timestamp_name}/{file.split('/')[-1]}",
                         ExtraArgs={'Metadata': {'sha256': checksum}}
                     )
-                shutil.copytree('/home/ec2-user/docker-images/', docker_dir)
                 stdout, _ = ssh.safe_execute(
                     f'cd {docker_dir} && git stash && '
                     f'git checkout almalinux-8-{self.arch}-{conf}'

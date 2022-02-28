@@ -14,6 +14,7 @@ from subprocess import PIPE, Popen, STDOUT
 from io import BufferedReader
 import logging
 import time
+import tempfile
 
 import requests
 import boto3
@@ -576,39 +577,43 @@ class LinuxHypervisors(BaseHypervisor):
         """
         build_log = f'{IMAGE}_{self.arch}_build_{TIMESTAMP}.log'
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
-
-        # logging.info('Packer initialization')
-        # stdout, _ = ssh.safe_execute('packer init ./cloud-images 2>&1')
-
-        # logging.info('Building %s', settings.image)
-
-        # if settings.image == 'GenericCloud':
-        #     cmd = self.packer_build_gencloud.format(vb_build_log)
-        # elif settings.image == 'OpenNebula':
-        #     cmd = self.packer_build_opennebula.format(vb_build_log)
-        # else:
-        #     cmd = self.packer_build_cmd.format(vb_build_log)
-        try:
-            stdout, _ = ssh.safe_execute(
-                f'cd /home/ec2-user/docker-images/ && '
-                f'sudo ./build.sh -o {settings.docker_configuration} '
-                f'-t {settings.docker_configuration} 2>&1 | tee ./{build_log}'
-            )
-            logging.info(stdout.read().decode())
-            sftp = ssh.open_sftp()
-            sftp.get(f'{self.sftp_path}{build_log}',
-                     f'{self.name}-{build_log}')
-            logging.info('%s built', settings.image)
-            stdout, _ = ssh.safe_execute(
-                f'git stash && '
-                f'git checkout almalinux-8-{self.arch}-{settings.docker_configuration}'
-                f' && git stash pop && git diff'
-            )
-            logging.info(stdout.read().decode())
-        finally:
-            self.upload_to_bucket(
-                builder, [f'{IMAGE}_{self.arch}_build*.log', 'Dockerfile', 'rpm-packages', 'rootfs']
-            )
+        docker_dir = tempfile.mkdtemp()
+        for conf in settings.docker_configuration:
+            try:
+                stdout, _ = ssh.safe_execute(
+                    f'cd /home/ec2-user/docker-images/ && '
+                    f'sudo ./build.sh -o {conf} -t {conf} 2>&1 | tee ./{build_log}'
+                )
+                logging.info(stdout.read().decode())
+                sftp = ssh.open_sftp()
+                sftp.get(f'/home/ec2-user/docker-images/{build_log}',
+                         f'{self.name}-{build_log}')
+                logging.info('%s built', settings.image)
+            finally:
+                files = [
+                    f'/home/ec2-user/docker-images/{IMAGE}_{self.arch}_build*.log',
+                    f'/home/ec2-user/docker-images/default_{self.arch}/Dockerfile',
+                    f'/home/ec2-user/docker-images/default_{self.arch}/rpm-packages',
+                    f'/home/ec2-user/docker-images/default_{self.arch}/almalinux-8-docker.default.tar.xz'
+                ]
+                timestamp_name = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
+                for file in files:
+                    stdout, _ = ssh.safe_execute(
+                        f'bash -c "sha256sum /home/ec2-user/docker-images/{file}"'
+                    )
+                    checksum = stdout.read().decode().split()[0]
+                    self.s3_bucket.upload_file(
+                        file, settings.bucket,
+                        f"{timestamp_name}/{file.split('/')[-1]}",
+                        ExtraArgs={'Metadata': {'sha256': checksum}}
+                    )
+                shutil.copytree('/home/ec2-user/docker-images/', docker_dir)
+                stdout, _ = ssh.safe_execute(
+                    f'cd {docker_dir} && git stash && '
+                    f'git checkout almalinux-8-{self.arch}-{conf}'
+                    f' && git stash pop && git diff'
+                )
+                logging.info(stdout.read().decode())
         ssh.close()
         logging.info('Connection closed')
 

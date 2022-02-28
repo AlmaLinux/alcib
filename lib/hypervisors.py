@@ -604,7 +604,7 @@ class LinuxHypervisors(BaseHypervisor):
                 timestamp_name = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
                 for file in files:
                     stdout, _ = ssh.safe_execute(
-                        f'bash -c "sha256sum /home/ec2-user/docker-images/{file}"'
+                        f'bash -c "sha256sum {file}"'
                     )
                     checksum = stdout.read().decode().split()[0]
                     self.s3_bucket.upload_file(

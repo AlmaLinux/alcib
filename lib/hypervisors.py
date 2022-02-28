@@ -583,7 +583,7 @@ class LinuxHypervisors(BaseHypervisor):
         docker_list = settings.docker_configuration.split(',')
         logging.info(docker_list)
         logging.info(type(docker_list))
-        for conf in settings.docker_configuration:
+        for conf in docker_list:
             try:
                 stdout, _ = ssh.safe_execute(
                     f'cd /home/ec2-user/docker-images/ && '

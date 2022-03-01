@@ -14,7 +14,6 @@ from subprocess import PIPE, Popen, STDOUT
 from io import BufferedReader
 import logging
 import time
-import tempfile
 
 import requests
 import boto3
@@ -621,11 +620,15 @@ class LinuxHypervisors(BaseHypervisor):
                         f'bash -c "sha256sum {file}"'
                     )
                     checksum = stdout.read().decode().split()[0]
-                    self.s3_bucket.upload_file(
-                        file, settings.bucket,
-                        f"{timestamp_name}/{file.split('/')[-1]}",
-                        ExtraArgs={'Metadata': {'sha256': checksum}}
-                    )
+                    # self.s3_bucket.upload_file(
+                    #     file, settings.bucket,
+                    #     f"{timestamp_name}/{file.split('/')[-1]}",
+                    #     ExtraArgs={'Metadata': {'sha256': checksum}}
+                    # )
+                    cmd = f'bash -c "aws s3 cp {file} ' \
+                          f's3://{settings.bucket}/{timestamp_name}/ --metadata sha256={checksum}"'
+                    stdout, _ = ssh.safe_execute(cmd)
+                    logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
                     f'cd /home/ec2-user/{conf}-tmp/docker-images/ && git stash && '
                     f'git checkout almalinux-8-{self.arch}-{conf}'

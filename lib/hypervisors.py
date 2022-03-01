@@ -604,7 +604,7 @@ class LinuxHypervisors(BaseHypervisor):
                 stdout, _ = ssh.safe_execute(
                     f'git clone https://github.com/AlmaLinux/docker-images.git /home/ec2-user/{conf}-tmp/ &&'
                     f' cd /home/ec2-user/{conf}-tmp/ '
-                    f'&& checkout origin/almalinux-8-{self.arch}-{conf}'
+                    f'&& git checkout origin/almalinux-8-{self.arch}-{conf}'
                 )
                 files = [
                     f'/home/ec2-user/docker-images/default_{self.arch}/logs/{IMAGE}_{self.arch}_build*.log',

@@ -635,7 +635,7 @@ class LinuxHypervisors(BaseHypervisor):
                     logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
                     f'cd /home/ec2-user/{conf}-tmp/ && '
-                    f'git diff --unified=0 /home/ec2-user/docker-images/default_{self.arch}/rpm-packages'
+                    f'git diff --unified=0 /home/ec2-user/{conf}-tmp/default_{self.arch}/rpm-packages'
                 )
                 logging.info(stdout.read().decode())
             finally:

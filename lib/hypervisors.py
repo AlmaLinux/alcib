@@ -602,7 +602,8 @@ class LinuxHypervisors(BaseHypervisor):
                     f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/'
                 )
                 stdout, _ = ssh.safe_execute(
-                    f'cd /home/ec2-user/{conf}-tmp/docker-images/ '
+                    f'git clone https://github.com/AlmaLinux/docker-images.git /home/ec2-user/{conf}-tmp/ &&'
+                    f' cd /home/ec2-user/{conf}-tmp/ '
                     f'&& checkout origin/almalinux-8-{self.arch}-{conf}'
                 )
                 files = [
@@ -617,7 +618,7 @@ class LinuxHypervisors(BaseHypervisor):
                     #     f'sudo chmod 777 {file}'
                     # )
                     stdout, _ = ssh.safe_execute(
-                        f'cp {file} /home/ec2-user/{conf}-tmp/docker-images/'
+                        f'cp {file} /home/ec2-user/{conf}-tmp/'
                     )
                     logging.info(stdout.read().decode())
                     stdout, _ = ssh.safe_execute(
@@ -634,7 +635,7 @@ class LinuxHypervisors(BaseHypervisor):
                     stdout, _ = ssh.safe_execute(cmd)
                     logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
-                    f'cd /home/ec2-user/{conf}-tmp/docker-images/ && git diff'
+                    f'cd /home/ec2-user/{conf}-tmp/ && git diff'
                 )
                 logging.info(stdout.read().decode())
         ssh.close()

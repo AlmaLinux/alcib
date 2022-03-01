@@ -596,7 +596,6 @@ class LinuxHypervisors(BaseHypervisor):
                 sftp.get(f'/home/ec2-user/docker-images/default_{self.arch}/logs/{build_log}',
                          f'{self.name}-{build_log}')
                 logging.info('%s built', settings.image)
-            finally:
                 stdout, _ = ssh.safe_execute(
                     f'sudo chown -R ec2-user:ec2-user /home/ec2-user/docker-images/ && '
                     f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/'
@@ -604,7 +603,8 @@ class LinuxHypervisors(BaseHypervisor):
                 stdout, _ = ssh.safe_execute(
                     f'git clone https://github.com/AlmaLinux/docker-images.git /home/ec2-user/{conf}-tmp/ &&'
                     f' cd /home/ec2-user/{conf}-tmp/ '
-                    f'&& git checkout origin/almalinux-8-{self.arch}-{conf}'
+                    f'&& git checkout origin/almalinux-8-{self.arch}-{conf} && '
+                    f'mv /home/ec2-user/{conf}-tmp/default_{self.arch}/rpm-packages mv /home/ec2-user/{conf}-tmp/default_{self.arch}/rpm-packages.old '
                 )
                 files = [
                     f'/home/ec2-user/docker-images/default_{self.arch}/logs/{IMAGE}_{self.arch}_build*.log',
@@ -635,9 +635,12 @@ class LinuxHypervisors(BaseHypervisor):
                     stdout, _ = ssh.safe_execute(cmd)
                     logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
-                    f'cd /home/ec2-user/{conf}-tmp/ && git diff'
+                    f'cd /home/ec2-user/{conf}-tmp/ && '
+                    f'git diff --unified=0 /home/ec2-user/docker-images/default_{self.arch}/rpm-packages'
                 )
                 logging.info(stdout.read().decode())
+            finally:
+                logging.info(f'Docker Image {conf} built')
         ssh.close()
         logging.info('Connection closed')
 

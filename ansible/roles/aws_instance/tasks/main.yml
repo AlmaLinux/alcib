@@ -35,7 +35,7 @@
   become_user: root
   become: true
   git:
-    repo: 'https://github.com/AlmaLinux/docker-images.git'
+    repo: 'https://github.com/VanessaRish/docker-images.git'
     dest: './docker-images'
     # version: master
     force: yes

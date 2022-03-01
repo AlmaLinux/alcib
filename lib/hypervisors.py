@@ -603,11 +603,6 @@ class LinuxHypervisors(BaseHypervisor):
                     f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/'
                 )
                 stdout, _ = ssh.safe_execute(
-                    f'cd /home/ec2-user/docker-images/ && '
-                    f'sudo ./build.sh -o {conf} -t {conf} 2>&1 | tee ./{build_log}'
-                )
-                logging.info(stdout.read().decode())
-                stdout, _ = ssh.safe_execute(
                     f'cp -r /home/ec2-user/docker-images /home/ec2-user/{conf}-tmp'
                 )
                 logging.info(stdout.read().decode())
@@ -629,7 +624,7 @@ class LinuxHypervisors(BaseHypervisor):
                         ExtraArgs={'Metadata': {'sha256': checksum}}
                     )
                 stdout, _ = ssh.safe_execute(
-                    f'cd /home/ec2-user/{conf}-tmp/ && git stash && '
+                    f'cd /home/ec2-user/{conf}-tmp/docker-images/ && git stash && '
                     f'git checkout almalinux-8-{self.arch}-{conf}'
                     f' && git stash pop && git diff'
                 )

@@ -602,9 +602,9 @@ class LinuxHypervisors(BaseHypervisor):
                     f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/'
                 )
                 stdout, _ = ssh.safe_execute(
-                    f'cp -r /home/ec2-user/docker-images /home/ec2-user/{conf}-tmp'
+                    f'cd /home/ec2-user/{conf}-tmp/docker-images/ '
+                    f'&& checkout origin/almalinux-8-{self.arch}-{conf}'
                 )
-                logging.info(stdout.read().decode())
                 files = [
                     f'/home/ec2-user/docker-images/default_{self.arch}/logs/{IMAGE}_{self.arch}_build*.log',
                     f'/home/ec2-user/docker-images/default_{self.arch}/Dockerfile',
@@ -616,6 +616,10 @@ class LinuxHypervisors(BaseHypervisor):
                     # stdout, _ = ssh.safe_execute(
                     #     f'sudo chmod 777 {file}'
                     # )
+                    stdout, _ = ssh.safe_execute(
+                        f'cp {file} /home/ec2-user/{conf}-tmp/docker-images/'
+                    )
+                    logging.info(stdout.read().decode())
                     stdout, _ = ssh.safe_execute(
                         f'bash -c "sha256sum {file}"'
                     )
@@ -630,9 +634,7 @@ class LinuxHypervisors(BaseHypervisor):
                     stdout, _ = ssh.safe_execute(cmd)
                     logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
-                    f'cd /home/ec2-user/{conf}-tmp/docker-images/ && git stash && '
-                    f'git checkout almalinux-8-{self.arch}-{conf}'
-                    f' && git stash pop && git diff'
+                    f'cd /home/ec2-user/{conf}-tmp/docker-images/ && git diff'
                 )
                 logging.info(stdout.read().decode())
         ssh.close()

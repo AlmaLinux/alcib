@@ -38,7 +38,7 @@ def init_args_parser() -> argparse.ArgumentParser:
                         choices=['init', 'build', 'destroy',
                                  'test', 'release', 'pullrequest'],
                         help='Stage')
-    parser.add_argument('--arch', type=str, choices=['x86_64', 'aarch64'],
+    parser.add_argument('--arch', type=str, choices=['x86_64', 'aarch64', 'ppc64le'],
                         help='Architecture', required=False, default='x86_64')
     return parser
 

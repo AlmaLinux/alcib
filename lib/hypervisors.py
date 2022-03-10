@@ -583,7 +583,7 @@ class LinuxHypervisors(BaseHypervisor):
         logging.info(type(docker_list))
         for conf in docker_list:
             stdout, _ = ssh.safe_execute(
-                f'mkdir /home/ec2-user/{conf}-tmp/'
+                f'mkdir /home/ec2-user/{conf}-tmp/ && mkdir /home/ec2-user/{conf}-tmp/fake-root/ '
             )
             logging.info(stdout.read().decode())
             try:
@@ -598,7 +598,8 @@ class LinuxHypervisors(BaseHypervisor):
                 logging.info('%s built', settings.image)
                 stdout, _ = ssh.safe_execute(
                     f'sudo chown -R ec2-user:ec2-user /home/ec2-user/docker-images/ && '
-                    f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/'
+                    f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/ && '
+                    f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/fake-root/'
                 )
                 stdout, _ = ssh.safe_execute(
                     f'git clone https://github.com/AlmaLinux/docker-images.git /home/ec2-user/{conf}-tmp/ &&'
@@ -613,9 +614,6 @@ class LinuxHypervisors(BaseHypervisor):
                 ]
                 timestamp_name = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
                 for file in files:
-                    # stdout, _ = ssh.safe_execute(
-                    #     f'sudo chmod 777 {file}'
-                    # )
                     stdout, _ = ssh.safe_execute(
                         f'cp {file} /home/ec2-user/{conf}-tmp/'
                     )
@@ -624,20 +622,36 @@ class LinuxHypervisors(BaseHypervisor):
                         f'bash -c "sha256sum {file}"'
                     )
                     checksum = stdout.read().decode().split()[0]
-                    # self.s3_bucket.upload_file(
-                    #     file, settings.bucket,
-                    #     f"{timestamp_name}/{file.split('/')[-1]}",
-                    #     ExtraArgs={'Metadata': {'sha256': checksum}}
-                    # )
                     cmd = f'bash -c "aws s3 cp {file} ' \
                           f's3://{settings.bucket}/{timestamp_name}/ --metadata sha256={checksum}"'
                     stdout, _ = ssh.safe_execute(cmd)
                     logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
-                    f'cd /home/ec2-user/{conf}-tmp/ && '
-                    f'git diff --unified=0 /home/ec2-user/{conf}-tmp/default_{self.arch}/rpm-packages'
+                    f"cd /home/ec2-user/{conf}-tmp/ && "
+                    f"git diff --unified=0 /home/ec2-user/{conf}-tmp/rpm-packages | grep '^[+][^+]'"
+                )
+                packages = stdout.read().decode()
+                logging.info(packages)
+                logging.info(type(packages))
+                packages = packages.split('\n')
+                logging.info(packages)
+                logging.info(type(packages))
+                stdout, _ = ssh.safe_execute(
+                    f"tar -xvf /home/ec2-user/{conf}-tmp/*tar.xz /home/ec2-user/{conf}-tmp/fake-root"
                 )
                 logging.info(stdout.read().decode())
+                for package in packages:
+                    package = package.strip('+')
+                    stdout, _ = ssh.safe_execute(
+                        f"chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package} | head"
+                    )
+                    changelog = stdout.read().decode()
+                    logging.info(changelog)
+                    logging.info(type(changelog))
+                    changelog = changelog.split('\n\n')[0]
+                    logging.info(changelog)
+                    logging.info(type(changelog))
+
             finally:
                 logging.info(f'Docker Image {conf} built')
         ssh.close()

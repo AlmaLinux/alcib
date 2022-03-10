@@ -21,7 +21,7 @@ pipeline {
   parameters {
       choice(name: 'IMAGE', choices: ['Docker', 'Vagrant Box', 'AWS AMI', 'GenericCloud', 'OpenNebula'], description: 'Cloud image to update: build, test, release')
       extendedChoice(defaultValue: 'KVM', description: 'Hypervisors options to build Docker Container', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'HYPERVISORS', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'KVM', visibleItemCount: 1)
-      extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64', visibleItemCount: 2)
+      extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64, ppc64le', visibleItemCount: 3)
       string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
       extendedChoice(defaultValue: 'DOCKER_CONFIGURATION', description: 'Image to  build Docker Container', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'DOCKER_CONFIGURATION', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'default, minimal, base, init, micro', visibleItemCount: 5)
       booleanParam(defaultValue: true, description: 'Destroy AWS instance', name: 'DESTROY')

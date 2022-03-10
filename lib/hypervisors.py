@@ -583,7 +583,7 @@ class LinuxHypervisors(BaseHypervisor):
         logging.info(type(docker_list))
         for conf in docker_list:
             stdout, _ = ssh.safe_execute(
-                f'mkdir /home/ec2-user/{conf}-tmp/ && mkdir /home/ec2-user/{conf}-tmp/fake-root/ '
+                f'mkdir /home/ec2-user/{conf}-tmp/ '
             )
             logging.info(stdout.read().decode())
             try:
@@ -598,8 +598,7 @@ class LinuxHypervisors(BaseHypervisor):
                 logging.info('%s built', settings.image)
                 stdout, _ = ssh.safe_execute(
                     f'sudo chown -R ec2-user:ec2-user /home/ec2-user/docker-images/ && '
-                    f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/ && '
-                    f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/fake-root/'
+                    f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/'
                 )
                 stdout, _ = ssh.safe_execute(
                     f'git clone https://github.com/AlmaLinux/docker-images.git /home/ec2-user/{conf}-tmp/ &&'
@@ -636,6 +635,13 @@ class LinuxHypervisors(BaseHypervisor):
                 packages = packages.split('\n')
                 logging.info(packages)
                 logging.info(type(packages))
+                stdout, _ = ssh.safe_execute(
+                    f'mkdir /home/ec2-user/{conf}-tmp/fake-root/ '
+                )
+                logging.info(stdout.read().decode())
+                stdout, _ = ssh.safe_execute(
+                    f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/fake-root/'
+                )
                 stdout, _ = ssh.safe_execute(
                     f"tar -xvf /home/ec2-user/{conf}-tmp/*tar.xz /home/ec2-user/{conf}-tmp/fake-root"
                 )

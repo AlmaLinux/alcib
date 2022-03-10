@@ -651,7 +651,7 @@ class LinuxHypervisors(BaseHypervisor):
                     package = package.strip('+')
                     package = package.split('.rpm')[0]
                     stdout, _ = ssh.safe_execute(
-                        f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package} | head"
+                        f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package}"
                     )
                     changelog = stdout.read().decode()
                     logging.info(changelog)

@@ -51,7 +51,7 @@ class ParamikoWrapper(paramiko.SSHClient):
         if exit_status != 0:
             logging.info('Command output:\n%s', stdout.read().decode())
             logging.error('Traceback:\n%s', stderr.read().decode())
-            raise ExecuteError('Command \'{cmd}\' execution failed.')
+            raise ExecuteError(f'Command \'{cmd}\' execution failed.')
 
         return stdout, stderr
 

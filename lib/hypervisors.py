@@ -646,6 +646,7 @@ class LinuxHypervisors(BaseHypervisor):
                     f"tar -xvf /home/ec2-user/{conf}-tmp/*tar.xz -C /home/ec2-user/{conf}-tmp/fake-root"
                 )
                 logging.info(stdout.read().decode())
+                packages = packages[:-1]
                 for package in packages:
                     package = package.strip('+')
                     package = package.split('.rpm')[0]
@@ -655,7 +656,9 @@ class LinuxHypervisors(BaseHypervisor):
                     changelog = stdout.read().decode()
                     logging.info(changelog)
                     logging.info(type(changelog))
-                    changelog = changelog.split('\n\n')[0]
+                    changelog = changelog.split('\n\n')
+                    changelog = list(filter(None, changelog))
+                    changelog = changelog[0]
                     logging.info(changelog)
                     logging.info(type(changelog))
 

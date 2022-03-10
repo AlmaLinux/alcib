@@ -643,13 +643,14 @@ class LinuxHypervisors(BaseHypervisor):
                     f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/fake-root/'
                 )
                 stdout, _ = ssh.safe_execute(
-                    f"tar -xvf /home/ec2-user/{conf}-tmp/*tar.xz /home/ec2-user/{conf}-tmp/fake-root"
+                    f"tar -xvf /home/ec2-user/{conf}-tmp/*tar.xz -C /home/ec2-user/{conf}-tmp/fake-root"
                 )
                 logging.info(stdout.read().decode())
                 for package in packages:
                     package = package.strip('+')
+                    package = package.split('.rpm')[0]
                     stdout, _ = ssh.safe_execute(
-                        f"chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package} | head"
+                        f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package} | head"
                     )
                     changelog = stdout.read().decode()
                     logging.info(changelog)

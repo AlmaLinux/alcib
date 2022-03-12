@@ -651,15 +651,6 @@ class LinuxHypervisors(BaseHypervisor):
                 packages = list(filter(None, packages))
 
                 for package in packages:
-                    stdout, _ = ssh.safe_execute(
-                        f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package[1:]}"
-                    )
-                    changelog = stdout.read().decode()
-                    # logging.info(changelog)
-                    # logging.info(type(changelog))
-                    changelog = changelog.split('\n\n')
-                    changelog = list(filter(None, changelog))
-
                     package = package.split('.x86_64.rpm')[0]
                     package = package.split('.alma')[0]
                     full_regex = re.compile(
@@ -677,6 +668,14 @@ class LinuxHypervisors(BaseHypervisor):
                         packages.remove(upd_pkg)
                         new_package = re.search(full_regex, upd_pkg).groupdict()
                         new_version = f"{new_package['version']}-{new_package['release']}.{new_package['dist']}"
+                        stdout, _ = ssh.safe_execute(
+                            f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {pkg_name}"
+                        )
+                        changelog = stdout.read().decode()
+                        # logging.info(changelog)
+                        # logging.info(type(changelog))
+                        changelog = changelog.split('\n\n')
+                        changelog = list(filter(None, changelog))
                         previous = None
                         latest = changelog[0]
                         msg.append(f'-{pkg_name} updated from {previous_version} to {new_version}')

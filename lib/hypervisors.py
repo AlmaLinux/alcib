@@ -667,7 +667,8 @@ class LinuxHypervisors(BaseHypervisor):
                         logging.info(previous_version)
                         pkg_name = result['name'][1:]
                         logging.info(pkg_name)
-                        packages.remove(package)
+                        regex = re.compile(f'{package}*')
+                        packages.remove(list(filter(regex.match, packages))[0])
                         regex = re.compile(f'\+{pkg_name}*')
                         upd_pkg = list(filter(regex.match, packages))[0]
                         logging.info(upd_pkg)

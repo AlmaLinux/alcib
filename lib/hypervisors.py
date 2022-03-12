@@ -575,7 +575,6 @@ class LinuxHypervisors(BaseHypervisor):
         builder : Builder
             Builder on AWS Instance.
         """
-        build_log = f'{IMAGE}_{self.arch}_build_{TIMESTAMP}.log'
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info(settings.docker_configuration)
         logging.info(type(settings.docker_configuration))
@@ -583,6 +582,11 @@ class LinuxHypervisors(BaseHypervisor):
         logging.info(docker_list)
         logging.info(type(docker_list))
         for conf in docker_list:
+            stdout, _ = ssh.safe_execute(
+                f'cd /home/ec2-user/docker-images/ && git reset --hard && git checkout master && git pull '
+            )
+            logging.info(stdout.read().decode())
+            build_log = f'{IMAGE}_{conf}_{self.arch}_build_{TIMESTAMP}.log'
             stdout, _ = ssh.safe_execute(
                 f'mkdir /home/ec2-user/{conf}-tmp/ '
             )

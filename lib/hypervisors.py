@@ -598,7 +598,7 @@ class LinuxHypervisors(BaseHypervisor):
                 )
                 logging.info(stdout.read().decode())
                 sftp = ssh.open_sftp()
-                sftp.get(f'/home/ec2-user/docker-images/default_{self.arch}/logs/{build_log}',
+                sftp.get(f'/home/ec2-user/docker-images/{conf}_{self.arch}/logs/{build_log}',
                          f'{self.name}-{build_log}')
                 logging.info('%s built', settings.image)
                 stdout, _ = ssh.safe_execute(
@@ -611,10 +611,10 @@ class LinuxHypervisors(BaseHypervisor):
                     f'&& git checkout origin/almalinux-8-{self.arch}-{conf}'
                 )
                 files = [
-                    f'/home/ec2-user/docker-images/default_{self.arch}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',
-                    f'/home/ec2-user/docker-images/default_{self.arch}/Dockerfile',
-                    f'/home/ec2-user/docker-images/default_{self.arch}/rpm-packages',
-                    f'/home/ec2-user/docker-images/default_{self.arch}/almalinux-8-docker.default.tar.xz'
+                    f'/home/ec2-user/docker-images/{conf}_{self.arch}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',
+                    f'/home/ec2-user/docker-images/{conf}_{self.arch}/Dockerfile',
+                    f'/home/ec2-user/docker-images/{conf}_{self.arch}/rpm-packages',
+                    f'/home/ec2-user/docker-images/{conf}_{self.arch}/almalinux-8-docker.{conf}.tar.xz'
                 ]
                 timestamp_name = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
                 for file in files:

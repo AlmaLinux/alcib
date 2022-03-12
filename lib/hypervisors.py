@@ -611,7 +611,7 @@ class LinuxHypervisors(BaseHypervisor):
                     f'&& git checkout origin/almalinux-8-{self.arch}-{conf}'
                 )
                 files = [
-                    f'/home/ec2-user/docker-images/default_{self.arch}/logs/{IMAGE}_{self.arch}_build*.log',
+                    f'/home/ec2-user/docker-images/default_{self.arch}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',
                     f'/home/ec2-user/docker-images/default_{self.arch}/Dockerfile',
                     f'/home/ec2-user/docker-images/default_{self.arch}/rpm-packages',
                     f'/home/ec2-user/docker-images/default_{self.arch}/almalinux-8-docker.default.tar.xz'

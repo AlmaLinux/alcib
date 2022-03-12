@@ -648,16 +648,18 @@ class LinuxHypervisors(BaseHypervisor):
                 )
                 msg = [f'Updates AlmaLinux 8.5 x86_64 {conf} rootfs']
                 # logging.info(stdout.read().decode())
-                stdout, _ = ssh.safe_execute(
-                    f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package}"
-                )
-                changelog = stdout.read().decode()
-                # logging.info(changelog)
-                # logging.info(type(changelog))
-                changelog = changelog.split('\n\n')
-                changelog = list(filter(None, changelog))
                 packages = list(filter(None, packages))
+
                 for package in packages:
+                    stdout, _ = ssh.safe_execute(
+                        f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package}"
+                    )
+                    changelog = stdout.read().decode()
+                    # logging.info(changelog)
+                    # logging.info(type(changelog))
+                    changelog = changelog.split('\n\n')
+                    changelog = list(filter(None, changelog))
+
                     package = package.split('.x86_64.rpm')[0]
                     package = package.split('.alma')[0]
                     full_regex = re.compile(
@@ -687,8 +689,8 @@ class LinuxHypervisors(BaseHypervisor):
                             msg.append(f"Fixes {', '.join(cve)}")
                         logging.info(changelog)
                         #logging.info(type(changelog))
-                        commit_msg = '\n'.join(msg)
-                        logging.info(commit_msg)
+                commit_msg = '\n'.join(msg)
+                logging.info(commit_msg)
 
             finally:
                 logging.info(f'Docker Image {conf} built')

@@ -685,12 +685,11 @@ class LinuxHypervisors(BaseHypervisor):
                         changelog = changelog.split('\n\n')
                         changelog = list(filter(None, changelog))
                         previous = None
-                        latest = changelog[0]
                         msg.append(f'-{pkg_name} updated from {previous_version} to {new_version}')
                         for record in changelog:
                             if f"{result['version']}-{result['release']}" in record:
                                 previous = changelog.index(record)
-                        changelog = changelog[latest:previous]
+                        changelog = changelog[0:previous]
                         cve = re.findall(r'(CVE-[0-9]*-[0-9]*)', changelog)
                         if cve:
                             msg.append(f"Fixes {', '.join(cve)}")

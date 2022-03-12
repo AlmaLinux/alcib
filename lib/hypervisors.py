@@ -649,7 +649,8 @@ class LinuxHypervisors(BaseHypervisor):
                 msg = [f'Updates AlmaLinux 8.5 x86_64 {conf} rootfs']
                 # logging.info(stdout.read().decode())
                 packages = list(filter(None, packages))
-
+                logging.info(packages)
+                logging.info(type(packages))
                 for package in packages:
                     package = package.split('.x86_64.rpm')[0]
                     package = package.split('.alma')[0]
@@ -659,15 +660,21 @@ class LinuxHypervisors(BaseHypervisor):
                         r'(?P<release>\d+?[\w.+]*?)'
                         r'\.(?P<dist>(el.*))')
                     result = re.search(full_regex, package).groupdict()
+                    logging.info(package)
+                    logging.info(type(package))
                     if package.startswith('-'):
                         previous_version = f"{result['version']}-{result['release']}.{result['dist']}"
+                        logging.info(previous_version)
                         pkg_name = result['name'][1:]
+                        logging.info(pkg_name)
                         packages.remove(package)
                         regex = re.compile(f'\+{pkg_name}*')
                         upd_pkg = list(filter(regex.match, packages))[0]
+                        logging.info(upd_pkg)
                         packages.remove(upd_pkg)
                         new_package = re.search(full_regex, upd_pkg).groupdict()
                         new_version = f"{new_package['version']}-{new_package['release']}.{new_package['dist']}"
+                        logging.info(new_version)
                         stdout, _ = ssh.safe_execute(
                             f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {pkg_name}"
                         )

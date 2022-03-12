@@ -690,7 +690,8 @@ class LinuxHypervisors(BaseHypervisor):
                             if f"{result['version']}-{result['release']}" in record:
                                 previous = changelog.index(record)
                         changelog = changelog[0:previous]
-                        cve = re.findall(r'(CVE-[0-9]*-[0-9]*)', changelog)
+                        logging.info(changelog)
+                        cve = re.findall(r'(CVE-[0-9]*-[0-9]*)', changelog[0])
                         if cve:
                             msg.append(f"Fixes {', '.join(cve)}")
                         logging.info(changelog)

@@ -14,6 +14,7 @@ from subprocess import PIPE, Popen, STDOUT
 from io import BufferedReader
 import logging
 import time
+import re
 
 import requests
 import boto3
@@ -627,14 +628,14 @@ class LinuxHypervisors(BaseHypervisor):
                     logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
                     f"cd /home/ec2-user/{conf}-tmp/ && "
-                    f"git diff --unified=0 /home/ec2-user/{conf}-tmp/rpm-packages | grep '^[+][^+]'"
+                    f"git diff --unified=0 /home/ec2-user/{conf}-tmp/rpm-packages | grep '^[+|-][^+|-]'"
                 )
                 packages = stdout.read().decode()
                 logging.info(packages)
-                logging.info(type(packages))
+                # logging.info(type(packages))
                 packages = packages.split('\n')
-                logging.info(packages)
-                logging.info(type(packages))
+                # logging.info(packages)
+                # logging.info(type(packages))
                 stdout, _ = ssh.safe_execute(
                     f'mkdir /home/ec2-user/{conf}-tmp/fake-root/ '
                 )
@@ -645,22 +646,49 @@ class LinuxHypervisors(BaseHypervisor):
                 stdout, _ = ssh.safe_execute(
                     f"tar -xvf /home/ec2-user/{conf}-tmp/*tar.xz -C /home/ec2-user/{conf}-tmp/fake-root"
                 )
-                logging.info(stdout.read().decode())
-                packages = packages[:-1]
+                msg = [f'Updates AlmaLinux 8.5 x86_64 {conf} rootfs']
+                # logging.info(stdout.read().decode())
+                stdout, _ = ssh.safe_execute(
+                    f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package}"
+                )
+                changelog = stdout.read().decode()
+                # logging.info(changelog)
+                # logging.info(type(changelog))
+                changelog = changelog.split('\n\n')
+                changelog = list(filter(None, changelog))
+                packages = list(filter(None, packages))
                 for package in packages:
-                    package = package.strip('+')
-                    package = package.split('.rpm')[0]
-                    stdout, _ = ssh.safe_execute(
-                        f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package}"
-                    )
-                    changelog = stdout.read().decode()
-                    logging.info(changelog)
-                    logging.info(type(changelog))
-                    changelog = changelog.split('\n\n')
-                    changelog = list(filter(None, changelog))
-                    changelog = changelog[0]
-                    logging.info(changelog)
-                    logging.info(type(changelog))
+                    package = package.split('.x86_64.rpm')[0]
+                    package = package.split('.alma')[0]
+                    full_regex = re.compile(
+                        r'(?P<name>[\w+-.]+)-'
+                        r'(?P<version>\d+?[\w.]*)-'
+                        r'(?P<release>\d+?[\w.+]*?)'
+                        r'\.(?P<dist>(el.*))')
+                    result = re.search(full_regex, package).groupdict()
+                    if package.startswith('-'):
+                        previous_version = f"{result['version']}-{result['release']}.{result['dist']}"
+                        pkg_name = result['name'][1:]
+                        packages.remove(package)
+                        regex = re.compile(f'\+{pkg_name}*')
+                        upd_pkg = list(filter(regex.match, packages))[0]
+                        packages.remove(upd_pkg)
+                        new_package = re.search(full_regex, upd_pkg).groupdict()
+                        new_version = f"{new_package['version']}-{new_package['release']}.{new_package['dist']}"
+                        previous = None
+                        latest = changelog[0]
+                        msg.append(f'-{pkg_name} updated from {previous_version} to {new_version}')
+                        for record in changelog:
+                            if f"{result['version']}-{result['release']}" in record:
+                                previous = changelog.index(record)
+                        changelog = changelog[latest:previous]
+                        cve = re.findall(r'(CVE-[0-9]*-[0-9]*)', changelog)
+                        if cve:
+                            msg.append(f"Fixes {', '.join(cve)}")
+                        logging.info(changelog)
+                        #logging.info(type(changelog))
+                        commit_msg = '\n'.join(msg)
+                        logging.info(commit_msg)
 
             finally:
                 logging.info(f'Docker Image {conf} built')

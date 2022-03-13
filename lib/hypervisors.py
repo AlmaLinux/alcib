@@ -10,6 +10,7 @@ import os
 import json
 import shutil
 from datetime import datetime
+import collections
 from subprocess import PIPE, Popen, STDOUT
 from io import BufferedReader
 import logging
@@ -40,6 +41,21 @@ def save_ami_id(stdout, arch: str) -> str:
         ami_file.write(ami)
     logging.info('AWS AMI %s built', ami)
     return ami
+
+
+Package = collections.namedtuple('rpm_package', ['name', 'version', 'release', 'arch', 'clean_release'])
+
+
+def parse_package(package):
+    package = package.rstrip('.rpm')
+    dot = package.rfind('.')
+    package, arch = package[:dot], package[dot + 1:]
+    dash = package.rfind('-')
+    package, release = package[:dash], package[dash + 1:]
+    dash = package.rfind('-')
+    name, version = package[:dash], package[dash + 1:]
+    clean_release = re.sub('\.el\d*', '', release)
+    return Package(name, version, release, arch, clean_release)
 
 
 def execute_command(cmd: str, cwd_path: str):
@@ -671,52 +687,46 @@ class LinuxHypervisors(BaseHypervisor):
                 packages = list(filter(None, packages))
                 logging.info(packages)
                 logging.info(type(packages))
-                for package in packages:
-                    package = package.split('.x86_64.rpm')[0]
-                    package = package.split('.alma')[0]
-                    full_regex = re.compile(
-                        r'(?P<name>[\w+-.]+)-'
-                        r'(?P<version>\d+?[\w.]*)-'
-                        r'(?P<release>\d+?[\w.+]*?)'
-                        r'\.(?P<dist>(el.*))')
-                    result = re.search(full_regex, package).groupdict()
-                    logging.info(package)
-                    logging.info(type(package))
-                    if package.startswith('-'):
-                        previous_version = f"{result['version']}-{result['release']}.{result['dist']}"
-                        logging.info(previous_version)
-                        pkg_name = result['name'][1:]
-                        logging.info(pkg_name)
-                        regex = re.compile(f'{package}*')
-                        packages.remove(list(filter(regex.match, packages))[0])
-                        regex = re.compile(f'\+{pkg_name}*')
-                        upd_pkg = list(filter(regex.match, packages))[0]
-                        logging.info(upd_pkg)
-                        packages.remove(upd_pkg)
-                        new_package = re.search(full_regex, upd_pkg).groupdict()
-                        new_version = f"{new_package['version']}-{new_package['release']}.{new_package['dist']}"
-                        logging.info(new_version)
-                        stdout, _ = ssh.safe_execute(
-                            f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {pkg_name}"
+
+                packages = collections.defaultdict(dict)
+                for raw_package in packages:
+                    sign, raw_package = raw_package[0], raw_package[1:]
+                    package = parse_package(raw_package)
+                    packages[package.name][sign] = package
+                    if sign == '+':
+                        changelog, _ = ssh.safe_execute(
+                            f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package.name}"
                         )
-                        changelog = stdout.read().decode()
-                        # logging.info(changelog)
-                        # logging.info(type(changelog))
-                        changelog = changelog.split('\n\n')
-                        changelog = list(filter(None, changelog))
-                        previous = None
-                        msg.append(f'-{pkg_name} updated from {previous_version} to {new_version}')
-                        for record in changelog:
-                            if f"{result['version']}-{result['release']}" in record:
-                                previous = changelog.index(record)
-                        changelog = changelog[0:previous]
-                        logging.info(changelog)
-                        cve = re.findall(r'(CVE-[0-9]*-[0-9]*)', changelog[0])
-                        if cve:
-                            msg.append(f"Fixes {', '.join(cve)}")
-                        logging.info(changelog)
-                        #logging.info(type(changelog))
-                commit_msg = '\n'.join(msg)
+                        packages[package.name]['changelog'] = changelog.read().decode()
+
+                text = []
+                for pkg in packages.values():
+                    if '+' not in pkg or '-' not in pkg:
+                        continue
+                    added = pkg['+']
+                    removed = pkg['-']
+                    header = f'- {added.name} upgraded from {removed.version}-{removed.release} to {added.version}-{added.release}'
+                    cve_list = []
+                    for changelog_record in pkg['changelog'].split('\n\n'):
+                        changelog_record = changelog_record.strip()
+                        if not changelog_record:
+                            continue
+                        version_str = changelog_record.split('\n')[0].split()[-1]
+                        # Remove epoch from version, since we don't know it for removed package
+                        version_str = re.sub('^\d+:', '', version_str)
+                        if f'{removed.version}-{removed.clean_release}' == version_str:
+                            break
+                        if f'{removed.version}-{removed.release}' == version_str:
+                            break
+                        if removed.version == version_str:
+                            break
+                        changelog_text = '\n'.join(changelog_record.split('\n')[1:])
+                        cve_list.extend(re.findall(r'(CVE-[0-9]*-[0-9]*)', changelog_text))
+                    if cve_list:
+                        header += f'\n  Fixes: {", ".join(cve_list)}'
+                    text.append(header)
+
+                commit_msg = '\n\n'.join(text)
                 logging.info(commit_msg)
 
             finally:

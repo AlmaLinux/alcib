@@ -16,7 +16,7 @@
 
 - name: Installing testinfra
   pip:
-    name: ['pytest', 'pyinfra', 'testinfra', 'boto3', 'markdown_table']
+    name: ['boto3', 'markdown_table']
     executable: pip3
   become: yes
   become_user: root

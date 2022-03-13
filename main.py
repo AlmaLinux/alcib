@@ -162,6 +162,8 @@ def main(sys_args):
         elif args.stage == 'destroy':
             if settings.image in ['OpenNebula', 'GenericCloud'] and args.arch == 'aarch64':
                 hypervisor.teardown_equinix_stage(builder)
+            elif settings.image == 'Docker' and args.arch == 'ppc64le':
+                hypervisor.clear_ppc64le_host(builder)
             else:
                 hypervisor.teardown_stage()
 

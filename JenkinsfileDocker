@@ -33,6 +33,7 @@ pipeline {
       SSH_KEY_FILE = credentials('jenkins-aclib-ssh-private-key')
       WINDOWS_CREDS = credentials('jenkins-windows-creds')
       GITHUB_TOKEN = credentials('github_token')
+      PPC64LE_HOST = credentials('ppc64le_host')
   }
 
   stages {

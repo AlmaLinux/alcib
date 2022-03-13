@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     alma_repo_ip: str = ''
     sign_jwt_token: str = ''
     docker_configuration: str = ''
+    ppc64le_host: str = ''
 
 
 settings = Settings()

@@ -67,7 +67,12 @@ class Builder:
     """
 
     AWS_KEY_PATH = pathlib.Path('aws_test')
-    SSH_CONFIG = """Host github.com
+    SSH_CONFIG = """
+Host *
+    StrictHostKeyChecking no
+    UserKnownHostsFile=/dev/null
+
+Host github.com
     Hostname github.com
     IdentityFile ~/aws_test
     """

@@ -517,24 +517,38 @@ class LinuxHypervisors(BaseHypervisor):
         builder : Builder
             Builder on AWS Instance.
         """
-        self.create_aws_instance()
-        self.wait_instance_ready([self.instance_id])
-        hosts_file = open('./ansible/hosts', 'w')
-        lines = ['[aws_instance_public_ip]\n', self.instance_ip, '\n']
-        hosts_file.writelines(lines)
-        hosts_file.close()
-
-        inv = {
-            "aws_instance": {
-                "hosts": {
-                    self.instance_ip: {
-                        "ansible_user": "ec2-user",
-                        "ansible_ssh_private_key_file":
-                            str(builder.AWS_KEY_PATH.absolute())
+        if self.name == 'Docker' and self.arch == 'ppc64le':
+            lines = ['[aws_instance_public_ip]\n', settings.ppc64le_host, '\n']
+            inv = {
+                "aws_instance": {
+                    "hosts": {
+                        settings.ppc64le_host: {
+                            "ansible_user": "alcib",
+                            "ansible_ssh_private_key_file":
+                                str(builder.AWS_KEY_PATH.absolute())
+                        }
                     }
                 }
             }
-        }
+        else:
+            self.create_aws_instance()
+            self.wait_instance_ready([self.instance_id])
+            lines = ['[aws_instance_public_ip]\n', self.instance_ip, '\n']
+            inv = {
+                "aws_instance": {
+                    "hosts": {
+                        self.instance_ip: {
+                            "ansible_user": "ec2-user",
+                            "ansible_ssh_private_key_file":
+                                str(builder.AWS_KEY_PATH.absolute())
+                        }
+                    }
+                }
+            }
+        hosts_file = open('./ansible/hosts', 'w')
+        hosts_file.writelines(lines)
+        hosts_file.close()
+
         logging.info('Running Ansible')
         playbook = 'configure_aws_instance.yml'
         if settings.image == 'Docker':
@@ -595,7 +609,10 @@ class LinuxHypervisors(BaseHypervisor):
         builder : Builder
             Builder on AWS Instance.
         """
-        ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
+        if self.arch == 'ppc64le':
+            ssh = builder.ssh_remote_connect(settings.ppc64le_host, 'alcib', 'PPC64LE')
+        else:
+            ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info(settings.docker_configuration)
         logging.info(type(settings.docker_configuration))
         docker_list = settings.docker_configuration.split(',')
@@ -676,104 +693,115 @@ class LinuxHypervisors(BaseHypervisor):
                         f'bash -c "sha256sum {file}"'
                     )
                     checksum = stdout.read().decode().split()[0]
+                    if self.arch == 'ppc64le':
+                        stdout, _ = ssh.safe_execute(
+                            "export AWS_DEFAULT_REGION='us-east-1' && "
+                            "export AWS_ACCESS_KEY_ID='{}' "
+                            "&& export AWS_SECRET_ACCESS_KEY='{}'".format(
+                                os.getenv('AWS_ACCESS_KEY_ID'),
+                                os.getenv('AWS_SECRET_ACCESS_KEY'))
+                        )
                     cmd = f'bash -c "aws s3 cp {file} ' \
                           f's3://{settings.bucket}/{timestamp_name}/ --metadata sha256={checksum}"'
                     stdout, _ = ssh.safe_execute(cmd)
                     logging.info(stdout.read().decode())
-                stdout, _ = ssh.safe_execute(
-                    f"cd /home/ec2-user/{conf}-tmp/ && "
-                    f"git diff --unified=0 /home/ec2-user/{conf}-tmp/rpm-packages | grep '^[+|-][^+|-]'"
-                )
-                packages = stdout.read().decode()
-                # logging.info(packages)
-                # logging.info(type(packages))
-                packages = packages.split('\n')
-                # logging.info(packages)
-                # logging.info(type(packages))
-                stdout, _ = ssh.safe_execute(
-                    f'mkdir /home/ec2-user/{conf}-tmp/fake-root/ '
-                )
-                # logging.info(stdout.read().decode())
-                stdout, _ = ssh.safe_execute(
-                    f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/fake-root/'
-                )
-                stdout, _ = ssh.safe_execute(
-                    f"tar -xvf /home/ec2-user/{conf}-tmp/almalinux-8-docker.{conf}.tar.xz -C /home/ec2-user/{conf}-tmp/fake-root"
-                )
-                # msg = [f'Updates AlmaLinux 8.5 x86_64 {conf} rootfs']
-                # logging.info(stdout.read().decode())
-                raw_packages = list(filter(None, packages))
 
-                packages = collections.defaultdict(dict)
-                # logging.info(packages)
-                # logging.info(type(packages))
-                for raw_package in raw_packages:
-                    # logging.info(raw_package)
-                    sign, raw_package = raw_package[0], raw_package[1:]
-                    package = parse_package(raw_package)
-                    # logging.info(package)
-                    packages[package.name][sign] = package
-                    if sign == '+':
-                        changelog, _ = ssh.safe_execute(
-                            f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package.name}"
-                        )
-                        packages[package.name]['changelog'] = changelog.read().decode()
-                # logging.info(packages)
-                text = [f'Updates AlmaLinux 8.5 x86_64 {conf} rootfs']
-                for pkg in packages.values():
-                    if '+' not in pkg or '-' not in pkg:
-                        continue
-                    added = pkg['+']
-                    removed = pkg['-']
-                    header = f'- {added.name} upgraded from {removed.version}-{removed.release} to {added.version}-{added.release}'
-                    # logging.info(added)
-                    # logging.info(removed)
-                    # logging.info(header)
-                    cve_list = []
-                    for changelog_record in pkg['changelog'].split('\n\n'):
-                        changelog_record = changelog_record.strip()
-                        if not changelog_record:
+                if self.arch != 'ppc64le':
+                    stdout, _ = ssh.safe_execute(
+                        f"cd /home/ec2-user/{conf}-tmp/ && "
+                        f"git diff --unified=0 /home/ec2-user/{conf}-tmp/rpm-packages | grep '^[+|-][^+|-]'"
+                    )
+                    packages = stdout.read().decode()
+                    packages = packages.split('\n')
+                    stdout, _ = ssh.safe_execute(
+                        f'mkdir /home/ec2-user/{conf}-tmp/fake-root/ '
+                    )
+                    stdout, _ = ssh.safe_execute(
+                        f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/fake-root/'
+                    )
+                    stdout, _ = ssh.safe_execute(
+                        f"tar -xvf /home/ec2-user/{conf}-tmp/almalinux-8-docker.{conf}.tar.xz -C /home/ec2-user/{conf}-tmp/fake-root"
+                    )
+                    raw_packages = list(filter(None, packages))
+
+                    packages = collections.defaultdict(dict)
+                    # logging.info(packages)
+                    # logging.info(type(packages))
+                    for raw_package in raw_packages:
+                        # logging.info(raw_package)
+                        sign, raw_package = raw_package[0], raw_package[1:]
+                        package = parse_package(raw_package)
+                        # logging.info(package)
+                        packages[package.name][sign] = package
+                        if sign == '+':
+                            changelog, _ = ssh.safe_execute(
+                                f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package.name}"
+                            )
+                            packages[package.name]['changelog'] = changelog.read().decode()
+                    # logging.info(packages)
+                    text = [f'Updates AlmaLinux 8.5 x86_64 {conf} rootfs']
+                    for pkg in packages.values():
+                        if '+' not in pkg or '-' not in pkg:
                             continue
-                        version_str = changelog_record.split('\n')[0].split()[-1]
-                        # Remove epoch from version, since we don't know it for removed package
-                        version_str = re.sub('^\d+:', '', version_str)
-                        if f'{removed.version}-{removed.clean_release}' == version_str:
-                            break
-                        if f'{removed.version}-{removed.release}' == version_str:
-                            break
-                        if removed.version == version_str:
-                            break
-                        changelog_text = '\n'.join(changelog_record.split('\n')[1:])
-                        # logging.info(changelog_text)
-                        cve_list.extend(re.findall(r'(CVE-[0-9]*-[0-9]*)', changelog_text))
-                        # logging.info(cve_list)
-                    if cve_list:
-                        header += f'\n  Fixes: {", ".join(cve_list)}'
-                    #logging.info(header)
-                    text.append(header)
-                    # logging.info(text)
-                headers = {
-                    'Authorization': f'Bearer {settings.github_token}',
-                    'Accept': 'application/vnd.github.v3+json',
-                }
-                repo = 'https://api.github.com/repos/VanessaRish/docker-images'
-                response = requests.post(
-                    f'{repo}/merge-upstream',
-                    headers=headers, data=f'{{"branch":"almalinux-8-{self.arch}-{conf}"}}'
-                )
-                logging.info(response.status_code, response.content.decode())
+                        added = pkg['+']
+                        removed = pkg['-']
+                        header = f'- {added.name} upgraded from {removed.version}-{removed.release} to {added.version}-{added.release}'
+                        # logging.info(added)
+                        # logging.info(removed)
+                        # logging.info(header)
+                        cve_list = []
+                        for changelog_record in pkg['changelog'].split('\n\n'):
+                            changelog_record = changelog_record.strip()
+                            if not changelog_record:
+                                continue
+                            version_str = changelog_record.split('\n')[0].split()[-1]
+                            # Remove epoch from version, since we don't know it for removed package
+                            version_str = re.sub('^\d+:', '', version_str)
+                            if f'{removed.version}-{removed.clean_release}' == version_str:
+                                break
+                            if f'{removed.version}-{removed.release}' == version_str:
+                                break
+                            if removed.version == version_str:
+                                break
+                            changelog_text = '\n'.join(changelog_record.split('\n')[1:])
+                            # logging.info(changelog_text)
+                            cve_list.extend(re.findall(r'(CVE-[0-9]*-[0-9]*)', changelog_text))
+                            # logging.info(cve_list)
+                        if cve_list:
+                            header += f'\n  Fixes: {", ".join(cve_list)}'
+                        #logging.info(header)
+                        text.append(header)
+                        # logging.info(text)
+                    headers = {
+                        'Authorization': f'Bearer {settings.github_token}',
+                        'Accept': 'application/vnd.github.v3+json',
+                    }
+                    repo = 'https://api.github.com/repos/VanessaRish/docker-images'
+                    response = requests.post(
+                        f'{repo}/merge-upstream',
+                        headers=headers, data=f'{{"branch":"almalinux-8-{self.arch}-{conf}"}}'
+                    )
+                    logging.info(response.status_code, response.content.decode())
 
-                commit_msg = '\n\n'.join(text)
+                    commit_msg = '\n\n'.join(text)
 
-                stdout, _ = ssh.safe_execute(
-                    f'cd /home/ec2-user/{conf}-tmp/ && '
-                    f'git add Dockerfile rpm-packages rpm-packages.old almalinux-8-docker.{conf}.tar.xz '
-                    f'&& git commit -m "{commit_msg}" && git push origin almalinux-8-{self.arch}-{conf}'
-                )
-                logging.info(commit_msg)
+                    stdout, _ = ssh.safe_execute(
+                        f'cd /home/ec2-user/{conf}-tmp/ && '
+                        f'git add Dockerfile rpm-packages rpm-packages.old almalinux-8-docker.{conf}.tar.xz '
+                        f'&& git commit -m "{commit_msg}" && git push origin almalinux-8-{self.arch}-{conf}'
+                    )
+                    logging.info(commit_msg)
 
             finally:
                 logging.info(f'Docker Image {conf} built')
+        ssh.close()
+        logging.info('Connection closed')
+
+    def clear_ppc64le_host(self, builder):
+        ssh = builder.ssh_remote_connect(settings.ppc64le_host, 'alcib', 'PPC64LE')
+        cmd = 'sudo rm -r /home/alcib/docker-images/ && sudo rm -r /nome/alcib*-tmp/'
+        stdout, _ = ssh.safe_execute(cmd)
+        logging.info(stdout.read().decode())
         ssh.close()
         logging.info('Connection closed')
 

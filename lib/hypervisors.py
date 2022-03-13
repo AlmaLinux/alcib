@@ -601,18 +601,18 @@ class LinuxHypervisors(BaseHypervisor):
             stdout, _ = ssh.safe_execute(
                 f'cd /home/ec2-user/docker-images/ && git reset --hard && git checkout master && git pull '
             )
-            logging.info(stdout.read().decode())
+            # logging.info(stdout.read().decode())
             build_log = f'{IMAGE}_{conf}_{self.arch}_build_{TIMESTAMP}.log'
             stdout, _ = ssh.safe_execute(
                 f'mkdir /home/ec2-user/{conf}-tmp/ '
             )
-            logging.info(stdout.read().decode())
+            # logging.info(stdout.read().decode())
             try:
                 stdout, _ = ssh.safe_execute(
                     f'cd /home/ec2-user/docker-images/ && '
                     f'sudo ./build.sh -o {conf} -t {conf} 2>&1 | tee ./{build_log}'
                 )
-                logging.info(stdout.read().decode())
+                # logging.info(stdout.read().decode())
                 sftp = ssh.open_sftp()
                 sftp.get(f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/logs/{build_log}',
                          f'{self.name}-{build_log}')
@@ -636,23 +636,23 @@ class LinuxHypervisors(BaseHypervisor):
                 stdout, _ = ssh.safe_execute(
                     f'cp /home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/logs/{IMAGE}_{conf}_{self.arch}_build*.log /home/ec2-user/{conf}-tmp/'
                 )
-                logging.info(stdout.read().decode())
+                # logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
                     f'cp /home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/Dockerfile-{self.arch}-{conf} /home/ec2-user/{conf}-tmp/Dockerfile'
                 )
-                logging.info(stdout.read().decode())
+                # logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
                     f'cp /home/ec2-user/{conf}-tmp/rpm-packages /home/ec2-user/{conf}-tmp/rpm-packages.old'
                 )
-                logging.info(stdout.read().decode())
+                # logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
                     f'cp /home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/rpm-packages-{self.arch}-{conf} /home/ec2-user/{conf}-tmp/rpm-packages'
                 )
-                logging.info(stdout.read().decode())
+                # logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
                     f'cp /home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz /home/ec2-user/{conf}-tmp/almalinux-8-docker.{conf}.tar.xz'
                 )
-                logging.info(stdout.read().decode())
+                # logging.info(stdout.read().decode())
                 for file in files:
                     stdout, _ = ssh.safe_execute(
                         f'bash -c "sha256sum {file}"'
@@ -667,7 +667,7 @@ class LinuxHypervisors(BaseHypervisor):
                     f"git diff --unified=0 /home/ec2-user/{conf}-tmp/rpm-packages | grep '^[+|-][^+|-]'"
                 )
                 packages = stdout.read().decode()
-                logging.info(packages)
+                # logging.info(packages)
                 # logging.info(type(packages))
                 packages = packages.split('\n')
                 # logging.info(packages)
@@ -675,32 +675,32 @@ class LinuxHypervisors(BaseHypervisor):
                 stdout, _ = ssh.safe_execute(
                     f'mkdir /home/ec2-user/{conf}-tmp/fake-root/ '
                 )
-                logging.info(stdout.read().decode())
+                # logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
                     f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/fake-root/'
                 )
                 stdout, _ = ssh.safe_execute(
                     f"tar -xvf /home/ec2-user/{conf}-tmp/almalinux-8-docker.{conf}.tar.xz -C /home/ec2-user/{conf}-tmp/fake-root"
                 )
-                msg = [f'Updates AlmaLinux 8.5 x86_64 {conf} rootfs']
+                # msg = [f'Updates AlmaLinux 8.5 x86_64 {conf} rootfs']
                 # logging.info(stdout.read().decode())
                 raw_packages = list(filter(None, packages))
 
                 packages = collections.defaultdict(dict)
-                logging.info(packages)
-                logging.info(type(packages))
+                # logging.info(packages)
+                # logging.info(type(packages))
                 for raw_package in raw_packages:
-                    logging.info(raw_package)
+                    # logging.info(raw_package)
                     sign, raw_package = raw_package[0], raw_package[1:]
                     package = parse_package(raw_package)
-                    logging.info(package)
+                    # logging.info(package)
                     packages[package.name][sign] = package
                     if sign == '+':
                         changelog, _ = ssh.safe_execute(
                             f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package.name}"
                         )
                         packages[package.name]['changelog'] = changelog.read().decode()
-                logging.info(packages)
+                # logging.info(packages)
                 text = [f'Updates AlmaLinux 8.5 x86_64 {conf} rootfs']
                 for pkg in packages.values():
                     if '+' not in pkg or '-' not in pkg:
@@ -726,14 +726,14 @@ class LinuxHypervisors(BaseHypervisor):
                         if removed.version == version_str:
                             break
                         changelog_text = '\n'.join(changelog_record.split('\n')[1:])
-                        logging.info(changelog_text)
+                        # logging.info(changelog_text)
                         cve_list.extend(re.findall(r'(CVE-[0-9]*-[0-9]*)', changelog_text))
-                        logging.info(cve_list)
+                        # logging.info(cve_list)
                     if cve_list:
                         header += f'\n  Fixes: {", ".join(cve_list)}'
-                    logging.info(header)
+                    #logging.info(header)
                     text.append(header)
-                    logging.info(text)
+                    # logging.info(text)
 
                 commit_msg = '\n\n'.join(text)
                 logging.info(commit_msg)

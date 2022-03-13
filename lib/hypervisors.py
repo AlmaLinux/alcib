@@ -648,7 +648,7 @@ class LinuxHypervisors(BaseHypervisor):
                     logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
                     f"cd /home/ec2-user/{conf}-tmp/ && "
-                    f"git diff --unified=0 /home/ec2-user/{conf}-tmp/rpm-packages-{self.arch}-{conf} | grep '^[+|-][^+|-]'"
+                    f"git diff --unified=0 /home/ec2-user/{conf}-tmp/rpm-packages | grep '^[+|-][^+|-]'"
                 )
                 packages = stdout.read().decode()
                 logging.info(packages)

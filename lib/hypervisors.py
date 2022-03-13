@@ -751,7 +751,7 @@ class LinuxHypervisors(BaseHypervisor):
                 repo = 'https://api.github.com/repos/VanessaRish/docker-images'
                 response = requests.post(
                     f'{repo}/merge-upstream',
-                    headers=headers, data=f'{"branch":"almalinux-8-{self.arch}-{conf}"}'
+                    headers=headers, data=f'{{"branch":"almalinux-8-{self.arch}-{conf}"}}'
                 )
                 logging.info(response.status_code, response.content.decode())
 

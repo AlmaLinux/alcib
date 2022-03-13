@@ -517,7 +517,6 @@ class LinuxHypervisors(BaseHypervisor):
         builder : Builder
             Builder on AWS Instance.
         """
-        logging.info(self.arch, self.name)
         if settings.image == 'Docker' and self.arch == 'ppc64le':
             lines = ['[aws_instance_public_ip]\n', settings.ppc64le_host, '\n']
             inv = {

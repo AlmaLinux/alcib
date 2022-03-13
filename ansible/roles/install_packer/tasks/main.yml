@@ -4,7 +4,7 @@
   dnf:
     name: "{{ packages }}"
     state: present
-  become_user: root
+  become_user: alcib
   become: true
   vars:
     packages:
@@ -18,7 +18,7 @@
     name: "{{ packages }}"
     state: present
     enablerepo: epel
-  become_user: root
+  become_user: alcib
   become: true
   vars:
     packages:
@@ -36,3 +36,43 @@
 
 - name: Install packer
   shell: sudo ln -s /usr/bin/packer /usr/bin/packer.io
+
+- name: Make sure git installed
+  yum:
+    name: "{{ packages }}"
+    state: present
+  become_user: alcib
+  become: true
+  vars:
+    packages:
+    - git
+    - python3-devel
+    - jq
+    - lorax
+    - anaconda-tui
+    - subscription-manager
+
+- name: Installing testinfra
+  pip:
+    name: ['boto3', 'markdown_table']
+    executable: pip3
+  become: yes
+  become_user: alcib
+
+- name: Clone Docker images repo
+  become_user: alcib
+  become: true
+  git:
+    repo: 'https://github.com/VanessaRish/docker-images.git'
+    dest: './docker-images'
+    # version: master
+    force: yes
+
+- name: Change permissions
+  file:
+    path: './docker-images'
+    mode: 0777
+    recurse: yes
+    group: alcib
+    owner: alcib
+  become: yes

@@ -611,10 +611,10 @@ class LinuxHypervisors(BaseHypervisor):
                     f'&& git checkout origin/almalinux-8-{self.arch}-{conf}'
                 )
                 files = [
-                    f'/home/ec2-user/docker-images/{conf}_{self.arch}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',
-                    f'/home/ec2-user/docker-images/{conf}_{self.arch}/Dockerfile',
-                    f'/home/ec2-user/docker-images/{conf}_{self.arch}/rpm-packages',
-                    f'/home/ec2-user/docker-images/{conf}_{self.arch}/almalinux-8-docker.{conf}.tar.xz'
+                    f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',
+                    f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/Dockerfile-{self.arch}-{conf}',
+                    f'/home/ec2-user/docker-images/{conf}_{self.arch}/rpm-packages-{self.arch}-{conf}',
+                    f'/home/ec2-user/docker-images/{conf}_{self.arch}/almalinux-8-docker-{self.arch}-{conf}.tar.xz'
                 ]
                 timestamp_name = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
                 for file in files:
@@ -632,7 +632,7 @@ class LinuxHypervisors(BaseHypervisor):
                     logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
                     f"cd /home/ec2-user/{conf}-tmp/ && "
-                    f"git diff --unified=0 /home/ec2-user/{conf}-tmp/rpm-packages | grep '^[+|-][^+|-]'"
+                    f"git diff --unified=0 /home/ec2-user/{conf}-tmp/rpm-packages-{self.arch}-{conf} | grep '^[+|-][^+|-]'"
                 )
                 packages = stdout.read().decode()
                 logging.info(packages)

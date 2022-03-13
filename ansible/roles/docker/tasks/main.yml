@@ -1,0 +1,40 @@
+---
+- name: Make sure git installed
+  yum:
+    name: "{{ packages }}"
+    state: present
+  become_user: root
+  become: true
+  vars:
+    packages:
+    - git
+    - python3-devel
+    - jq
+    - lorax
+    - anaconda-tui
+    - subscription-manager
+
+- name: Installing testinfra
+  pip:
+    name: ['pytest', 'pyinfra', 'testinfra', 'boto3', 'markdown_table']
+    executable: pip3
+  become: yes
+  become_user: root
+
+- name: Clone Docker images repo
+  become_user: root
+  become: true
+  git:
+    repo: 'https://github.com/VanessaRish/docker-images.git'
+    dest: './docker-images'
+    # version: master
+    force: yes
+
+- name: Change permissions
+  file:
+    path: './docker-images'
+    mode: 0777
+    recurse: yes
+    group: ec2-user
+    owner: ec2-user
+  become: yes

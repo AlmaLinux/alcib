@@ -536,8 +536,12 @@ class LinuxHypervisors(BaseHypervisor):
             }
         }
         logging.info('Running Ansible')
+        playbook = 'configure_aws_instance.yml'
+        if settings.image == 'Docker':
+            playbook = 'configure_docker.yml'
+
         ansible_runner.interface.run(project_dir='./ansible',
-                                     playbook='configure_aws_instance.yml',
+                                     playbook=playbook,
                                      inventory=inv)
 
     def test_stage(self, builder: Builder):

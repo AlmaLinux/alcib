@@ -1,0 +1,9 @@
+---
+
+- name: configure aws instance
+  hosts: all
+  remote_user: root
+  gather_facts: no
+
+  roles:
+    - docker

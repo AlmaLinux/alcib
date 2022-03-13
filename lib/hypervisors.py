@@ -597,6 +597,16 @@ class LinuxHypervisors(BaseHypervisor):
         docker_list = settings.docker_configuration.split(',')
         logging.info(docker_list)
         logging.info(type(docker_list))
+        headers = {
+            'Authorization': f'Bearer {settings.github_token}',
+            'Accept': 'application/vnd.github.v3+json',
+        }
+        repo = 'https://api.github.com/repos/VanessaRish/docker-images'
+        response = requests.post(
+            f'{repo}/merge-upstream',
+            headers=headers, data='{"branch":"master"}'
+        )
+        logging.info(response.status_code, response.content.decode())
         for conf in docker_list:
             stdout, _ = ssh.safe_execute(
                 f'cd /home/ec2-user/docker-images/ && git reset --hard && git checkout master && git pull '
@@ -708,9 +718,9 @@ class LinuxHypervisors(BaseHypervisor):
                     added = pkg['+']
                     removed = pkg['-']
                     header = f'- {added.name} upgraded from {removed.version}-{removed.release} to {added.version}-{added.release}'
-                    logging.info(added)
-                    logging.info(removed)
-                    logging.info(header)
+                    # logging.info(added)
+                    # logging.info(removed)
+                    # logging.info(header)
                     cve_list = []
                     for changelog_record in pkg['changelog'].split('\n\n'):
                         changelog_record = changelog_record.strip()
@@ -734,8 +744,24 @@ class LinuxHypervisors(BaseHypervisor):
                     #logging.info(header)
                     text.append(header)
                     # logging.info(text)
+                headers = {
+                    'Authorization': f'Bearer {settings.github_token}',
+                    'Accept': 'application/vnd.github.v3+json',
+                }
+                repo = 'https://api.github.com/repos/VanessaRish/docker-images'
+                response = requests.post(
+                    f'{repo}/merge-upstream',
+                    headers=headers, data=f'{"branch":"almalinux-8-{self.arch}-{conf}"}'
+                )
+                logging.info(response.status_code, response.content.decode())
 
                 commit_msg = '\n\n'.join(text)
+
+                stdout, _ = ssh.safe_execute(
+                    f'cd /home/ec2-user/{conf}-tmp/ && '
+                    f'git add Dockerfile rpm-packages rpm-packages.old almalinux-8-docker.{conf}.tar.xz '
+                    f'&& git commit -m {commit_msg} && git push origin almalinux-8-{self.arch}-{conf}'
+                )
                 logging.info(commit_msg)
 
             finally:

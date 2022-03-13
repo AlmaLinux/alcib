@@ -685,27 +685,32 @@ class LinuxHypervisors(BaseHypervisor):
                 msg = [f'Updates AlmaLinux 8.5 x86_64 {conf} rootfs']
                 # logging.info(stdout.read().decode())
                 packages = list(filter(None, packages))
-                logging.info(packages)
-                logging.info(type(packages))
 
                 packages = collections.defaultdict(dict)
+                logging.info(packages)
+                logging.info(type(packages))
                 for raw_package in packages:
+                    logging.info(raw_package)
                     sign, raw_package = raw_package[0], raw_package[1:]
                     package = parse_package(raw_package)
+                    logging.info(package)
                     packages[package.name][sign] = package
                     if sign == '+':
                         changelog, _ = ssh.safe_execute(
                             f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package.name}"
                         )
                         packages[package.name]['changelog'] = changelog.read().decode()
-
-                text = []
+                logging.info(packages)
+                text = [f'Updates AlmaLinux 8.5 x86_64 {conf} rootfs']
                 for pkg in packages.values():
                     if '+' not in pkg or '-' not in pkg:
                         continue
                     added = pkg['+']
                     removed = pkg['-']
                     header = f'- {added.name} upgraded from {removed.version}-{removed.release} to {added.version}-{added.release}'
+                    logging.info(added)
+                    logging.info(removed)
+                    logging.info(header)
                     cve_list = []
                     for changelog_record in pkg['changelog'].split('\n\n'):
                         changelog_record = changelog_record.strip()
@@ -721,10 +726,14 @@ class LinuxHypervisors(BaseHypervisor):
                         if removed.version == version_str:
                             break
                         changelog_text = '\n'.join(changelog_record.split('\n')[1:])
+                        logging.info(changelog_text)
                         cve_list.extend(re.findall(r'(CVE-[0-9]*-[0-9]*)', changelog_text))
+                        logging.info(cve_list)
                     if cve_list:
                         header += f'\n  Fixes: {", ".join(cve_list)}'
+                    logging.info(header)
                     text.append(header)
+                    logging.info(text)
 
                 commit_msg = '\n\n'.join(text)
                 logging.info(commit_msg)

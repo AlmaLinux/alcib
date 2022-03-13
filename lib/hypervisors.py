@@ -617,11 +617,27 @@ class LinuxHypervisors(BaseHypervisor):
                     f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz'
                 ]
                 timestamp_name = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
+                stdout, _ = ssh.safe_execute(
+                    f'cp /home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/logs/{IMAGE}_{conf}_{self.arch}_build*.log /home/ec2-user/{conf}-tmp/'
+                )
+                logging.info(stdout.read().decode())
+                stdout, _ = ssh.safe_execute(
+                    f'cp /home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/Dockerfile-{self.arch}-{conf} /home/ec2-user/{conf}-tmp/Dockerfile'
+                )
+                logging.info(stdout.read().decode())
+                stdout, _ = ssh.safe_execute(
+                    f'cp /home/ec2-user/{conf}-tmp/rpm-packages /home/ec2-user/{conf}-tmp/rpm-packages.old'
+                )
+                logging.info(stdout.read().decode())
+                stdout, _ = ssh.safe_execute(
+                    f'cp /home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/rpm-packages-{self.arch}-{conf} /home/ec2-user/{conf}-tmp/rpm-packages'
+                )
+                logging.info(stdout.read().decode())
+                stdout, _ = ssh.safe_execute(
+                    f'cp /home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz /home/ec2-user/{conf}-tmp/almalinux-8-docker.{conf}.tar.xz'
+                )
+                logging.info(stdout.read().decode())
                 for file in files:
-                    stdout, _ = ssh.safe_execute(
-                        f'cp {file} /home/ec2-user/{conf}-tmp/'
-                    )
-                    logging.info(stdout.read().decode())
                     stdout, _ = ssh.safe_execute(
                         f'bash -c "sha256sum {file}"'
                     )

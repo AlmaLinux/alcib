@@ -7,4 +7,4 @@
 
   roles:
     - docker
-    - { role: install_packer, when: ansible_architecture == "ppc64le"}
+    - { role: install_packer, when: ansible_architecture == "ppc64le" }

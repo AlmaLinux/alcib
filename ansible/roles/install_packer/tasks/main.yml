@@ -8,9 +8,9 @@
   become: true
   vars:
     packages:
-      - @virtualization-tools
-      - @virtualization-platform
-      - @virtualization-hypervisor
+      - "@virtualization-tools"
+      - "@virtualization-platform"
+      - "@virtualization-hypervisor"
       - epel-release
 
 - name: Install ansible

@@ -518,7 +518,7 @@ class LinuxHypervisors(BaseHypervisor):
             Builder on AWS Instance.
         """
         logging.info(self.arch, self.name)
-        if self.name == 'Docker' and self.arch == 'ppc64le':
+        if settings.image == 'Docker' and self.arch == 'ppc64le':
             lines = ['[aws_instance_public_ip]\n', settings.ppc64le_host, '\n']
             inv = {
                 "aws_instance": {
@@ -686,7 +686,7 @@ class LinuxHypervisors(BaseHypervisor):
                 )
                 # logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
-                    f'cp /home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz /home/ec2-user/{conf}-tmp/almalinux-8-docker.{conf}.tar.xz'
+                    f'cp /home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz /home/ec2-user/{conf}-tmp/'
                 )
                 # logging.info(stdout.read().decode())
                 for file in files:
@@ -721,7 +721,7 @@ class LinuxHypervisors(BaseHypervisor):
                         f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/fake-root/'
                     )
                     stdout, _ = ssh.safe_execute(
-                        f"tar -xvf /home/ec2-user/{conf}-tmp/almalinux-8-docker.{conf}.tar.xz -C /home/ec2-user/{conf}-tmp/fake-root"
+                        f"tar -xvf /home/ec2-user/{conf}-tmp/almalinux-8-docker-{self.arch}-{conf}.tar.xz -C /home/ec2-user/{conf}-tmp/fake-root"
                     )
                     raw_packages = list(filter(None, packages))
 

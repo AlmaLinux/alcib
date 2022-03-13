@@ -12,7 +12,7 @@ import shutil
 from datetime import datetime
 import collections
 from subprocess import PIPE, Popen, STDOUT
-from io import BufferedReader
+from io import BufferedReader, StringIO
 import logging
 import time
 import re
@@ -631,10 +631,14 @@ class LinuxHypervisors(BaseHypervisor):
                     f'sudo chown -R ec2-user:ec2-user /home/ec2-user/docker-images/ && '
                     f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/'
                 )
+                sftp.put(str(builder.AWS_KEY_PATH.absolute()), '/home/ec2-user/aws_test')
+                sftp.putfo(StringIO(builder.SSH_CONFIG), '/home/ec2-user/.ssh/config')
                 stdout, _ = ssh.safe_execute(
-                    f'git clone https://github.com/AlmaLinux/docker-images.git /home/ec2-user/{conf}-tmp/ &&'
-                    f' cd /home/ec2-user/{conf}-tmp/ '
-                    f'&& git checkout origin/almalinux-8-{self.arch}-{conf}'
+                    f'chmod 600 /home/ec2-user/.ssh/config && '
+                    f'chmod 600 /home/ec2-user/aws_test && '
+                    f'git clone git@github.com:VanessaRish/docker-images.git /home/ec2-user/{conf}-tmp/ && '
+                    f'cd /home/ec2-user/{conf}-tmp/ && '
+                    f'git checkout origin/almalinux-8-{self.arch}-{conf}'
                 )
                 files = [
                     f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',

@@ -760,7 +760,7 @@ class LinuxHypervisors(BaseHypervisor):
                 stdout, _ = ssh.safe_execute(
                     f'cd /home/ec2-user/{conf}-tmp/ && '
                     f'git add Dockerfile rpm-packages rpm-packages.old almalinux-8-docker.{conf}.tar.xz '
-                    f'&& git commit -m {commit_msg} && git push origin almalinux-8-{self.arch}-{conf}'
+                    f'&& git commit -m "{commit_msg}" && git push origin almalinux-8-{self.arch}-{conf}'
                 )
                 logging.info(commit_msg)
 

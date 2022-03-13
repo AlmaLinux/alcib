@@ -32,6 +32,7 @@ pipeline {
       VAGRANT_CLOUD_ACCESS_KEY = credentials('jenkins-vagrant-user-access-key')
       SSH_KEY_FILE = credentials('jenkins-aclib-ssh-private-key')
       WINDOWS_CREDS = credentials('jenkins-windows-creds')
+      GITHUB_TOKEN = credentials('github_token')
   }
 
   stages {

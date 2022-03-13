@@ -684,12 +684,12 @@ class LinuxHypervisors(BaseHypervisor):
                 )
                 msg = [f'Updates AlmaLinux 8.5 x86_64 {conf} rootfs']
                 # logging.info(stdout.read().decode())
-                packages = list(filter(None, packages))
+                raw_packages = list(filter(None, packages))
 
                 packages = collections.defaultdict(dict)
                 logging.info(packages)
                 logging.info(type(packages))
-                for raw_package in packages:
+                for raw_package in raw_packages:
                     logging.info(raw_package)
                     sign, raw_package = raw_package[0], raw_package[1:]
                     package = parse_package(raw_package)

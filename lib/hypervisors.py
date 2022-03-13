@@ -659,7 +659,7 @@ class LinuxHypervisors(BaseHypervisor):
                     f'chmod 600 /home/ec2-user/aws_test && '
                     f'git clone git@github.com:VanessaRish/docker-images.git /home/ec2-user/{conf}-tmp/ && '
                     f'cd /home/ec2-user/{conf}-tmp/ && '
-                    f'git checkout origin/almalinux-8-{self.arch}-{conf}'
+                    f'git checkout almalinux-8-{self.arch}-{conf}'
                 )
                 files = [
                     f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',
@@ -787,6 +787,8 @@ class LinuxHypervisors(BaseHypervisor):
 
                     stdout, _ = ssh.safe_execute(
                         f'cd /home/ec2-user/{conf}-tmp/ && '
+                        f'git config --global user.name "Mariia Boldyreva" && git config --global user.email "shelterly@gmail.com"'
+                        f' && '
                         f'git add Dockerfile rpm-packages rpm-packages.old almalinux-8-docker.{conf}.tar.xz '
                         f'&& git commit -m "{commit_msg}" && git push origin almalinux-8-{self.arch}-{conf}'
                     )

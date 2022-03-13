@@ -664,7 +664,7 @@ class LinuxHypervisors(BaseHypervisor):
                     f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/fake-root/'
                 )
                 stdout, _ = ssh.safe_execute(
-                    f"tar -xvf /home/ec2-user/{conf}-tmp/*tar.xz -C /home/ec2-user/{conf}-tmp/fake-root"
+                    f"tar -xvf /home/ec2-user/{conf}-tmp/almalinux-8-docker.{conf}.tar.xz -C /home/ec2-user/{conf}-tmp/fake-root"
                 )
                 msg = [f'Updates AlmaLinux 8.5 x86_64 {conf} rootfs']
                 # logging.info(stdout.read().decode())

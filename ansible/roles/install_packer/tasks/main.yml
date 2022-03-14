@@ -4,7 +4,7 @@
   dnf:
     name: "{{ packages }}"
     state: present
-  become_user: alcib
+  become_user: root
   become: true
   vars:
     packages:
@@ -18,7 +18,7 @@
     name: "{{ packages }}"
     state: present
     enablerepo: epel
-  become_user: alcib
+  become_user: root
   become: true
   vars:
     packages:
@@ -41,7 +41,7 @@
   yum:
     name: "{{ packages }}"
     state: present
-  become_user: alcib
+  become_user: root
   become: true
   vars:
     packages:
@@ -57,7 +57,7 @@
     name: ['boto3', 'markdown_table', 'awscli']
     executable: pip3
   become: yes
-  become_user: alcib
+  become_user: root
 
 - name: Clone Docker images repo
   become_user: alcib

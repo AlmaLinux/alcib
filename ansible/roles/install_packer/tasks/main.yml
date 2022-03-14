@@ -25,16 +25,16 @@
       - ansible
       - unzip
 
-- name: Download packer
-  get_url:
-    url: "https://releases.hashicorp.com/packer/1.7.10/packer_1.7.10_linux_ppc64le.zip"
-    dest: /home/alcib
-
-- name: Unzip packer
-  shell: sudo unzip -o packer_1.7.10_linux_ppc64le.zip -d /usr/bin/
-
-- name: Install packer
-  shell: sudo ln -s /usr/bin/packer /usr/bin/packer.io
+#- name: Download packer
+#  get_url:
+#    url: "https://releases.hashicorp.com/packer/1.7.10/packer_1.7.10_linux_ppc64le.zip"
+#    dest: /home/alcib
+#
+#- name: Unzip packer
+#  shell: sudo unzip -o packer_1.7.10_linux_ppc64le.zip -d /usr/bin/
+#
+#- name: Install packer
+#  shell: sudo ln -s /usr/bin/packer /usr/bin/packer.io
 
 - name: Make sure git installed
   yum:

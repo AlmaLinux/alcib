@@ -670,7 +670,7 @@ class LinuxHypervisors(BaseHypervisor):
                         logging.info(res)
                         branches.append(item['name'])
                 logging.info(branches)
-                branches = branches.sort()
+                branches.sort()
                 branch = branches[-1]
                 stdout, _ = ssh.safe_execute(
                     f'chmod 600 /home/ec2-user/.ssh/config && '

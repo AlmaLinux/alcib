@@ -693,14 +693,13 @@ class LinuxHypervisors(BaseHypervisor):
                         f'bash -c "sha256sum {file}"'
                     )
                     checksum = stdout.read().decode().split()[0]
-                    if self.arch == 'ppc64le':
-                        stdout, _ = ssh.safe_execute(
-                            "export AWS_DEFAULT_REGION='us-east-1' && "
-                            "export AWS_ACCESS_KEY_ID='{}' "
-                            "&& export AWS_SECRET_ACCESS_KEY='{}'".format(
-                                os.getenv('AWS_ACCESS_KEY_ID'),
-                                os.getenv('AWS_SECRET_ACCESS_KEY'))
-                        )
+                    stdout, _ = ssh.safe_execute(
+                        "export AWS_DEFAULT_REGION='us-east-1' && "
+                        "export AWS_ACCESS_KEY_ID='{}' "
+                        "&& export AWS_SECRET_ACCESS_KEY='{}'".format(
+                            os.getenv('AWS_ACCESS_KEY_ID'),
+                            os.getenv('AWS_SECRET_ACCESS_KEY'))
+                    )
                     cmd = f'bash -c "aws s3 cp {file} ' \
                           f's3://{settings.bucket}/{timestamp_name}/ --metadata sha256={checksum}"'
                     stdout, _ = ssh.safe_execute(cmd)

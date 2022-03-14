@@ -6,5 +6,5 @@
   gather_facts: yes
 
   roles:
-    - { role: docker, when: ansible_architecture == "ppc64le" }
+    - { role: docker, when: ansible_architecture != "ppc64le" }
     - { role: install_packer, when: ansible_architecture == "ppc64le" }

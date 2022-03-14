@@ -610,8 +610,10 @@ class LinuxHypervisors(BaseHypervisor):
             Builder on AWS Instance.
         """
         if self.arch == 'ppc64le':
+            user = 'alcib'
             ssh = builder.ssh_remote_connect(settings.ppc64le_host, 'alcib', 'PPC64LE')
         else:
+            user = 'ec2-user'
             ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info(settings.docker_configuration)
         logging.info(type(settings.docker_configuration))
@@ -630,30 +632,30 @@ class LinuxHypervisors(BaseHypervisor):
         logging.info(response.status_code, response.content.decode())
         for conf in docker_list:
             stdout, _ = ssh.safe_execute(
-                f'cd /home/ec2-user/docker-images/ && git reset --hard && git checkout master && git pull '
+                f'cd /home/{user}/docker-images/ && git reset --hard && git checkout master && git pull '
             )
             # logging.info(stdout.read().decode())
             build_log = f'{IMAGE}_{conf}_{self.arch}_build_{TIMESTAMP}.log'
             stdout, _ = ssh.safe_execute(
-                f'mkdir /home/ec2-user/{conf}-tmp/ '
+                f'mkdir /home/{user}/{conf}-tmp/ '
             )
             # logging.info(stdout.read().decode())
             try:
                 stdout, _ = ssh.safe_execute(
-                    f'cd /home/ec2-user/docker-images/ && '
+                    f'cd /home/{user}/docker-images/ && '
                     f'sudo ./build.sh -o {conf} -t {conf} 2>&1 | tee ./{build_log}'
                 )
                 # logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
-                    f'sudo chown -R ec2-user:ec2-user /home/ec2-user/docker-images/ && '
-                    f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/'
+                    f'sudo chown -R {user}:{user} /home/{user}/docker-images/ && '
+                    f'sudo chown -R {user}:{user} /home/{user}/{conf}-tmp/'
                 )
                 sftp = ssh.open_sftp()
-                sftp.get(f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/logs/{build_log}',
+                sftp.get(f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/logs/{build_log}',
                          f'{build_log}')
                 logging.info('%s built', settings.image)
-                sftp.put(str(builder.AWS_KEY_PATH.absolute()), '/home/ec2-user/aws_test')
-                sftp.putfo(StringIO(builder.SSH_CONFIG), '/home/ec2-user/.ssh/config')
+                sftp.put(str(builder.AWS_KEY_PATH.absolute()), '/home/{user}/aws_test')
+                sftp.putfo(StringIO(builder.SSH_CONFIG), '/home/{user}/.ssh/config')
                 headers = {
                     'Authorization': f'Bearer {settings.github_token}',
                     'Accept': 'application/vnd.github.v3+json',
@@ -673,22 +675,22 @@ class LinuxHypervisors(BaseHypervisor):
                 branches.sort()
                 branch = branches[-1]
                 stdout, _ = ssh.safe_execute(
-                    f'chmod 600 /home/ec2-user/.ssh/config && '
-                    f'chmod 600 /home/ec2-user/aws_test && '
-                    f'git clone git@github.com:VanessaRish/docker-images.git /home/ec2-user/{conf}-tmp/ && '
-                    f'cd /home/ec2-user/{conf}-tmp/ && '
+                    f'chmod 600 /home/{user}/.ssh/config && '
+                    f'chmod 600 /home/{user}/aws_test && '
+                    f'git clone git@github.com:VanessaRish/docker-images.git /home/{user}/{conf}-tmp/ && '
+                    f'cd /home/{user}/{conf}-tmp/ && '
                     f'git checkout {branch}'
                 )
                 files = [
-                    f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',
-                    f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/Dockerfile-{self.arch}-{conf}',
-                    f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/rpm-packages-{self.arch}-{conf}',
-                    f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz'
+                    f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',
+                    f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/Dockerfile-{self.arch}-{conf}',
+                    f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/rpm-packages-{self.arch}-{conf}',
+                    f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz'
                 ]
                 timestamp_name = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
                 for file in files:
                     stdout, _ = ssh.safe_execute(
-                        f'cp {file} /home/ec2-user/{conf}-tmp/'
+                        f'cp {file} /home/{user}/{conf}-tmp/'
                     )
 
                     stdout, _ = ssh.safe_execute(
@@ -706,6 +708,11 @@ class LinuxHypervisors(BaseHypervisor):
                           f's3://{settings.bucket}/{timestamp_name}/ --metadata sha256={checksum}"'
                     stdout, _ = ssh.safe_execute(cmd)
                     logging.info(stdout.read().decode())
+
+                stdout, _ = ssh.safe_execute(
+                    f'cp /home/{user}/{conf}-tmp/rpm-packages-{self.arch}-{conf} /home/{user}/{conf}-tmp/rpm-packages-{conf}'
+                )
+
                 headers = {
                     'Authorization': f'Bearer {settings.github_token}',
                     'Accept': 'application/vnd.github.v3+json'
@@ -716,19 +723,19 @@ class LinuxHypervisors(BaseHypervisor):
                     headers=headers, data='{"branch":"master"}'
                 )
                 stdout, _ = ssh.safe_execute(
-                    f"cd /home/ec2-user/{conf}-tmp/ && "
-                    f"git diff --unified=0 /home/ec2-user/{conf}-tmp/rpm-packages-{conf} | grep '^[+|-][^+|-]'"
+                    f"cd /home/{user}/{conf}-tmp/ && "
+                    f"git diff --unified=0 /home/{user}/{conf}-tmp/rpm-packages-{conf} | grep '^[+|-][^+|-]'"
                 )
                 packages = stdout.read().decode()
                 packages = packages.split('\n')
                 stdout, _ = ssh.safe_execute(
-                    f'mkdir /home/ec2-user/{conf}-tmp/fake-root/ '
+                    f'mkdir /home/{user}/{conf}-tmp/fake-root/ '
                 )
                 stdout, _ = ssh.safe_execute(
-                    f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/fake-root/'
+                    f'sudo chown -R {user}:{user} /home/{user}/{conf}-tmp/fake-root/'
                 )
                 stdout, _ = ssh.safe_execute(
-                    f"tar -xvf /home/ec2-user/{conf}-tmp/almalinux-8-docker-{self.arch}-{conf}.tar.xz -C /home/ec2-user/{conf}-tmp/fake-root"
+                    f"tar -xvf /home/{user}/{conf}-tmp/almalinux-8-docker-{self.arch}-{conf}.tar.xz -C /home/{user}/{conf}-tmp/fake-root"
                 )
                 raw_packages = list(filter(None, packages))
 
@@ -743,7 +750,7 @@ class LinuxHypervisors(BaseHypervisor):
                     packages[package.name][sign] = package
                     if sign == '+':
                         changelog, _ = ssh.safe_execute(
-                            f"sudo chroot /home/ec2-user/{conf}-tmp/fake-root/ rpm -q --changelog {package.name}"
+                            f"sudo chroot /home/{user}/{conf}-tmp/fake-root/ rpm -q --changelog {package.name}"
                         )
                         packages[package.name]['changelog'] = changelog.read().decode()
                 # logging.info(packages)
@@ -784,7 +791,7 @@ class LinuxHypervisors(BaseHypervisor):
                 commit_msg = '\n\n'.join(text)
 
                 stdout, _ = ssh.safe_execute(
-                    f'cd /home/ec2-user/{conf}-tmp/ && '
+                    f'cd /home/{user}/{conf}-tmp/ && '
                     f'git config --global user.name "Mariia Boldyreva" && git config --global user.email "shelterly@gmail.com"'
                     f' && git checkout -b al-8.5.4-{TIMESTAMP} && '
                     f'git add Dockerfile rpm-packages rpm-packages.old almalinux-8-docker.{conf}.tar.xz '

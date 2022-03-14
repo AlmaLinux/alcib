@@ -661,11 +661,15 @@ class LinuxHypervisors(BaseHypervisor):
                 repo = 'https://api.github.com/repos/VanessaRish/docker-images'
                 branch_regex = r'^al-\d\.\d\.\d-\d{8}$'
                 response = requests.get(f'{repo}/branches', headers=headers)
+                logging.info(response.content.decode())
                 branches = []
                 for item in json.loads(response.content.decode()):
+                    logging.info(item)
                     res = re.search(branch_regex, item['name'])
                     if res:
+                        logging.info(res)
                         branches.append(item['name'])
+                logging.info(branches)
                 branches = branches.sort()
                 branch = branches[-1]
                 stdout, _ = ssh.safe_execute(

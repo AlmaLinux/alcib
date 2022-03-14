@@ -717,7 +717,7 @@ class LinuxHypervisors(BaseHypervisor):
                 )
                 stdout, _ = ssh.safe_execute(
                     f"cd /home/ec2-user/{conf}-tmp/ && "
-                    f"git diff --unified=0 /home/ec2-user/{conf}-tmp/rpm-packages | grep '^[+|-][^+|-]'"
+                    f"git diff --unified=0 /home/ec2-user/{conf}-tmp/rpm-packages-{conf} | grep '^[+|-][^+|-]'"
                 )
                 packages = stdout.read().decode()
                 packages = packages.split('\n')
@@ -799,7 +799,7 @@ class LinuxHypervisors(BaseHypervisor):
 
     def clear_ppc64le_host(self, builder):
         ssh = builder.ssh_remote_connect(settings.ppc64le_host, 'alcib', 'PPC64LE')
-        cmd = 'sudo rm -r /home/alcib/docker-images/ && sudo rm -r /nome/alcib/*-tmp/'
+        cmd = 'sudo rm -r /home/alcib/docker-images/ && sudo rm -r /home/alcib/*-tmp/'
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
         ssh.close()

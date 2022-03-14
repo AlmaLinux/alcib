@@ -1,63 +1,63 @@
 ---
 
-#- name: Make sure required packages are installed
-#  dnf:
-#    name: "{{ packages }}"
-#    state: present
-#  become_user: root
-#  become: true
-#  vars:
-#    packages:
-#      - "@virtualization-tools"
-#      - "@virtualization-platform"
-#      - "@virtualization-hypervisor"
-#      - epel-release
-#
-#- name: Install ansible
-#  dnf:
-#    name: "{{ packages }}"
-#    state: present
-#    enablerepo: epel
-#  become_user: root
-#  become: true
-#  vars:
-#    packages:
-#      - ansible
-#      - unzip
+- name: Make sure required packages are installed
+  dnf:
+    name: "{{ packages }}"
+    state: present
+  become_user: root
+  become: true
+  vars:
+    packages:
+      - "@virtualization-tools"
+      - "@virtualization-platform"
+      - "@virtualization-hypervisor"
+      - epel-release
 
-#- name: Download packer
-#  get_url:
-#    url: "https://releases.hashicorp.com/packer/1.7.10/packer_1.7.10_linux_ppc64le.zip"
-#    dest: /tmp
-#    mode: 0644
-#
-#- name: Unzip packer
-#  shell: sudo unzip -o packer_1.7.10_linux_ppc64le.zip -d /usr/bin/
-#
-#- name: Install packer
-#  shell: sudo ln -s /usr/bin/packer /usr/bin/packer.io
+- name: Install ansible
+  dnf:
+    name: "{{ packages }}"
+    state: present
+    enablerepo: epel
+  become_user: root
+  become: true
+  vars:
+    packages:
+      - ansible
+      - unzip
 
-#- name: Make sure git installed
-#  yum:
-#    name: "{{ packages }}"
-#    state: present
-#  become_user: root
-#  become: true
-#  vars:
-#    packages:
-#    - git
-#    - python3-devel
-#    - jq
-#    - lorax
-#    - anaconda-tui
-#    - subscription-manager
-#
-#- name: Installing testinfra
-#  pip:
-#    name: ['boto3', 'markdown_table', 'awscli']
-#    executable: pip3
-#  become: yes
-#  become_user: root
+- name: Download packer
+  get_url:
+    url: "https://releases.hashicorp.com/packer/1.7.10/packer_1.7.10_linux_ppc64le.zip"
+    dest: /tmp
+    mode: 0644
+
+- name: Unzip packer
+  shell: sudo unzip -o packer_1.7.10_linux_ppc64le.zip -d /usr/bin/
+
+- name: Install packer
+  shell: sudo ln -s /usr/bin/packer /usr/bin/packer.io
+
+- name: Make sure git installed
+  yum:
+    name: "{{ packages }}"
+    state: present
+  become_user: root
+  become: true
+  vars:
+    packages:
+    - git
+    - python3-devel
+    - jq
+    - lorax
+    - anaconda-tui
+    - subscription-manager
+
+- name: Installing testinfra
+  pip:
+    name: ['boto3', 'markdown_table', 'awscli']
+    executable: pip3
+  become: yes
+  become_user: root
 
 - name: Clone Docker images repo
   become_user: alcib

@@ -644,14 +644,14 @@ class LinuxHypervisors(BaseHypervisor):
                     f'sudo ./build.sh -o {conf} -t {conf} 2>&1 | tee ./{build_log}'
                 )
                 # logging.info(stdout.read().decode())
-                sftp = ssh.open_sftp()
-                sftp.get(f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',
-                         f'{self.name}-{build_log}')
-                logging.info('%s built', settings.image)
                 stdout, _ = ssh.safe_execute(
                     f'sudo chown -R ec2-user:ec2-user /home/ec2-user/docker-images/ && '
                     f'sudo chown -R ec2-user:ec2-user /home/ec2-user/{conf}-tmp/'
                 )
+                sftp = ssh.open_sftp()
+                sftp.get(f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/logs/{build_log}',
+                         f'{build_log}')
+                logging.info('%s built', settings.image)
                 sftp.put(str(builder.AWS_KEY_PATH.absolute()), '/home/ec2-user/aws_test')
                 sftp.putfo(StringIO(builder.SSH_CONFIG), '/home/ec2-user/.ssh/config')
                 headers = {
@@ -678,7 +678,7 @@ class LinuxHypervisors(BaseHypervisor):
                 files = [
                     f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',
                     f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/Dockerfile-{self.arch}-{conf}',
-                    f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/rpm-packages-{conf}',
+                    f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/rpm-packages-{self.arch}-{conf}',
                     f'/home/ec2-user/docker-images/{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz'
                 ]
                 timestamp_name = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'

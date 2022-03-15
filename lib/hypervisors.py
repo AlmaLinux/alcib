@@ -655,8 +655,8 @@ class LinuxHypervisors(BaseHypervisor):
                          f'{build_log}')
                 logging.info('%s built', settings.image)
                 logging.info(str(builder.AWS_KEY_PATH.absolute()))
-                sftp.put(str(builder.AWS_KEY_PATH.absolute()), '/home/{user}/aws_test')
-                sftp.putfo(StringIO(builder.SSH_CONFIG), '/home/{user}/.ssh/config')
+                sftp.put(str(builder.AWS_KEY_PATH.absolute()), f'/home/{user}/aws_test')
+                sftp.putfo(StringIO(builder.SSH_CONFIG), f'/home/{user}/.ssh/config')
 
                 headers = {
                     'Authorization': f'Bearer {settings.github_token}',

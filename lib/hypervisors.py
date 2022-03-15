@@ -802,7 +802,7 @@ class LinuxHypervisors(BaseHypervisor):
                     f'git config --global user.name "Mariia Boldyreva" && '
                     f'git config --global user.email "shelterly@gmail.com"'
                 )
-                if 'al-8.5.4-{TIMESTAMP}' in branches:
+                if f'al-8.5.4-{TIMESTAMP}' in branches:
                     stdout, _ = ssh.safe_execute(
                         f'cd /home/{user}/{conf}-tmp/ && git checkout al-8.5.4-{TIMESTAMP} && '
                         f'git pull origin/al-8.5.4-{TIMESTAMP}'

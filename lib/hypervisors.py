@@ -657,7 +657,8 @@ class LinuxHypervisors(BaseHypervisor):
                 logging.info(str(builder.AWS_KEY_PATH.absolute()))
                 sftp.put(str(builder.AWS_KEY_PATH.absolute()), f'/home/{user}/aws_test')
                 sftp.putfo(StringIO(builder.SSH_CONFIG), f'/home/{user}/.ssh/config')
-
+                sftp.putfo(StringIO(builder.AWS_CREDENTIALS), f'/home/{user}/.aws/credentials')
+                sftp.putfo(StringIO(builder.AWS_CONFIG), f'/home/{user}/.aws/config')
                 headers = {
                     'Authorization': f'Bearer {settings.github_token}',
                     'Accept': 'application/vnd.github.v3+json',
@@ -808,7 +809,7 @@ class LinuxHypervisors(BaseHypervisor):
 
     def clear_ppc64le_host(self, builder):
         ssh = builder.ssh_remote_connect(settings.ppc64le_host, 'alcib', 'PPC64LE')
-        cmd = 'sudo rm -r /home/alcib/docker-images/ && sudo rm -r /home/alcib/*-tmp/'
+        cmd = 'sudo rm -r /home/alcib/docker-images && sudo rm -r /home/alcib/*-tmp && sudo rm -r /home/alcib/.aws'
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
         ssh.close()

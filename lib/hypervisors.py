@@ -788,7 +788,7 @@ class LinuxHypervisors(BaseHypervisor):
         commit_msg = '\n\n'.join(text)
 
         stdout, _ = ssh.safe_execute(
-            f'cd /home/{user}/docker-tmp/ && git stash && '
+            f'cd /home/{user}/docker-tmp/ && git stash && git fetch && '
             f'git checkout al-{settings.almalinux}-{TIMESTAMP} && git stash pop'
             f' && git pull'
         )

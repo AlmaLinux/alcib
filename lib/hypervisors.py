@@ -630,6 +630,9 @@ class LinuxHypervisors(BaseHypervisor):
             headers=headers, data='{"branch":"master"}'
         )
         logging.info(response.status_code, response.content.decode())
+        stdout, _ = ssh.safe_execute(
+            f'mkdir /home/{user}/.aws/'
+        )
         for conf in docker_list:
             stdout, _ = ssh.safe_execute(
                 f'cd /home/{user}/docker-images/ && git reset --hard && git checkout master && git pull '
@@ -637,7 +640,7 @@ class LinuxHypervisors(BaseHypervisor):
             # logging.info(stdout.read().decode())
             build_log = f'{IMAGE}_{conf}_{self.arch}_build_{TIMESTAMP}.log'
             stdout, _ = ssh.safe_execute(
-                f'mkdir /home/{user}/{conf}-tmp/ && mkdir /home/{user}/.aws/ '
+                f'mkdir /home/{user}/{conf}-tmp/'
             )
             # logging.info(stdout.read().decode())
             try:
@@ -683,7 +686,7 @@ class LinuxHypervisors(BaseHypervisor):
                     f'chmod 600 /home/{user}/aws_test && '
                     f'git clone git@github.com:VanessaRish/docker-images.git /home/{user}/{conf}-tmp/ && '
                     f'cd /home/{user}/{conf}-tmp/ && '
-                    f'git checkout {branch}'
+                    f'git checkout {branch} && git pull'
                 )
                 files = [
                     f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',

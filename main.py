@@ -117,15 +117,16 @@ def create_new_branch():
             branches.append(item['name'])
     branches.sort()
     branch = branches[-1]
-    response = requests.get(f'{repo}/git/refs/heads', headers=headers)
-    refs = json.loads(response.content.decode())
-    sha_sum = None
-    for ref in refs:
-        if branch in ref['ref']:
-            sha_sum = ref['object']['sha']
-    data = f'{{"ref": "refs/heads/al-{settings.almalinux}-{TIMESTAMP}", "sha": f"{sha_sum}"}}'
-    response = requests.post(f'{repo}/git/refs', headers=headers, data=data)
-    logging.info(response.content.decode())
+    if f'al-{settings.almalinux}-{TIMESTAMP}' not in branches:
+        response = requests.get(f'{repo}/git/refs/heads', headers=headers)
+        refs = json.loads(response.content.decode())
+        sha_sum = None
+        for ref in refs:
+            if branch in ref['ref']:
+                sha_sum = ref['object']['sha']
+        data = {"ref": f"refs/heads/al-{settings.almalinux}-{TIMESTAMP}", "sha": sha_sum}
+        response = requests.post(f'{repo}/git/refs', headers=headers, json=data)
+        logging.info(response.content.decode())
 
 
 def setup_logger():

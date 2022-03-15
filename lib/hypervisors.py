@@ -296,7 +296,7 @@ class BaseHypervisor:
         apply = 'terraform apply --auto-approve'
         if settings.image == 'Docker':
             if self.arch == 'aarch64':
-                apply = 'terraform apply -var=ami_id=ami-070a38d61ee1ea697 -var=instance_type=t3.medium --auto-approve'
+                apply = 'terraform apply -var=ami_id=ami-070a38d61ee1ea697 -var=instance_type=t4g.large --auto-approve'
             elif self.arch == 'x86_64':
                 apply = 'terraform apply -var=ami_id=ami-00964f8756a53c964 -var=instance_type=t3.medium --auto-approve'
         terraform_commands.append(apply)

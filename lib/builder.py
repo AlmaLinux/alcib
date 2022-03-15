@@ -76,6 +76,15 @@ Host github.com
     Hostname github.com
     IdentityFile ~/aws_test
     """
+    AWS_CREDENTIALS = f"""
+    [default]
+aws_access_key_id = {os.getenv('AWS_ACCESS_KEY_ID')}
+aws_secret_access_key = {os.getenv('AWS_SECRET_ACCESS_KEY')}
+    """
+    AWS_CONFIG = """
+    [default]
+region = us-east-1
+    """
 
     def __init__(self):
         """

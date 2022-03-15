@@ -654,8 +654,8 @@ class LinuxHypervisors(BaseHypervisor):
                 sftp.get(f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/logs/{build_log}',
                          f'{build_log}')
                 logging.info('%s built', settings.image)
-                sftp.put(str(builder.AWS_KEY_PATH.absolute()), '/home/{user}/aws_test')
                 logging.info(str(builder.AWS_KEY_PATH.absolute()))
+                sftp.put(str(builder.AWS_KEY_PATH.absolute()), '/home/{user}/aws_test')
                 sftp.putfo(StringIO(builder.SSH_CONFIG), '/home/{user}/.ssh/config')
 
                 headers = {

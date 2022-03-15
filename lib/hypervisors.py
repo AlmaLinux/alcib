@@ -637,7 +637,7 @@ class LinuxHypervisors(BaseHypervisor):
             # logging.info(stdout.read().decode())
             build_log = f'{IMAGE}_{conf}_{self.arch}_build_{TIMESTAMP}.log'
             stdout, _ = ssh.safe_execute(
-                f'mkdir /home/{user}/{conf}-tmp/ '
+                f'mkdir /home/{user}/{conf}-tmp/ && mkdir /home/{user}/.aws/ '
             )
             # logging.info(stdout.read().decode())
             try:

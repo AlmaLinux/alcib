@@ -648,7 +648,8 @@ class LinuxHypervisors(BaseHypervisor):
                 # logging.info(stdout.read().decode())
                 stdout, _ = ssh.safe_execute(
                     f'sudo chown -R {user}:{user} /home/{user}/docker-images/ && '
-                    f'sudo chown -R {user}:{user} /home/{user}/{conf}-tmp/'
+                    f'sudo chown -R {user}:{user} /home/{user}/{conf}-tmp/ && '
+                    f'sudo chown -R {user}:{user} /home/{user}/.aws/'
                 )
                 sftp = ssh.open_sftp()
                 sftp.get(f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/logs/{build_log}',

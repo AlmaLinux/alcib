@@ -799,18 +799,22 @@ class LinuxHypervisors(BaseHypervisor):
 
                 stdout, _ = ssh.safe_execute(
                     f'cd /home/{user}/{conf}-tmp/ && '
-                    f'git config --global user.name "Mariia Boldyreva" && git config --global user.email "shelterly@gmail.com"'
-                    f' && git checkout -b al-8.5.4-{TIMESTAMP} && '
-                    f'git add Dockerfile-{self.arch}-{conf} rpm-packages-{conf} almalinux-8-docker-{self.arch}-{conf}.tar.xz '
-                    f'&& git commit -m "{commit_msg}"'
+                    f'git config --global user.name "Mariia Boldyreva" && '
+                    f'git config --global user.email "shelterly@gmail.com"'
                 )
                 if 'al-8.5.4-{TIMESTAMP}' in branches:
                     stdout, _ = ssh.safe_execute(
-                        f'cd /home/{user}/{conf}-tmp/ && '
+                        f'cd /home/{user}/{conf}-tmp/ && git checkout al-8.5.4-{TIMESTAMP} && '
                         f'git pull origin/al-8.5.4-{TIMESTAMP}'
                     )
+                else:
+                    stdout, _ = ssh.safe_execute(
+                        f'cd /home/{user}/{conf}-tmp/ && git checkout -b al-8.5.4-{TIMESTAMP}'
+                    )
                 stdout, _ = ssh.safe_execute(
-                    f'cd /home/{user}/{conf}-tmp/ && git push origin al-8.5.4-{TIMESTAMP}'
+                    f'cd /home/{user}/{conf}-tmp/ && '
+                    f'git add Dockerfile-{self.arch}-{conf} rpm-packages-{conf} almalinux-8-docker-{self.arch}-{conf}.tar.xz '
+                    f'&& git commit -m "{commit_msg}" && git push origin al-8.5.4-{TIMESTAMP}'
                 )
                 logging.info(commit_msg)
 

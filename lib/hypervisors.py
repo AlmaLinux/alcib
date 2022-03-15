@@ -296,7 +296,7 @@ class BaseHypervisor:
         apply = 'terraform apply --auto-approve'
         if settings.image == 'Docker':
             if self.arch == 'aarch64':
-                apply = 'terraform apply -var=ami_id=ami-070a38d61ee1ea697 -var=instance_type=t4g.medium --auto-approve'
+                apply = 'terraform apply -var=ami_id=ami-070a38d61ee1ea697 -var=instance_type=t3.medium --auto-approve'
             elif self.arch == 'x86_64':
                 apply = 'terraform apply -var=ami_id=ami-00964f8756a53c964 -var=instance_type=t3.medium --auto-approve'
         terraform_commands.append(apply)
@@ -716,6 +716,9 @@ class LinuxHypervisors(BaseHypervisor):
                 )
             finally:
                 logging.info(f'Docker Image {conf} built')
+                stdout, _ = ssh.safe_execute(
+                    f'sudo rm -r /home/{user}/docker-images/{conf}_{self.arch}-{conf}'
+                )
         ssh.close()
         logging.info('Connection closed')
 
@@ -728,6 +731,8 @@ class LinuxHypervisors(BaseHypervisor):
         else:
             user = 'ec2-user'
             ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
+        if 'micro' in docker_list:
+            docker_list.remove('micro')
         for conf in docker_list:
             stdout, _ = ssh.safe_execute(
                 f"cd /home/{user}/docker-tmp/ && "

@@ -686,7 +686,7 @@ class LinuxHypervisors(BaseHypervisor):
                     f'chmod 600 /home/{user}/aws_test && '
                     f'git clone git@github.com:VanessaRish/docker-images.git /home/{user}/{conf}-tmp/ && '
                     f'cd /home/{user}/{conf}-tmp/ && '
-                    f'git checkout {branch} && git pull'
+                    f'git checkout {branch}'
                 )
                 files = [
                     f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',
@@ -802,7 +802,15 @@ class LinuxHypervisors(BaseHypervisor):
                     f'git config --global user.name "Mariia Boldyreva" && git config --global user.email "shelterly@gmail.com"'
                     f' && git checkout -b al-8.5.4-{TIMESTAMP} && '
                     f'git add Dockerfile-{self.arch}-{conf} rpm-packages-{conf} almalinux-8-docker-{self.arch}-{conf}.tar.xz '
-                    f'&& git commit -m "{commit_msg}" && git push origin al-8.5.4-{TIMESTAMP}'
+                    f'&& git commit -m "{commit_msg}"'
+                )
+                if 'al-8.5.4-{TIMESTAMP}' in branches:
+                    stdout, _ = ssh.safe_execute(
+                        f'cd /home/{user}/{conf}-tmp/ && '
+                        f'git pull origin/al-8.5.4-{TIMESTAMP}'
+                    )
+                stdout, _ = ssh.safe_execute(
+                    f'cd /home/{user}/{conf}-tmp/ && git push origin al-8.5.4-{TIMESTAMP}'
                 )
                 logging.info(commit_msg)
 

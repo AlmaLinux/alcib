@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     sign_jwt_token: str = ''
     docker_configuration: str = ''
     ppc64le_host: str = ''
+    almalinux: str = ''
 
 
 settings = Settings()

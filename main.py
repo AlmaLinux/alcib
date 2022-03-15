@@ -13,10 +13,17 @@ import os
 import base64
 import json
 import requests
+import re
 
 from lib.builder import Builder
-from lib.hypervisors import get_hypervisor
+from lib.hypervisors import get_hypervisor, TIMESTAMP
 from lib.config import settings
+
+
+headers = {
+        'Authorization': f'Bearer {settings.github_token}',
+        'Accept': 'application/vnd.github.v3+json',
+    }
 
 
 def init_args_parser() -> argparse.ArgumentParser:
@@ -47,10 +54,6 @@ def almalinux_wiki_pr():
     """
     Executes Github API calls for making commit and pull request.
     """
-    headers = {
-        'Authorization': f'Bearer {settings.github_token}',
-        'Accept': 'application/vnd.github.v3+json',
-    }
     repo = 'https://api.github.com/repos/VanessaRish/wiki'
     response = requests.post(
         f'{repo}/merge-upstream',
@@ -103,6 +106,28 @@ def almalinux_wiki_pr():
     logging.info(response.status_code, response.content.decode())
 
 
+def create_new_branch():
+    repo = 'https://api.github.com/repos/VanessaRish/docker-images'
+    branch_regex = r'^al-\d\.\d\.\d-\d{8}$'
+    response = requests.get(f'{repo}/branches', headers=headers)
+    branches = []
+    for item in json.loads(response.content.decode()):
+        res = re.search(branch_regex, item['name'])
+        if res:
+            branches.append(item['name'])
+    branches.sort()
+    branch = branches[-1]
+    response = requests.get(f'{repo}/git/refs/heads', headers=headers)
+    refs = json.loads(response.content.decode())
+    sha_sum = None
+    for ref in refs:
+        if branch in ref['ref']:
+            sha_sum = ref['object']['sha']
+    data = f'{{"ref": "refs/heads/al-{settings.almalinux}-{TIMESTAMP}", "sha": f"{sha_sum}"}}'
+    response = requests.post(f'{repo}/git/refs', headers=headers, data=data)
+    logging.info(response.content.decode())
+
+
 def setup_logger():
     """
     Setup for logger.
@@ -145,6 +170,8 @@ def main(sys_args):
                 hypervisor.build_aws_stage(builder, args.arch)
             elif settings.image == 'Docker':
                 hypervisor.build_docker_stage(builder)
+                create_new_branch()
+                hypervisor.create_docker_branch(builder)
         elif args.stage == 'test':
             if settings.image == 'AWS AMI':
                 hypervisor.test_aws_stage(builder)

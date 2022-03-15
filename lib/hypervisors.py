@@ -611,7 +611,7 @@ class LinuxHypervisors(BaseHypervisor):
         """
         if self.arch == 'ppc64le':
             user = 'alcib'
-            ssh = builder.ssh_remote_connect(settings.ppc64le_host, 'alcib', 'PPC64LE')
+            ssh = builder.ssh_remote_connect(settings.ppc64le_host, user, 'PPC64LE')
         else:
             user = 'ec2-user'
             ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
@@ -631,63 +631,57 @@ class LinuxHypervisors(BaseHypervisor):
         )
         logging.info(response.status_code, response.content.decode())
         stdout, _ = ssh.safe_execute(
-            f'mkdir /home/{user}/.aws/'
+            f'mkdir /home/{user}/.aws/ && mkdir /home/{user}/docker-tmp/'
+        )
+        stdout, _ = ssh.safe_execute(
+            f'sudo chown -R {user}:{user} /home/{user}/docker-images/ && '
+            f'sudo chown -R {user}:{user} /home/{user}/docker-tmp/ && '
+            f'sudo chown -R {user}:{user} /home/{user}/.aws/'
+        )
+        sftp = ssh.open_sftp()
+        sftp.put(str(builder.AWS_KEY_PATH.absolute()), f'/home/{user}/aws_test')
+        sftp.putfo(StringIO(builder.SSH_CONFIG), f'/home/{user}/.ssh/config')
+        sftp.putfo(StringIO(builder.AWS_CREDENTIALS), f'/home/{user}/.aws/credentials')
+        sftp.putfo(StringIO(builder.AWS_CONFIG), f'/home/{user}/.aws/config')
+        logging.info('%s built', settings.image)
+        headers = {
+            'Authorization': f'Bearer {settings.github_token}',
+            'Accept': 'application/vnd.github.v3+json',
+        }
+        repo = 'https://api.github.com/repos/VanessaRish/docker-images'
+        branch_regex = r'^al-\d\.\d\.\d-\d{8}$'
+        response = requests.get(f'{repo}/branches', headers=headers)
+        branches = []
+        for item in json.loads(response.content.decode()):
+            res = re.search(branch_regex, item['name'])
+            if res:
+                branches.append(item['name'])
+        branches.sort()
+        branch = branches[-1]
+        requests.post(
+            f'{repo}/merge-upstream',
+            headers=headers, data='{"branch":"master"}'
+        )
+        stdout, _ = ssh.safe_execute(
+            f'chmod 600 /home/{user}/.ssh/config && '
+            f'chmod 600 /home/{user}/aws_test && '
+            f'git clone git@github.com:VanessaRish/docker-images.git /home/{user}/docker-tmp/ && '
+            f'cd /home/{user}/docker-tmp/ && git checkout {branch} && '
+            f'git config --global user.name "Mariia Boldyreva" && '
+            f'git config --global user.email "shelterly@gmail.com"'
         )
         for conf in docker_list:
             stdout, _ = ssh.safe_execute(
                 f'cd /home/{user}/docker-images/ && git reset --hard && git checkout master && git pull '
             )
-            # logging.info(stdout.read().decode())
             build_log = f'{IMAGE}_{conf}_{self.arch}_build_{TIMESTAMP}.log'
-            stdout, _ = ssh.safe_execute(
-                f'mkdir /home/{user}/{conf}-tmp/'
-            )
-            # logging.info(stdout.read().decode())
             try:
                 stdout, _ = ssh.safe_execute(
                     f'cd /home/{user}/docker-images/ && '
                     f'sudo ./build.sh -o {conf} -t {conf} 2>&1 | tee ./{build_log}'
                 )
-                # logging.info(stdout.read().decode())
-                stdout, _ = ssh.safe_execute(
-                    f'sudo chown -R {user}:{user} /home/{user}/docker-images/ && '
-                    f'sudo chown -R {user}:{user} /home/{user}/{conf}-tmp/ && '
-                    f'sudo chown -R {user}:{user} /home/{user}/.aws/'
-                )
-                sftp = ssh.open_sftp()
                 sftp.get(f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/logs/{build_log}',
                          f'{build_log}')
-                logging.info('%s built', settings.image)
-                logging.info(str(builder.AWS_KEY_PATH.absolute()))
-                sftp.put(str(builder.AWS_KEY_PATH.absolute()), f'/home/{user}/aws_test')
-                sftp.putfo(StringIO(builder.SSH_CONFIG), f'/home/{user}/.ssh/config')
-                sftp.putfo(StringIO(builder.AWS_CREDENTIALS), f'/home/{user}/.aws/credentials')
-                sftp.putfo(StringIO(builder.AWS_CONFIG), f'/home/{user}/.aws/config')
-                headers = {
-                    'Authorization': f'Bearer {settings.github_token}',
-                    'Accept': 'application/vnd.github.v3+json',
-                }
-                repo = 'https://api.github.com/repos/VanessaRish/docker-images'
-                branch_regex = r'^al-\d\.\d\.\d-\d{8}$'
-                response = requests.get(f'{repo}/branches', headers=headers)
-                logging.info(response.content.decode())
-                branches = []
-                for item in json.loads(response.content.decode()):
-                    logging.info(item)
-                    res = re.search(branch_regex, item['name'])
-                    if res:
-                        logging.info(res)
-                        branches.append(item['name'])
-                logging.info(branches)
-                branches.sort()
-                branch = branches[-1]
-                stdout, _ = ssh.safe_execute(
-                    f'chmod 600 /home/{user}/.ssh/config && '
-                    f'chmod 600 /home/{user}/aws_test && '
-                    f'git clone git@github.com:VanessaRish/docker-images.git /home/{user}/{conf}-tmp/ && '
-                    f'cd /home/{user}/{conf}-tmp/ && '
-                    f'git checkout {branch}'
-                )
                 files = [
                     f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',
                     f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/Dockerfile-{self.arch}-{conf}',
@@ -697,7 +691,7 @@ class LinuxHypervisors(BaseHypervisor):
                 timestamp_name = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
                 for file in files:
                     stdout, _ = ssh.safe_execute(
-                        f'cp {file} /home/{user}/{conf}-tmp/'
+                        f'cp {file} /home/{user}/docker-tmp/'
                     )
 
                     stdout, _ = ssh.safe_execute(
@@ -717,111 +711,88 @@ class LinuxHypervisors(BaseHypervisor):
                     logging.info(stdout.read().decode())
 
                 stdout, _ = ssh.safe_execute(
-                    f'cp /home/{user}/{conf}-tmp/rpm-packages-{self.arch}-{conf} /home/{user}/{conf}-tmp/rpm-packages-{conf}'
+                    f'cp /home/{user}/docker-tmp/rpm-packages-{self.arch}-{conf} '
+                    f'/home/{user}/docker-tmp/rpm-packages-{conf}'
                 )
-
-                headers = {
-                    'Authorization': f'Bearer {settings.github_token}',
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-                repo = 'https://api.github.com/repos/VanessaRish/docker-images'
-                response = requests.post(
-                    f'{repo}/merge-upstream',
-                    headers=headers, data='{"branch":"master"}'
-                )
-                stdout, _ = ssh.safe_execute(
-                    f"cd /home/{user}/{conf}-tmp/ && "
-                    f"git diff --unified=0 /home/{user}/{conf}-tmp/rpm-packages-{conf} | grep '^[+|-][^+|-]'"
-                )
-                packages = stdout.read().decode()
-                packages = packages.split('\n')
-                stdout, _ = ssh.safe_execute(
-                    f'mkdir /home/{user}/{conf}-tmp/fake-root/ '
-                )
-                stdout, _ = ssh.safe_execute(
-                    f'sudo chown -R {user}:{user} /home/{user}/{conf}-tmp/fake-root/'
-                )
-                stdout, _ = ssh.safe_execute(
-                    f"tar -xvf /home/{user}/{conf}-tmp/almalinux-8-docker-{self.arch}-{conf}.tar.xz -C /home/{user}/{conf}-tmp/fake-root"
-                )
-                raw_packages = list(filter(None, packages))
-
-                packages = collections.defaultdict(dict)
-                # logging.info(packages)
-                # logging.info(type(packages))
-                for raw_package in raw_packages:
-                    # logging.info(raw_package)
-                    sign, raw_package = raw_package[0], raw_package[1:]
-                    package = parse_package(raw_package)
-                    # logging.info(package)
-                    packages[package.name][sign] = package
-                    if sign == '+':
-                        changelog, _ = ssh.safe_execute(
-                            f"sudo chroot /home/{user}/{conf}-tmp/fake-root/ rpm -q --changelog {package.name}"
-                        )
-                        packages[package.name]['changelog'] = changelog.read().decode()
-                # logging.info(packages)
-                text = [f'Updates AlmaLinux 8.5 {self.arch} {conf} rootfs']
-                for pkg in packages.values():
-                    if '+' not in pkg or '-' not in pkg:
-                        continue
-                    added = pkg['+']
-                    removed = pkg['-']
-                    header = f'- {added.name} upgraded from {removed.version}-{removed.release} to {added.version}-{added.release}'
-                    # logging.info(added)
-                    # logging.info(removed)
-                    # logging.info(header)
-                    cve_list = []
-                    for changelog_record in pkg['changelog'].split('\n\n'):
-                        changelog_record = changelog_record.strip()
-                        if not changelog_record:
-                            continue
-                        version_str = changelog_record.split('\n')[0].split()[-1]
-                        # Remove epoch from version, since we don't know it for removed package
-                        version_str = re.sub('^\d+:', '', version_str)
-                        if f'{removed.version}-{removed.clean_release}' == version_str:
-                            break
-                        if f'{removed.version}-{removed.release}' == version_str:
-                            break
-                        if removed.version == version_str:
-                            break
-                        changelog_text = '\n'.join(changelog_record.split('\n')[1:])
-                        # logging.info(changelog_text)
-                        cve_list.extend(re.findall(r'(CVE-[0-9]*-[0-9]*)', changelog_text))
-                        # logging.info(cve_list)
-                    if cve_list:
-                        header += f'\n  Fixes: {", ".join(cve_list)}'
-                    #logging.info(header)
-                    text.append(header)
-                    # logging.info(text)
-
-                commit_msg = '\n\n'.join(text)
-
-                stdout, _ = ssh.safe_execute(
-                    f'cd /home/{user}/{conf}-tmp/ && '
-                    f'git config --global user.name "Mariia Boldyreva" && '
-                    f'git config --global user.email "shelterly@gmail.com"'
-                )
-                if f'al-8.5.4-{TIMESTAMP}' in branches:
-                    stdout, _ = ssh.safe_execute(
-                        f'cd /home/{user}/{conf}-tmp/ && git checkout al-8.5.4-{TIMESTAMP} && '
-                        f'git pull origin/al-8.5.4-{TIMESTAMP}'
-                    )
-                else:
-                    stdout, _ = ssh.safe_execute(
-                        f'cd /home/{user}/{conf}-tmp/ && git checkout -b al-8.5.4-{TIMESTAMP}'
-                    )
-                stdout, _ = ssh.safe_execute(
-                    f'cd /home/{user}/{conf}-tmp/ && '
-                    f'git add Dockerfile-{self.arch}-{conf} rpm-packages-{conf} almalinux-8-docker-{self.arch}-{conf}.tar.xz '
-                    f'&& git commit -m "{commit_msg}" && git push origin al-8.5.4-{TIMESTAMP}'
-                )
-                logging.info(commit_msg)
-
             finally:
                 logging.info(f'Docker Image {conf} built')
         ssh.close()
         logging.info('Connection closed')
+
+    def create_docker_branch(self, builder):
+        docker_list = settings.docker_configuration.split(',')
+        text = [f'Updates AlmaLinux 8.5 {self.arch} {", ".join(docker_list)} rootfs']
+        if self.arch == 'ppc64le':
+            user = 'alcib'
+            ssh = builder.ssh_remote_connect(settings.ppc64le_host, user, 'PPC64LE')
+        else:
+            user = 'ec2-user'
+            ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
+        for conf in docker_list:
+            stdout, _ = ssh.safe_execute(
+                f"cd /home/{user}/docker-tmp/ && "
+                f"git diff --unified=0 /home/{user}/docker-tmp/rpm-packages-{conf} | grep '^[+|-][^+|-]'"
+            )
+            packages = stdout.read().decode()
+            packages = packages.split('\n')
+            stdout, _ = ssh.safe_execute(
+                f'mkdir /home/{user}/docker-tmp/fake-root-{conf}/ '
+            )
+            stdout, _ = ssh.safe_execute(
+                f'sudo chown -R {user}:{user} /home/{user}/docker-tmp/fake-root-{conf}/'
+            )
+            stdout, _ = ssh.safe_execute(
+                f"tar -xvf /home/{user}/docker-tmp/almalinux-8-docker-{self.arch}-{conf}.tar.xz -C /home/{user}/docker-tmp/fake-root-{conf}"
+            )
+            raw_packages = list(filter(None, packages))
+            packages = collections.defaultdict(dict)
+            for raw_package in raw_packages:
+                sign, raw_package = raw_package[0], raw_package[1:]
+                package = parse_package(raw_package)
+                packages[package.name][sign] = package
+                if sign == '+':
+                    changelog, _ = ssh.safe_execute(
+                        f"sudo chroot /home/{user}/docker-tmp/fake-root-{conf}/ rpm -q --changelog {package.name}"
+                    )
+                    packages[package.name]['changelog'] = changelog.read().decode()
+            for pkg in packages.values():
+                if '+' not in pkg or '-' not in pkg:
+                    continue
+                added = pkg['+']
+                removed = pkg['-']
+                header = f'- {added.name} upgraded from {removed.version}-{removed.release} to {added.version}-{added.release}'
+                cve_list = []
+                for changelog_record in pkg['changelog'].split('\n\n'):
+                    changelog_record = changelog_record.strip()
+                    if not changelog_record:
+                        continue
+                    version_str = changelog_record.split('\n')[0].split()[-1]
+                    # Remove epoch from version, since we don't know it for removed package
+                    version_str = re.sub('^\d+:', '', version_str)
+                    if f'{removed.version}-{removed.clean_release}' == version_str:
+                        break
+                    if f'{removed.version}-{removed.release}' == version_str:
+                        break
+                    if removed.version == version_str:
+                        break
+                    changelog_text = '\n'.join(changelog_record.split('\n')[1:])
+                    cve_list.extend(re.findall(r'(CVE-[0-9]*-[0-9]*)', changelog_text))
+                if cve_list:
+                    header += f'\n  Fixes: {", ".join(cve_list)}'
+                text.append(header)
+        commit_msg = '\n\n'.join(text)
+
+        stdout, _ = ssh.safe_execute(
+            f'cd /home/{user}/docker-tmp/ && git stash && '
+            f'git checkout al-{settings.almalinux}-{TIMESTAMP} && git stash pop'
+            f' && git pull'
+        )
+        stdout, _ = ssh.safe_execute(
+            f'cd /home/{user}/docker-tmp/ && '
+            f'git add Dockerfile-{self.arch}* rpm-packages* *.tar.xz '
+            f'&& git commit -m "{commit_msg}" && git push origin al-{settings.almalinux}-{TIMESTAMP}'
+        )
+        logging.info(commit_msg)
 
     def clear_ppc64le_host(self, builder):
         ssh = builder.ssh_remote_connect(settings.ppc64le_host, 'alcib', 'PPC64LE')

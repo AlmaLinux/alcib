@@ -733,7 +733,7 @@ class LinuxHypervisors(BaseHypervisor):
         for conf in docker_list:
             stdout, _ = ssh.safe_execute(
                 f"cd /home/{user}/docker-tmp/ && "
-                f"git diff --unified=0 /home/{user}/docker-tmp/rpm-packages-{conf} | grep '^[+|-][^+|-]'"
+                f"git diff --unified=0 /home/{user}/docker-tmp/rpm-packages-{conf} | grep '^[+|-][^+|-]' || true"
             )
             packages = stdout.read().decode()
             packages = packages.split('\n')

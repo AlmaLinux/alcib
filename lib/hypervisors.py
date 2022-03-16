@@ -711,7 +711,7 @@ class LinuxHypervisors(BaseHypervisor):
                     logging.info(stdout.read().decode())
 
                 stdout, _ = ssh.safe_execute(
-                    f'cp /home/{user}/docker-tmp/rpm-packages-{self.arch}-{conf} '
+                    f'mv /home/{user}/docker-tmp/rpm-packages-{self.arch}-{conf} '
                     f'/home/{user}/docker-tmp/rpm-packages-{conf}'
                 )
             finally:

@@ -256,7 +256,7 @@ class BaseHypervisor:
         if self.arch == 'aarch64':
             shutil.rmtree(self.terraform_dir)
 
-    def upload_to_bucket(self, builder: Builder, files: list, file_path: str):
+    def upload_to_bucket(self, builder: Builder, files: list, file_path: str, ssh):
         """
         Upload files to S3 bucket.
 
@@ -269,7 +269,6 @@ class BaseHypervisor:
         file_path : str
             Path to files to upload.
         """
-        ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Uploading to S3 bucket')
         timestamp_name = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
         for file in files:
@@ -284,7 +283,6 @@ class BaseHypervisor:
             stdout, _ = ssh.safe_execute(cmd)
             logging.info(stdout.read().decode())
             logging.info('Uploaded')
-        ssh.close()
         logging.info('Connection closed')
 
     def release_and_sign_stage(self, builder: Builder):
@@ -344,7 +342,7 @@ class BaseHypervisor:
                 file = '*.box'
             self.upload_to_bucket(
                 builder, [f'{IMAGE}_{self.arch}_build*.log', file],
-                self.cloud_images_path
+                self.cloud_images_path, ssh
             )
         ssh.close()
         logging.info('Connection closed')
@@ -530,7 +528,7 @@ class LinuxHypervisors(BaseHypervisor):
             logging.info('Tested')
         finally:
             self.upload_to_bucket(
-                builder, ['vagrant_box_test*.log'], self.cloud_images_path
+                builder, ['vagrant_box_test*.log'], self.cloud_images_path, ssh
             )
         ssh.close()
         logging.info('Connection closed')
@@ -611,7 +609,7 @@ class LinuxHypervisors(BaseHypervisor):
                     f'{conf}_{self.arch}-{conf}/rpm-packages-{self.arch}-{conf}',
                     f'{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz'
                 ]
-                self.upload_to_bucket(builder, files, docker_images)
+                self.upload_to_bucket(builder, files, docker_images, ssh)
                 for file in files:
                     stdout, _ = ssh.safe_execute(
                         f'cp {docker_images}{file} {docker_tmp}'
@@ -795,7 +793,7 @@ class HyperV(BaseHypervisor):
             logging.info('Tested')
         finally:
             self.upload_to_bucket(
-                builder, [vb_test_log], self.cloud_images_path
+                builder, [vb_test_log], self.cloud_images_path, ssh
             )
         ssh.close()
         logging.info('Connection closed')
@@ -884,7 +882,7 @@ class KVM(LinuxHypervisors):
         self.upload_to_bucket(
             builder,
             [f'aws_amis-{self.arch}.csv', f'AWS_AMIS-{self.arch}.md'],
-            self.cloud_images_path
+            self.cloud_images_path, ssh
         )
         sftp_download(ssh, self.sftp_path, f'aws_amis-{self.arch}.csv', self.name)
         sftp_download(ssh, self.sftp_path, f'AWS_AMIS-{self.arch}.md', self.name)
@@ -934,10 +932,10 @@ class KVM(LinuxHypervisors):
             stdout, _ = ssh.safe_execute(cmd)
         finally:
             self.upload_to_bucket(
-                builder, [aws_build_log], self.cloud_images_path
+                builder, [aws_build_log], self.cloud_images_path, ssh
             )
         sftp_download(ssh, self.sftp_path, aws_build_log, self.name)
-        ami = save_ami_id(stdout, self.arch)
+        ami = save_ami_id(stdout.read().decode(), self.arch)
         aws_hypervisor = AwsStage2(self.arch)
         tfvars = {'ami_id': ami}
         tf_vars_file = os.path.join(aws_hypervisor.terraform_dir,
@@ -1008,7 +1006,7 @@ class KVM(LinuxHypervisors):
             logging.info(stdout.read().decode())
         finally:
             self.upload_to_bucket(
-                builder, ['aws_ami_test*.log'], self.cloud_images_path
+                builder, ['aws_ami_test*.log'], self.cloud_images_path, ssh
             )
         sftp_download(ssh, self.cloud_images_path, aws_test_log, self.arch)
         logging.info('Tested')
@@ -1057,7 +1055,7 @@ class KVM(LinuxHypervisors):
             logging.info(stdout.read().decode())
         finally:
             self.upload_to_bucket(
-                builder, ['genericcloud_test*.log'], self.cloud_images_path
+                builder, ['genericcloud_test*.log'], self.cloud_images_path, ssh
             )
             sftp_download(ssh, self.cloud_images_path, gc_test_log, self.arch)
             logging.info('Tested')
@@ -1181,7 +1179,7 @@ class Equinix(BaseHypervisor):
                 file = 'output-almalinux-8-opennebula-aarch64/*.qcow2'
             self.upload_to_bucket(
                 builder, [f'{IMAGE}_{self.arch}_build*.log', file],
-                '/root/cloud-images'
+                '/root/cloud-images/', ssh
             )
         sftp_download(ssh, '/root/cloud-images/', gc_build_log, self.name)
         logging.info('%s built', settings.image)
@@ -1223,7 +1221,7 @@ class Equinix(BaseHypervisor):
                 f'{script} 2>&1 | tee ./{gc_test_log}')
             logging.info(stdout.read().decode())
         finally:
-            self.upload_to_bucket(builder, [gc_test_log], '/root/cloud-images')
+            self.upload_to_bucket(builder, [gc_test_log], '/root/cloud-images/', ssh)
             sftp_download(ssh, '/root/cloud-images/', gc_test_log, self.arch)
             logging.info('Tested')
             stdout, _ = ssh.safe_execute(

@@ -19,76 +19,24 @@ import re
 
 import requests
 import boto3
-from jinja2 import DictLoader, Environment
 import ansible_runner
 
 from lib.builder import Builder, ExecuteError
 from lib.config import settings
+from lib.utils import *
 
 
 TIMESTAMP = str(datetime.date(datetime.today())).replace('-', '')
 IMAGE = settings.image.replace(" ", "_")
 
 
-def save_ami_id(stdout, arch: str) -> str:
-    """Saves AMI's id in a file on Jenkins node."""
-    ami = None
-    for line in stdout.splitlines():
-        logging.info(line)
-        if line.startswith('us-east-1'):
-            ami = line.split(':')[-1].strip()
-    with open(f'ami_id_{arch}.txt', 'w') as ami_file:
-        ami_file.write(ami)
-    logging.info('AWS AMI %s built', ami)
-    return ami
-
-
-Package = collections.namedtuple('rpm_package', ['name', 'version', 'release', 'arch', 'clean_release'])
-
-
-def parse_package(package):
-    package = package.rstrip('.rpm')
-    dot = package.rfind('.')
-    package, arch = package[:dot], package[dot + 1:]
-    dash = package.rfind('-')
-    package, release = package[:dash], package[dash + 1:]
-    dash = package.rfind('-')
-    name, version = package[:dash], package[dash + 1:]
-    clean_release = re.sub('\.el\d*', '', release)
-    return Package(name, version, release, arch, clean_release)
-
-
-def execute_command(cmd: str, cwd_path: str):
-    """
-    Executes a local command.
-
-    Parameters
-    ----------
-    cmd : str
-        A command to execute.
-    cwd_path: str
-        Directory path to execute commands.
-
-    Raises
-    ------
-    Exception
-        If a command fails during execution.
-    """
-    logging.info('Executing %s', cmd)
-    proc = Popen(cmd.split(), cwd=cwd_path, stderr=STDOUT, stdout=PIPE)
-    for line in proc.stdout:
-        logging.info(line.decode())
-    proc.wait()
-    if proc.returncode != 0:
-        raise Exception('Command {0} execution failed {1}'.format(
-            cmd, proc.returncode
-        ))
-
-
 class BaseHypervisor:
     """
     Basic configuration for any hypervisor.
     """
+
+    cloud_images_path = '/home/ec2-user/cloud-images'
+    sftp_path = '/home/ec2-user/cloud-images/'
 
     def __init__(self, name: str, arch: str):
         """
@@ -183,13 +131,13 @@ class BaseHypervisor:
         bucket_path = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
         work_dir = os.path.join(os.getcwd(), f'{bucket_path}')
         os.mkdir(work_dir, mode=0o777)
-        qcow_name = f'almalinux-8-{settings.image}-8.5.{self.arch}.qcow2'
-        qcow_tm_name = f'AlmaLinux-8-{settings.image}-8.5-{TIMESTAMP}.{self.arch}.qcow2'
+        qcow_name = f'almalinux-8-{settings.image}-8.5'
         for i in range(5):
             try:
                 self.s3_bucket.download_file(
-                    settings.bucket, f'{bucket_path}/{qcow_name}',
-                    f'{work_dir}/{qcow_tm_name}'
+                    settings.bucket,
+                    f'{bucket_path}/{qcow_name}.{self.arch}.qcow2',
+                    f'{work_dir}/{qcow_name}-{TIMESTAMP}.{self.arch}.qcow2'
                 )
             except Exception as error:
                 logging.exception('%s', error)
@@ -233,43 +181,37 @@ class BaseHypervisor:
                 stdout, _ = ssh_koji.safe_execute(cmd)
             except Exception as error:
                 logging.exception(error)
-        stdout, _ = ssh_koji.safe_execute(f"awk '$1=$1' ORS='\\n' {ftp_path}/images/CHECKSUM")
+        stdout, _ = ssh_koji.safe_execute(
+            f"awk '$1=$1' ORS='\\n' {ftp_path}/images/CHECKSUM"
+        )
         checksum_file = stdout.read().decode()
-        logging.info(checksum_file)
-        logging.info(type(checksum_file))
-
         headers = {
             'accept': 'application/json',
             'Authorization': f'Bearer {settings.sign_jwt_token}',
             'Content-Type': 'application/json',
         }
-
         json_data = {
             'content': f'{checksum_file}',
             'pgp_keyid': '488FCF7C3ABB34F8',
         }
-
-        response = requests.post('https://build.almalinux.org/api/v1/sign-tasks/sync_sign_task/', headers=headers,
-                                 json=json_data)
-
-        logging.info(response)
-        logging.info(response.status_code)
-        logging.info(response.content)
+        response = requests.post(
+            'https://build.almalinux.org/api/v1/sign-tasks/sync_sign_task/',
+            headers=headers, json=json_data)
         content = json.loads(response.content.decode())
-        logging.info(content)
-        logging.info(type(content))
-
-        ssh_koji.upload_file(content["asc_content"], f'{ftp_path}/images/CHECKSUM.asc')
-
-        logging.debug(stdout.read().decode())
-
-        stdout, _ = ssh_koji.safe_execute(f'rsync -avSHP {ftp_path} {deploy_path}')
+        ssh_koji.upload_file(
+            content["asc_content"], f'{ftp_path}/images/CHECKSUM.asc'
+        )
+        stdout, _ = ssh_koji.safe_execute(
+            f'rsync -avSHP {ftp_path} {deploy_path}'
+        )
         ssh_koji.close()
         ssh_deploy = builder.ssh_remote_connect(
             settings.alma_repo_ip, 'deploy-repo-alma',
             'repo-alma.corp.cloudlinux.com'
         )
-        stdout, _ = ssh_deploy.safe_execute('systemctl start --no-block rsync-repo-alma')
+        stdout, _ = ssh_deploy.safe_execute(
+            'systemctl start --no-block rsync-repo-alma'
+        )
         logging.info(stdout.read().decode())
         ssh_deploy.close()
 
@@ -296,9 +238,11 @@ class BaseHypervisor:
         apply = 'terraform apply --auto-approve'
         if settings.image == 'Docker':
             if self.arch == 'aarch64':
-                apply = 'terraform apply -var=ami_id=ami-070a38d61ee1ea697 -var=instance_type=t4g.large --auto-approve'
+                apply = 'terraform apply -var=ami_id=ami-070a38d61ee1ea697 ' \
+                        '-var=instance_type=t4g.large --auto-approve'
             elif self.arch == 'x86_64':
-                apply = 'terraform apply -var=ami_id=ami-00964f8756a53c964 -var=instance_type=t3.medium --auto-approve'
+                apply = 'terraform apply -var=ami_id=ami-00964f8756a53c964 ' \
+                        '-var=instance_type=t3.medium --auto-approve'
         terraform_commands.append(apply)
         for cmd in terraform_commands:
             execute_command(cmd, self.terraform_dir)
@@ -312,7 +256,7 @@ class BaseHypervisor:
         if self.arch == 'aarch64':
             shutil.rmtree(self.terraform_dir)
 
-    def upload_to_bucket(self, builder: Builder, files: list):
+    def upload_to_bucket(self, builder: Builder, files: list, file_path: str):
         """
         Upload files to S3 bucket.
 
@@ -322,18 +266,20 @@ class BaseHypervisor:
             Builder on AWS Instance.
         files : list
             List of files to upload to S3 bucket.
+        file_path : str
+            Path to files to upload.
         """
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Uploading to S3 bucket')
         timestamp_name = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
         for file in files:
-            cmd = f'bash -c "sha256sum {self.cloud_images_path}/{file}"'
+            cmd = f'bash -c "sha256sum {file_path}/{file}"'
             try:
                 stdout, _ = ssh.safe_execute(cmd)
             except ExecuteError:
                 continue
             checksum = stdout.read().decode().split()[0]
-            cmd = f'bash -c "aws s3 cp {self.cloud_images_path}/{file} ' \
+            cmd = f'bash -c "aws s3 cp {file_path}/{file} ' \
                   f's3://{settings.bucket}/{timestamp_name}/ --metadata sha256={checksum}"'
             stdout, _ = ssh.safe_execute(cmd)
             logging.info(stdout.read().decode())
@@ -356,7 +302,8 @@ class BaseHypervisor:
         execute_command(
             f'scp -i /var/lib/jenkins/.ssh/alcib_rsa4096 '
             f'{qcow_name} mockbuild@{settings.koji_ip}:{ftp_path}/images/{qcow_name}',
-            qcow_path)
+            qcow_path
+        )
         try:
             self.koji_release(ftp_path, qcow_name, builder)
         finally:
@@ -376,29 +323,28 @@ class BaseHypervisor:
         stdout, _ = ssh.safe_execute('packer init ./cloud-images 2>&1')
         logging.info(stdout.read().decode())
         logging.info('Building %s', settings.image)
-        vb_build_log = f'{IMAGE}_{self.arch}_build_{TIMESTAMP}.log'
+        build_log = f'{IMAGE}_{self.arch}_build_{TIMESTAMP}.log'
         if settings.image == 'GenericCloud':
-            cmd = self.packer_build_gencloud.format(vb_build_log)
+            cmd = self.packer_build_gencloud.format(build_log)
         elif settings.image == 'OpenNebula':
-            cmd = self.packer_build_opennebula.format(vb_build_log)
+            cmd = self.packer_build_opennebula.format(build_log)
         else:
-            cmd = self.packer_build_cmd.format(vb_build_log)
+            cmd = self.packer_build_cmd.format(build_log)
         try:
             stdout, _ = ssh.safe_execute(cmd)
             logging.info(stdout.read().decode())
-            sftp = ssh.open_sftp()
-            sftp.get(f'{self.sftp_path}{vb_build_log}',
-                     f'{self.name}-{vb_build_log}')
+            sftp_download(ssh, self.sftp_path, build_log, self.name)
             logging.info('%s built', settings.image)
         finally:
             if settings.image == 'GenericCloud':
-                file = 'output-almalinux-8-gencloud-x86_64/*.qcow2'
+                file = f'output-almalinux-8-gencloud-{self.arch}/*.qcow2'
             elif settings.image == 'OpenNebula':
-                file = 'output-almalinux-8-opennebula-x86_64/*.qcow2'
+                file = f'output-almalinux-8-opennebula-{self.arch}/*.qcow2'
             else:
                 file = '*.box'
             self.upload_to_bucket(
-                builder, [f'{IMAGE}_{self.arch}_build*.log', file]
+                builder, [f'{IMAGE}_{self.arch}_build*.log', file],
+                self.cloud_images_path
             )
         ssh.close()
         logging.info('Connection closed')
@@ -478,7 +424,7 @@ class BaseHypervisor:
         logging.info('Uploading openstack image')
         stdout, _ = ssh.safe_execute(
             f'cp '
-            f'{cloud_path}/cloud-images/output-almalinux-8-gencloud-{self.arch}/*.qcow2 '
+            f'{cloud_path}/output-almalinux-8-gencloud-{self.arch}/*.qcow2 '
             f'{test_path_tf}/upload_image/{arch}/'
         )
         terraform_commands = ['terraform init', 'terraform fmt',
@@ -505,8 +451,6 @@ class LinuxHypervisors(BaseHypervisor):
     """
     Stages for Linux instances.
     """
-    cloud_images_path = '/home/ec2-user/cloud-images'
-    sftp_path = '/home/ec2-user/cloud-images/'
 
     def init_stage(self, builder: Builder):
         """
@@ -519,41 +463,32 @@ class LinuxHypervisors(BaseHypervisor):
         """
         if settings.image == 'Docker' and self.arch == 'ppc64le':
             lines = ['[aws_instance_public_ip]\n', settings.ppc64le_host, '\n']
-            inv = {
-                "aws_instance": {
-                    "hosts": {
-                        settings.ppc64le_host: {
-                            "ansible_user": "alcib",
-                            "ansible_ssh_private_key_file":
-                                str(builder.AWS_KEY_PATH.absolute())
-                        }
-                    }
-                }
-            }
+            ansible_host = settings.ppc64le_host
+            user = "alcib"
         else:
             self.create_aws_instance()
             self.wait_instance_ready([self.instance_id])
             lines = ['[aws_instance_public_ip]\n', self.instance_ip, '\n']
-            inv = {
-                "aws_instance": {
-                    "hosts": {
-                        self.instance_ip: {
-                            "ansible_user": "ec2-user",
-                            "ansible_ssh_private_key_file":
-                                str(builder.AWS_KEY_PATH.absolute())
-                        }
+            ansible_host = self.instance_ip
+            user = "ec2-user"
+        inv = {
+            "aws_instance": {
+                "hosts": {
+                    ansible_host: {
+                        "ansible_user": user,
+                        "ansible_ssh_private_key_file":
+                            str(builder.AWS_KEY_PATH.absolute())
                     }
                 }
             }
+        }
         hosts_file = open('./ansible/hosts', 'w')
         hosts_file.writelines(lines)
         hosts_file.close()
-
         logging.info('Running Ansible')
         playbook = 'configure_aws_instance.yml'
         if settings.image == 'Docker':
             playbook = 'configure_docker.yml'
-
         ansible_runner.interface.run(project_dir='./ansible',
                                      playbook=playbook,
                                      inventory=inv)
@@ -591,12 +526,12 @@ class LinuxHypervisors(BaseHypervisor):
                 f'{self.cloud_images_path}/tests/vagrant/test_vagrant.py '
                 f'2>&1 | tee ./{vb_test_log}')
             logging.info(stdout.read().decode())
-            sftp = ssh.open_sftp()
-            sftp.get(f'{self.cloud_images_path}/{vb_test_log}',
-                     f'{self.name}-{vb_test_log}')
+            sftp_download(ssh, self.cloud_images_path, vb_test_log, self.name)
             logging.info('Tested')
         finally:
-            self.upload_to_bucket(builder, ['vagrant_box_test*.log'])
+            self.upload_to_bucket(
+                builder, ['vagrant_box_test*.log'], self.cloud_images_path
+            )
         ssh.close()
         logging.info('Connection closed')
 
@@ -615,11 +550,9 @@ class LinuxHypervisors(BaseHypervisor):
         else:
             user = 'ec2-user'
             ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
-        logging.info(settings.docker_configuration)
-        logging.info(type(settings.docker_configuration))
+        docker_tmp = f'/home/{user}/docker-tmp/'
+        docker_images = f'/home/{user}/docker-images/'
         docker_list = settings.docker_configuration.split(',')
-        logging.info(docker_list)
-        logging.info(type(docker_list))
         headers = {
             'Authorization': f'Bearer {settings.github_token}',
             'Accept': 'application/vnd.github.v3+json',
@@ -631,11 +564,9 @@ class LinuxHypervisors(BaseHypervisor):
         )
         logging.info(response.status_code, response.content.decode())
         stdout, _ = ssh.safe_execute(
-            f'mkdir /home/{user}/.aws/ && mkdir /home/{user}/docker-tmp/'
-        )
-        stdout, _ = ssh.safe_execute(
-            f'sudo chown -R {user}:{user} /home/{user}/docker-images/ && '
-            f'sudo chown -R {user}:{user} /home/{user}/docker-tmp/ && '
+            f'mkdir /home/{user}/.aws/ && mkdir {docker_tmp} && '
+            f'sudo chown -R {user}:{user} {docker_tmp} && '
+            f'sudo chown -R {user}:{user} {docker_images} && '
             f'sudo chown -R {user}:{user} /home/{user}/.aws/'
         )
         sftp = ssh.open_sftp()
@@ -644,19 +575,8 @@ class LinuxHypervisors(BaseHypervisor):
         sftp.putfo(StringIO(builder.AWS_CREDENTIALS), f'/home/{user}/.aws/credentials')
         sftp.putfo(StringIO(builder.AWS_CONFIG), f'/home/{user}/.aws/config')
         logging.info('%s built', settings.image)
-        headers = {
-            'Authorization': f'Bearer {settings.github_token}',
-            'Accept': 'application/vnd.github.v3+json',
-        }
         repo = 'https://api.github.com/repos/VanessaRish/docker-images'
-        branch_regex = r'^al-\d\.\d\.\d-\d{8}$'
-        response = requests.get(f'{repo}/branches', headers=headers)
-        branches = []
-        for item in json.loads(response.content.decode()):
-            res = re.search(branch_regex, item['name'])
-            if res:
-                branches.append(item['name'])
-        branches.sort()
+        branches = get_git_branches(headers, repo)
         branch = branches[-1]
         requests.post(
             f'{repo}/merge-upstream',
@@ -665,54 +585,40 @@ class LinuxHypervisors(BaseHypervisor):
         stdout, _ = ssh.safe_execute(
             f'chmod 600 /home/{user}/.ssh/config && '
             f'chmod 600 /home/{user}/aws_test && '
-            f'git clone git@github.com:VanessaRish/docker-images.git /home/{user}/docker-tmp/ && '
-            f'cd /home/{user}/docker-tmp/ && git checkout {branch} && '
+            f'git clone git@github.com:VanessaRish/docker-images.git {docker_tmp} && '
+            f'cd {docker_tmp} && git checkout {branch} && '
             f'git config --global user.name "Mariia Boldyreva" && '
             f'git config --global user.email "shelterly@gmail.com"'
         )
         for conf in docker_list:
             stdout, _ = ssh.safe_execute(
-                f'cd /home/{user}/docker-images/ && git reset --hard && git checkout master && git pull '
+                f'cd {docker_images} && git reset --hard && git checkout master && git pull'
             )
             build_log = f'{IMAGE}_{conf}_{self.arch}_build_{TIMESTAMP}.log'
             try:
                 stdout, _ = ssh.safe_execute(
-                    f'cd /home/{user}/docker-images/ && '
+                    f'cd {docker_images} && '
                     f'sudo ./build.sh -o {conf} -t {conf} 2>&1 | tee ./{build_log}'
                 )
-                sftp.get(f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/logs/{build_log}',
-                         f'{build_log}')
+                sftp_download(
+                    ssh, docker_images,
+                    f'{conf}_{self.arch}-{conf}/logs/{build_log}', self.name
+                )
+
                 files = [
-                    f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',
-                    f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/Dockerfile-{self.arch}-{conf}',
-                    f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/rpm-packages-{self.arch}-{conf}',
-                    f'/home/{user}/docker-images/{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz'
+                    f'{conf}_{self.arch}-{conf}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',
+                    f'{conf}_{self.arch}-{conf}/Dockerfile-{self.arch}-{conf}',
+                    f'{conf}_{self.arch}-{conf}/rpm-packages-{self.arch}-{conf}',
+                    f'{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz'
                 ]
-                timestamp_name = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
+                self.upload_to_bucket(builder, files, docker_images)
                 for file in files:
                     stdout, _ = ssh.safe_execute(
-                        f'cp {file} /home/{user}/docker-tmp/'
+                        f'cp {docker_images}{file} {docker_tmp}'
                     )
-
-                    stdout, _ = ssh.safe_execute(
-                        f'bash -c "sha256sum {file}"'
-                    )
-                    checksum = stdout.read().decode().split()[0]
-                    stdout, _ = ssh.safe_execute(
-                        "export AWS_DEFAULT_REGION='us-east-1' && "
-                        "export AWS_ACCESS_KEY_ID='{}' "
-                        "&& export AWS_SECRET_ACCESS_KEY='{}'".format(
-                            os.getenv('AWS_ACCESS_KEY_ID'),
-                            os.getenv('AWS_SECRET_ACCESS_KEY'))
-                    )
-                    cmd = f'bash -c "aws s3 cp {file} ' \
-                          f's3://{settings.bucket}/{timestamp_name}/ --metadata sha256={checksum}"'
-                    stdout, _ = ssh.safe_execute(cmd)
-                    logging.info(stdout.read().decode())
-
                 stdout, _ = ssh.safe_execute(
-                    f'mv /home/{user}/docker-tmp/rpm-packages-{self.arch}-{conf} '
-                    f'/home/{user}/docker-tmp/rpm-packages-{conf}'
+                    f'mv {docker_tmp}rpm-packages-{self.arch}-{conf} '
+                    f'{docker_tmp}rpm-packages-{conf}'
                 )
             finally:
                 logging.info(f'Docker Image {conf} built')
@@ -728,23 +634,20 @@ class LinuxHypervisors(BaseHypervisor):
         else:
             user = 'ec2-user'
             ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
+        docker_tmp = '/home/{user}/docker-tmp/'
         if 'micro' in docker_list:
             docker_list.remove('micro')
         for conf in docker_list:
             stdout, _ = ssh.safe_execute(
-                f"cd /home/{user}/docker-tmp/ && "
-                f"git diff --unified=0 /home/{user}/docker-tmp/rpm-packages-{conf} | grep '^[+|-][^+|-]' || true"
+                f"cd {docker_tmp} && git diff --unified=0 "
+                f"{docker_tmp}rpm-packages-{conf} | grep '^[+|-][^+|-]' || true"
             )
             packages = stdout.read().decode()
             packages = packages.split('\n')
             stdout, _ = ssh.safe_execute(
-                f'mkdir /home/{user}/docker-tmp/fake-root-{conf}/ '
-            )
-            stdout, _ = ssh.safe_execute(
-                f'sudo chown -R {user}:{user} /home/{user}/docker-tmp/fake-root-{conf}/'
-            )
-            stdout, _ = ssh.safe_execute(
-                f"tar -xvf /home/{user}/docker-tmp/almalinux-8-docker-{self.arch}-{conf}.tar.xz -C /home/{user}/docker-tmp/fake-root-{conf}"
+                f'mkdir {docker_tmp}fake-root-{conf}/ && '
+                f'sudo chown -R {user}:{user} {docker_tmp}fake-root-{conf}/ && '
+                f'tar -xvf {docker_tmp}almalinux-8-docker-{self.arch}-{conf}.tar.xz -C {docker_tmp}fake-root-{conf}'
             )
             raw_packages = list(filter(None, packages))
             packages = collections.defaultdict(dict)
@@ -754,7 +657,7 @@ class LinuxHypervisors(BaseHypervisor):
                 packages[package.name][sign] = package
                 if sign == '+':
                     changelog, _ = ssh.safe_execute(
-                        f"sudo chroot /home/{user}/docker-tmp/fake-root-{conf}/ rpm -q --changelog {package.name}"
+                        f'sudo chroot {docker_tmp}fake-root-{conf}/ rpm -q --changelog {package.name}'
                     )
                     packages[package.name]['changelog'] = changelog.read().decode()
             for pkg in packages.values():
@@ -785,27 +688,25 @@ class LinuxHypervisors(BaseHypervisor):
         commit_msg = '\n\n'.join(text)
 
         stdout, _ = ssh.safe_execute(
-            f'cd /home/{user}/docker-tmp/ && git reset --hard && git fetch && '
+            f'cd {docker_tmp} && git reset --hard && git fetch && '
             f'git checkout al-{settings.almalinux}-{TIMESTAMP} && git pull'
         )
+        logging.info(stdout.read().decode())
         for conf in docker_list:
             stdout, _ = ssh.safe_execute(
-                f'cp /home/{user}/docker-images/{conf}_{self.arch}-{conf}/Dockerfile-{self.arch}-{conf} /home/{user}/docker-tmp/'
+                f'cp {docker_tmp}{conf}_{self.arch}-{conf}/Dockerfile-{self.arch}-{conf} {docker_tmp} && '
+                f'cp {docker_tmp}{conf}_{self.arch}-{conf}/rpm-packages-{self.arch}-{conf} {docker_tmp}rpm-packages-{conf} && '
+                f'cp {docker_tmp}{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz {docker_tmp}'
             )
-            stdout, _ = ssh.safe_execute(
-                f'cp /home/{user}/docker-images/{conf}_{self.arch}-{conf}/rpm-packages-{self.arch}-{conf} /home/{user}/docker-tmp/rpm-packages-{conf}'
-            )
-            stdout, _ = ssh.safe_execute(
-                f'cp /home/{user}/docker-images/{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz /home/{user}/docker-tmp/rpm-packages-{conf}'
-            )
-
         stdout, _ = ssh.safe_execute(
             f'cd /home/{user}/docker-tmp/ && '
             f'git add Dockerfile-{self.arch}* rpm-packages* *.tar.xz '
             f'&& git commit -m "{commit_msg}" && git push origin al-{settings.almalinux}-{TIMESTAMP}'
         )
+        logging.info(stdout.read().decode())
         logging.info(commit_msg)
 
+    @staticmethod
     def clear_ppc64le_host(self, builder):
         ssh = builder.ssh_remote_connect(settings.ppc64le_host, 'alcib', 'PPC64LE')
         cmd = 'sudo rm -r /home/alcib/docker-images && sudo rm -r /home/alcib/*-tmp && sudo rm -r /home/alcib/.aws'
@@ -881,20 +782,21 @@ class HyperV(BaseHypervisor):
         logging.info(stdout.read().decode())
         logging.info('Starting testing')
         vb_test_log = f'vagrant_box_test_{TIMESTAMP}.log'
-        cmd = f'cd {self.sftp_path} ; ' \
-              f'py.test -v --hosts=almalinux-test-1,almalinux-test-2 ' \
-              f'--ssh-config=.vagrant/ssh-config ' \
-              f'{self.sftp_path}tests\\vagrant\\test_vagrant.py ' \
-              f'| Out-File -FilePath {self.sftp_path}{vb_test_log}'
         try:
-            stdout, _ = ssh.safe_execute(cmd)
+            stdout, _ = ssh.safe_execute(
+                f'cd {self.sftp_path} ; '
+                f'py.test -v --hosts=almalinux-test-1,almalinux-test-2 '
+                f'--ssh-config=.vagrant/ssh-config '
+                f'{self.sftp_path}tests\\vagrant\\test_vagrant.py '
+                f'| Out-File -FilePath {self.sftp_path}{vb_test_log}'
+            )
             logging.info(stdout.read().decode())
-            sftp = ssh.open_sftp()
-            sftp.get(f'{self.sftp_path}{vb_test_log}',
-                     f'{self.name}-{vb_test_log}')
+            sftp_download(ssh, self.sftp_path, vb_test_log, self.name)
             logging.info('Tested')
         finally:
-            self.upload_to_bucket(builder, ['vagrant_box_test*.log'])
+            self.upload_to_bucket(
+                builder, [vb_test_log], self.cloud_images_path
+            )
         ssh.close()
         logging.info('Connection closed')
 
@@ -979,12 +881,13 @@ class KVM(LinuxHypervisors):
                   ami_id, self.arch, self.arch)
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
-        self.upload_to_bucket(builder, ['aws_amis*.csv', 'AWS_AMIS*.md'])
-        sftp = ssh.open_sftp()
-        sftp.get(f'{self.sftp_path}/aws_amis-{self.arch}.csv',
-                 f'aws_amis-{self.arch}.csv')
-        sftp.get(f'{self.sftp_path}/AWS_AMIS-{self.arch}.md',
-                 f'AWS_AMIS-{self.arch}.md')
+        self.upload_to_bucket(
+            builder,
+            [f'aws_amis-{self.arch}.csv', f'AWS_AMIS-{self.arch}.md'],
+            self.cloud_images_path
+        )
+        sftp_download(ssh, self.sftp_path, f'aws_amis-{self.arch}.csv', self.name)
+        sftp_download(ssh, self.sftp_path, f'AWS_AMIS-{self.arch}.md', self.name)
         ssh.close()
 
     def build_aws_stage(self, builder: Builder, arch: str):
@@ -1030,14 +933,10 @@ class KVM(LinuxHypervisors):
         try:
             stdout, _ = ssh.safe_execute(cmd)
         finally:
-            self.upload_to_bucket(builder, ['aws_ami_build*.log'])
-        sftp = ssh.open_sftp()
-        sftp.get(
-            f'{self.sftp_path}{aws_build_log}',
-            f'{self.name}-{aws_build_log}'
-        )
-        stdout = stdout.read().decode()
-        logging.info(stdout)
+            self.upload_to_bucket(
+                builder, [aws_build_log], self.cloud_images_path
+            )
+        sftp_download(ssh, self.sftp_path, aws_build_log, self.name)
         ami = save_ami_id(stdout, self.arch)
         aws_hypervisor = AwsStage2(self.arch)
         tfvars = {'ami_id': ami}
@@ -1045,15 +944,12 @@ class KVM(LinuxHypervisors):
                                     'terraform.tfvars.json')
         with open(tf_vars_file, 'w') as tf_file_fd:
             json.dump(tfvars, tf_file_fd)
-        cloudinit_script_path = os.path.join(
-            self.cloud_images_path, 'build-tools-on-ec2-userdata.yml'
-        )
+        sftp = ssh.open_sftp()
         sftp.get(
-            cloudinit_script_path,
-            os.path.join(
-                aws_hypervisor.terraform_dir,
-                'build-tools-on-ec2-userdata.yml'
-            )
+            os.path.join(self.cloud_images_path,
+                         'build-tools-on-ec2-userdata.yml'),
+            os.path.join(aws_hypervisor.terraform_dir,
+                         'build-tools-on-ec2-userdata.yml')
         )
         ssh.close()
         logging.info('Connection closed')
@@ -1111,9 +1007,10 @@ class KVM(LinuxHypervisors):
             )
             logging.info(stdout.read().decode())
         finally:
-            self.upload_to_bucket(builder, ['aws_ami_test*.log'])
-        sftp.get(f'{self.cloud_images_path}/{aws_test_log}',
-                 f'{self.arch}-{aws_test_log}')
+            self.upload_to_bucket(
+                builder, ['aws_ami_test*.log'], self.cloud_images_path
+            )
+        sftp_download(ssh, self.cloud_images_path, aws_test_log, self.arch)
         logging.info('Tested')
         stdout, _ = ssh.safe_execute(
             f'cd {test_path_tf} && {cmd_export} && '
@@ -1148,7 +1045,7 @@ class KVM(LinuxHypervisors):
         arch = self.arch if self.arch == 'aarch64' else 'amd64'
         test_path_tf = f'{self.cloud_images_path}/tests/genericcloud'
         gc_test_log = self.prepare_openstack(
-            ssh, '/home/ec2-user', arch, test_path_tf
+            ssh, '/home/ec2-user/cloud-images', arch, test_path_tf
         )
         script = f'{test_path_tf}/launch_test_instances/{arch}/test_genericcloud.py'
         cmd = f'cd {self.cloud_images_path} && ' \
@@ -1159,9 +1056,10 @@ class KVM(LinuxHypervisors):
             stdout, _ = ssh.safe_execute(cmd)
             logging.info(stdout.read().decode())
         finally:
-            self.upload_to_bucket(builder, ['genericcloud_test*.log'])
-            sftp.get(f'{self.cloud_images_path}/{gc_test_log}',
-                     f'{self.arch}-{gc_test_log}')
+            self.upload_to_bucket(
+                builder, ['genericcloud_test*.log'], self.cloud_images_path
+            )
+            sftp_download(ssh, self.cloud_images_path, gc_test_log, self.arch)
             logging.info('Tested')
             stdout, _ = ssh.safe_execute(
                 f'cd {test_path_tf}/launch_test_instances/{arch}/ && '
@@ -1175,15 +1073,6 @@ class KVM(LinuxHypervisors):
             logging.info(stdout.read().decode())
         ssh.close()
         logging.info('Connection closed')
-
-
-def generate_clouds(yaml_template) -> str:
-    """
-    Generates clouds.yaml
-    """
-    env = Environment(loader=DictLoader({'clouds': yaml_template}))
-    template = env.get_template('clouds')
-    return template.render(config=settings)
 
 
 class AwsStage2(KVM):
@@ -1221,13 +1110,7 @@ class AwsStage2(KVM):
             pass
         cmd = f'bash -c "sha256sum {self.cloud_images_path}/{aws2_build_log}"'
         stdout, _ = ssh.safe_execute(cmd)
-        sftp = ssh.open_sftp()
-        sftp.get(
-            f'{self.sftp_path}{aws2_build_log}',
-            f'{self.name}-{aws2_build_log}'
-        )
-        logging.info(stdout.read().decode())
-
+        sftp_download(ssh, self.sftp_path, aws2_build_log, self.name)
         try:
             self.s3_bucket.upload_file(
                 f'{self.name}-{aws2_build_log}', settings.bucket,
@@ -1269,7 +1152,6 @@ class Equinix(BaseHypervisor):
         builder: Builder
             Main Builder Configuration.
         """
-        # ssh = builder.ssh_equinix_connect()
         ssh = builder.ssh_remote_connect(settings.equinix_ip, 'root', 'Equinix')
         logging.info('Connection is good')
         stdout, _ = ssh.safe_execute(
@@ -1278,19 +1160,6 @@ class Equinix(BaseHypervisor):
         logging.info(stdout.read().decode())
         ssh.close()
         logging.info('Connection closed')
-
-    def upload_to_s3(self, ssh, file: str):
-        """
-        Uploads to S3 bucket without builder.
-        """
-        cmd = f'bash -c "sha256sum /root/cloud-images/{file}"'
-        stdout, _ = ssh.safe_execute(cmd)
-        stdout, _ = ssh.safe_execute(
-            f'bash -c "aws s3 cp /root/cloud-images/{file} '
-            f's3://{settings.bucket}/{settings.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}/ '
-            f'--metadata sha256={stdout.read().decode().split()[0]}"')
-        logging.info(stdout.read().decode())
-        logging.info('Uploaded')
 
     def build_stage(self, builder: Builder):
         ssh = builder.ssh_remote_connect(settings.equinix_ip, 'root', 'Equinix')
@@ -1310,12 +1179,11 @@ class Equinix(BaseHypervisor):
                 file = 'output-almalinux-8-gencloud-aarch64/*.qcow2'
             else:
                 file = 'output-almalinux-8-opennebula-aarch64/*.qcow2'
-            for file in [f'{IMAGE}_{self.arch}_build*.log', file]:
-                self.upload_to_s3(ssh, file)
-        sftp = ssh.open_sftp()
-        sftp.get(f'/root/cloud-images/{gc_build_log}',
-                 f'{self.name}-{gc_build_log}')
-        logging.info(stdout.read().decode())
+            self.upload_to_bucket(
+                builder, [f'{IMAGE}_{self.arch}_build*.log', file],
+                '/root/cloud-images'
+            )
+        sftp_download(ssh, '/root/cloud-images/', gc_build_log, self.name)
         logging.info('%s built', settings.image)
         ssh.close()
         logging.info('Connection closed')
@@ -1344,7 +1212,7 @@ class Equinix(BaseHypervisor):
         arch = self.arch if self.arch == 'aarch64' else 'amd64'
         test_path_tf = '/root/cloud-images/tests/genericcloud/'
         gc_test_log = self.prepare_openstack(
-            ssh, '/root', arch, test_path_tf
+            ssh, '/root/cloud-images', arch, test_path_tf
         )
         script = f'{test_path_tf}/launch_test_instances/{arch}/test_genericcloud.py'
         try:
@@ -1355,9 +1223,8 @@ class Equinix(BaseHypervisor):
                 f'{script} 2>&1 | tee ./{gc_test_log}')
             logging.info(stdout.read().decode())
         finally:
-            self.upload_to_s3(ssh, gc_test_log)
-            sftp.get(f'/root/cloud-images/{gc_test_log}',
-                     f'{self.arch}-{gc_test_log}')
+            self.upload_to_bucket(builder, [gc_test_log], '/root/cloud-images')
+            sftp_download(ssh, '/root/cloud-images/', gc_test_log, self.arch)
             logging.info('Tested')
             stdout, _ = ssh.safe_execute(
                 f'cd {test_path_tf}/launch_test_instances/{arch}/ && '

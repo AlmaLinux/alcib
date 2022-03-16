@@ -18,6 +18,7 @@ import re
 from lib.builder import Builder
 from lib.hypervisors import get_hypervisor, TIMESTAMP
 from lib.config import settings
+from lib.utils import get_git_branch
 
 
 headers = {
@@ -108,14 +109,7 @@ def almalinux_wiki_pr():
 
 def create_new_branch():
     repo = 'https://api.github.com/repos/VanessaRish/docker-images'
-    branch_regex = r'^al-\d\.\d\.\d-\d{8}$'
-    response = requests.get(f'{repo}/branches', headers=headers)
-    branches = []
-    for item in json.loads(response.content.decode()):
-        res = re.search(branch_regex, item['name'])
-        if res:
-            branches.append(item['name'])
-    branches.sort()
+    branches = get_git_branches(headers, repo)
     branch = branches[-1]
     if f'al-{settings.almalinux}-{TIMESTAMP}' not in branches:
         response = requests.get(f'{repo}/git/refs/heads', headers=headers)

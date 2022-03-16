@@ -13,12 +13,11 @@ import os
 import base64
 import json
 import requests
-import re
 
 from lib.builder import Builder
 from lib.hypervisors import get_hypervisor, TIMESTAMP
 from lib.config import settings
-from lib.utils import get_git_branch
+from lib.utils import get_git_branches
 
 
 headers = {

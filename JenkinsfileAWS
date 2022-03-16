@@ -22,10 +22,16 @@ def performBuildStages(String arch) {
     }
 }
 
+def performPublishStages(String arch) {
+    return {
+            sh "python3 -u main.py --stage release --hypervisor KVM --arch ${arch}"
+    }
+}
+
 pipeline {
   agent any
   parameters {
-      choice(name: 'IMAGE', choices: ['AWS AMI', 'Vagrant Box', 'Generic Cloud'], description: 'Cloud image to update: build, test, release')
+      choice(name: 'IMAGE', choices: ['AWS AMI', 'Vagrant Box', 'GenericCloud', 'OpenNebula'], description: 'Cloud image to update: build, test, release')
       extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64', visibleItemCount: 2)
       string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
       booleanParam(defaultValue: true, description: 'Destroy AWS instance', name: 'DESTROY')
@@ -34,6 +40,7 @@ pipeline {
       AWS_ACCESS_KEY_ID = credentials('jenkins-aws-access-key-id')
       AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws-secret-access-key')
       SSH_KEY_FILE = credentials('jenkins-aclib-ssh-private-key')
+      GITHUB_TOKEN = credentials('github_token')
   }
 
   stages {
@@ -86,6 +93,41 @@ pipeline {
                   parallel jobs
               }
           }
+          post {
+              success {
+                  slackSend channel: '#test-auto-vagrant',
+                            color: 'good',
+                            message: "The build ${currentBuild.fullDisplayName} ready to be released as new AWS AMIs, please, approve: ${currentBuild.absoluteUrl}"
+              }
+          }
+      }
+      stage('Publish new AMIs release') {
+        steps {
+              timeout(time:2, unit:'DAYS') {
+                  script {
+                      def userInput = input(
+                        id: 'userInput',
+                        message: 'AMI successfully scanned and ready for release ?', ok: 'Starting publishing!',
+                        parameters: [choice(name: 'RELEASE_SCOPE', choices: 'yes\nno')]
+                      )
+                      env.RELEASE_SCOPE = userInput
+                      if (env.RELEASE_SCOPE == 'yes') {
+                        def jobs = [:]
+                        for (arch in params.ARCH.replace('"', '').split(',')) {
+                            jobs[arch] = performPublishStages(arch)
+                        }
+                        parallel jobs
+                      }
+                      def arches = params.ARCH.replace('"', '').split(',')
+                      if (arches.length == 2) {
+                        sh('git clone https://github.com/VanessaRish/wiki.git')
+                        sh('paste -d \\\\n aws_amis-x86_64.csv aws_amis-aarch64.csv > wiki/docs/.vuepress/public/ci-data/aws_amis.csv')
+                        sh('paste -d \\\\n AWS_AMIS-x86_64.md AWS_AMIS-aarch64.md > wiki/docs/cloud/AWS_AMIS.md')
+                        sh('python3 -u main.py --stage pullrequest')
+                      }
+                  }
+              }
+          }
       }
       stage('Destroy AWS instance') {
           when {
@@ -108,7 +150,7 @@ pipeline {
 
   post {
       always {
-          archiveArtifacts artifacts: '*.log'
+          archiveArtifacts artifacts: '*.log, *.md, *.csv, wiki/*.csv, wiki/*.md'
       }
       success {
           slackSend channel: '#test-auto-vagrant',

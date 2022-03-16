@@ -25,7 +25,6 @@ class ExecuteError(Exception):
     """
     Remote command execution Exception.
     """
-
     pass
 
 
@@ -45,16 +44,20 @@ class ParamikoWrapper(paramiko.SSHClient):
             A remote command to execute.
         """
         cmd = 'set -o pipefail; ' + cmd
-        logging.info(f'Executing {cmd}')
+        logging.info('Executing %s', cmd)
         stdin, stdout, stderr = self.exec_command(cmd, *args, **kwargs)
         stdin.flush()
         exit_status = stdout.channel.recv_exit_status()
         if exit_status != 0:
-            logging.info(f'Command output:\n{stdout.read().decode()}')
-            logging.error(f'Traceback:\n{stderr.read().decode()}')
+            logging.info('Command output:\n%s', stdout.read().decode())
+            logging.error('Traceback:\n%s', stderr.read().decode())
             raise ExecuteError(f'Command \'{cmd}\' execution failed.')
 
         return stdout, stderr
+
+    def upload_file(self, content, file_path):
+        sftp = self.open_sftp()
+        sftp.putfo(io.StringIO(content), file_path)
 
 
 class Builder:
@@ -64,6 +67,24 @@ class Builder:
     """
 
     AWS_KEY_PATH = pathlib.Path('aws_test')
+    SSH_CONFIG = """
+Host *
+    StrictHostKeyChecking no
+    UserKnownHostsFile=/dev/null
+
+Host github.com
+    Hostname github.com
+    IdentityFile ~/aws_test
+    """
+    AWS_CREDENTIALS = f"""
+    [default]
+aws_access_key_id = {os.getenv('AWS_ACCESS_KEY_ID')}
+aws_secret_access_key = {os.getenv('AWS_SECRET_ACCESS_KEY')}
+    """
+    AWS_CONFIG = """
+    [default]
+region = us-east-1
+    """
 
     def __init__(self):
         """
@@ -122,7 +143,7 @@ class Builder:
         -------
         builder.ParamikoWrapper
         """
-        logging.info(f'Connecting to instance {instance_ip}')
+        logging.info('Connecting to instance %s', instance_ip)
         instance = self.find_aws_instance(instance_ip)
         ssh_client = self.get_ssh_client()
         if hypervisor.lower() != 'hyperv':
@@ -139,9 +160,8 @@ class Builder:
             )
         return ssh_client
 
-    def ssh_equinix_connect(self):
-        equinix_ip = settings.equinix_ip
-        logging.info('Connecting to Equinix Server')
+    def ssh_remote_connect(self, ip, user, server_name):
+        logging.info('Connecting to %s Server', server_name)
         ssh_client = self.get_ssh_client()
-        ssh_client.connect(equinix_ip, username='root', pkey=self.private_key)
+        ssh_client.connect(ip, username=user, pkey=self.private_key)
         return ssh_client

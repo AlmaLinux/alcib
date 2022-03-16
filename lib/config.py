@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     aarch_project_id: str = ''
     amd_project_id: str = ''
     equinix_ip: str = ''
+    github_token: str = ''
+    opennebula_node: str = ''
+    koji_ip: str = ''
+    alma_repo_ip: str = ''
+    sign_jwt_token: str = ''
+    docker_configuration: str = ''
+    ppc64le_host: str = ''
+    almalinux: str = ''
 
 
 settings = Settings()

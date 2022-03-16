@@ -1,0 +1,10 @@
+---
+
+- name: configure aws instance
+  hosts: all
+  remote_user: root
+  gather_facts: yes
+
+  roles:
+    - { role: docker, when: ansible_architecture != "ppc64le" }
+    - { role: install_packer, when: ansible_architecture == "ppc64le" }

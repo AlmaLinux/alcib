@@ -10,26 +10,16 @@
     - git
     - python3-devel
     - jq
-    - terraform
     - lorax
     - anaconda-tui
     - subscription-manager
 
 - name: Installing testinfra
   pip:
-    name: ['pytest', 'pyinfra', 'testinfra', 'boto3', 'markdown_table']
+    name: ['boto3', 'markdown_table', 'awscli']
     executable: pip3
   become: yes
   become_user: root
-
-- name: Clone cloud-images repo
-  become_user: root
-  become: true
-  git:
-    repo: 'https://github.com/AlmaLinux/cloud-images.git'
-    dest: './cloud-images'
-    # version: master
-    force: yes
 
 - name: Clone Docker images repo
   become_user: root
@@ -42,21 +32,9 @@
 
 - name: Change permissions
   file:
-    path: './cloud-images'
-    mode: 0777
-    recurse: yes
-    group: ec2-user
-    owner: ec2-user
-  become: yes
-
-- name: Change permissions
-  file:
     path: './docker-images'
     mode: 0777
     recurse: yes
     group: ec2-user
     owner: ec2-user
   become: yes
-
-#- name: Disable SELinux
-#  shell: setenforce 0

@@ -789,8 +789,8 @@ class LinuxHypervisors(BaseHypervisor):
 
         stdout, _ = ssh.safe_execute(
             f'cd /home/{user}/docker-tmp/ && git stash && git fetch && '
-            f'git checkout al-{settings.almalinux}-{TIMESTAMP} && git stash pop'
-            f' && git pull'
+            f'git checkout al-{settings.almalinux}-{TIMESTAMP} && git pull '
+            f'&& git stash pop'
         )
         stdout, _ = ssh.safe_execute(
             f'cd /home/{user}/docker-tmp/ && '

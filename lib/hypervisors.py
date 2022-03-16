@@ -716,9 +716,6 @@ class LinuxHypervisors(BaseHypervisor):
                 )
             finally:
                 logging.info(f'Docker Image {conf} built')
-                stdout, _ = ssh.safe_execute(
-                    f'sudo rm -r /home/{user}/docker-images/{conf}_{self.arch}-{conf}'
-                )
         ssh.close()
         logging.info('Connection closed')
 
@@ -788,10 +785,20 @@ class LinuxHypervisors(BaseHypervisor):
         commit_msg = '\n\n'.join(text)
 
         stdout, _ = ssh.safe_execute(
-            f'cd /home/{user}/docker-tmp/ && git stash && git fetch && '
-            f'git checkout al-{settings.almalinux}-{TIMESTAMP} && git pull '
-            f'&& git stash pop'
+            f'cd /home/{user}/docker-tmp/ && git reset --hard && git fetch && '
+            f'git checkout al-{settings.almalinux}-{TIMESTAMP} && git pull'
         )
+        for conf in docker_list:
+            stdout, _ = ssh.safe_execute(
+                f'cp /home/{user}/docker-images/{conf}_{self.arch}-{conf}/Dockerfile-{self.arch}-{conf} /home/{user}/docker-tmp/'
+            )
+            stdout, _ = ssh.safe_execute(
+                f'cp /home/{user}/docker-images/{conf}_{self.arch}-{conf}/rpm-packages-{self.arch}-{conf} /home/{user}/docker-tmp/rpm-packages-{conf}'
+            )
+            stdout, _ = ssh.safe_execute(
+                f'cp /home/{user}/docker-images/{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz /home/{user}/docker-tmp/rpm-packages-{conf}'
+            )
+
         stdout, _ = ssh.safe_execute(
             f'cd /home/{user}/docker-tmp/ && '
             f'git add Dockerfile-{self.arch}* rpm-packages* *.tar.xz '

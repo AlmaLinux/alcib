@@ -16,7 +16,7 @@ variable "instance_type" {
 
 variable "ami_id" {
   type = string
-  default = "ami-026dc26f2c8e4d18c"
+  default = "ami-0732b50c88bd647f2"
 }
 
 provider "aws" {

@@ -241,7 +241,7 @@ class BaseHypervisor:
                 apply = 'terraform apply -var=ami_id=ami-070a38d61ee1ea697 ' \
                         '-var=instance_type=t4g.large --auto-approve'
             elif self.arch == 'x86_64':
-                apply = 'terraform apply -var=ami_id=ami-026dc26f2c8e4d18c ' \
+                apply = 'terraform apply -var=ami_id=ami-0732b50c88bd647f2 ' \
                         '-var=instance_type=t3.medium --auto-approve'
         terraform_commands.append(apply)
         for cmd in terraform_commands:

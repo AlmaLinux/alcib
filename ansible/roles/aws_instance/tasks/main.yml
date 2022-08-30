@@ -7,18 +7,34 @@
   become: true
   vars:
     packages:
-    - git
-    - python3-devel
+    - git-core
     - jq
     - terraform
     - lorax
     - anaconda-tui
     - subscription-manager
 
+- name: Install Python development tools
+  ansible.builtin.dnf:
+    name:
+      - python39-devel
+      - python39-wheel-wheel
+      - python39-wheel
+      - python39-setuptools-wheel
+      - python39-setuptools
+  become: yes
+  become_user: root
+
 - name: Installing testinfra
   pip:
-    name: ['pytest', 'pyinfra', 'testinfra', 'boto3', 'markdown_table']
-    executable: pip3
+    name:
+      - pytest-testinfra
+      - paramiko
+      - boto3
+      - markdown-table
+    executable: pip3.9
+    extra_args: --no-cache-dir --upgrade
+    state: present
   become: yes
   become_user: root
 

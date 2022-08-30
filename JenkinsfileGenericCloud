@@ -32,6 +32,7 @@ def performReleaseStages(String hypervisor, String arch) {
 pipeline {
   agent any
   parameters {
+      choice(name: 'OS_MAJOR_VER', choices: ['8', '9'], description: 'AlmaLinux Major Version')
       choice(name: 'IMAGE', choices: ['GenericCloud', 'AWS AMI', 'Vagrant Box', 'OpenNebula'], description: 'Cloud image to update: build, test, release')
       extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64', visibleItemCount: 2)
       string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
@@ -56,6 +57,7 @@ pipeline {
       stage('Create build environment') {
           steps {
               script {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       if (arch == 'x86_64') {
@@ -72,6 +74,7 @@ pipeline {
       stage('Build Generic Cloud Images') {
           steps {
               script {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       if (arch == 'x86_64') {
@@ -88,6 +91,7 @@ pipeline {
       stage('Test Generic Cloud images') {
           steps {
               script {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       if (arch == 'x86_64') {
@@ -102,7 +106,7 @@ pipeline {
           }
           post {
               success {
-                  slackSend channel: '#test-auto-vagrant',
+                  slackSend channel: '#albs-dev-testing-bala',
                             color: 'good',
                             message: "The build ${currentBuild.fullDisplayName} ready to be uploaded to be released , please, approve: ${currentBuild.absoluteUrl}"
               }
@@ -112,6 +116,7 @@ pipeline {
           steps {
               timeout(time:1, unit:'DAYS') {
                   script {
+                      env.OS_MAJOR_VER = params.OS_MAJOR_VER
                       def userInput = input(
                         id: 'userInput',
                         message: 'Release to public ?', ok: 'Starting releasing!',
@@ -143,6 +148,7 @@ pipeline {
           }
           steps {
               script {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VERv
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                     if (arch == 'x86_64') {
@@ -163,16 +169,17 @@ pipeline {
           archiveArtifacts artifacts: '*.log'
       }
       success {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-dev-testing-bala',
                     color: 'good',
                     message: "The build ${currentBuild.fullDisplayName} completed successfully : ${currentBuild.absoluteUrl}"
       }
       failure {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-dev-testing-bala',
                     color: 'danger',
                     message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
           script {
               if (params.DESTROY == true) {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       if (arch == 'x86_64') {
@@ -187,7 +194,7 @@ pipeline {
           }
       }
       aborted {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-dev-testing-bala',
                     color: 'warning',
                     message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
           script {

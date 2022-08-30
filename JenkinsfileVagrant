@@ -31,6 +31,7 @@ def performDestroyStages(String hypervisor) {
 pipeline {
   agent any
   parameters {
+      choice(name: 'OS_MAJOR_VER', choices: ['8', '9'], description: 'AlmaLinux Major Version')
       choice(name: 'IMAGE', choices: ['Vagrant Box', 'AWS AMI', 'GenericCloud', 'OpenNebula'], description: 'Cloud image to update: build, test, release')
       extendedChoice(defaultValue: 'VirtualBox', description: 'Hypervisors options to  build Vagrant Box', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'HYPERVISORS', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'VirtualBox, VMWare_Desktop, KVM, HyperV', visibleItemCount: 4)
       string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
@@ -49,6 +50,7 @@ pipeline {
       stage('Create AWS instance for Vagrant') {
           steps {
               script {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
                       jobs[hv] = performCreateStages(hv)
@@ -60,6 +62,7 @@ pipeline {
       stage('Build Vagrant Box') {
           steps {
               script {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
                       jobs[hv] = performBuildStages(hv)
@@ -71,6 +74,7 @@ pipeline {
       stage('Test Vagrant Box') {
           steps {
               script {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
                       jobs[hv] = performTestStages(hv)
@@ -80,7 +84,7 @@ pipeline {
           }
           post {
               success {
-                  slackSend channel: '#test-auto-vagrant',
+                  slackSend channel: '#albs-dev-testing-bala',
                             color: 'good',
                             message: "The build ${currentBuild.fullDisplayName} ready to be uploaded to Vagrant Cloud , please, approve: ${currentBuild.absoluteUrl}"
               }
@@ -90,6 +94,7 @@ pipeline {
           steps {
               timeout(time:1, unit:'DAYS') {
                   script {
+                      env.OS_MAJOR_VER = params.OS_MAJOR_VER
                       def userInput = input(
                         id: 'userInput',
                         message: 'Upload to Vagrant Cloud', ok: 'Starting uploading!',
@@ -122,6 +127,7 @@ pipeline {
           }
           steps {
               script {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
                       jobs[hv] = performDestroyStages(hv)
@@ -137,16 +143,17 @@ pipeline {
           archiveArtifacts artifacts: '*.log'
       }
       success {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-dev-testing-bala',
                     color: 'good',
                     message: "The build ${currentBuild.fullDisplayName} completed successfully : ${currentBuild.absoluteUrl}"
       }
       failure {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-dev-testing-bala',
                     color: 'danger',
                     message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
           script {
               if (params.DESTROY == true) {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
                       jobs[hv] = performDestroyStages(hv)
@@ -156,11 +163,12 @@ pipeline {
           }
       }
       aborted {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-dev-testing-bala',
                     color: 'warning',
                     message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
           script {
               if (params.DESTROY == true) {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
                       jobs[hv] = performDestroyStages(hv)

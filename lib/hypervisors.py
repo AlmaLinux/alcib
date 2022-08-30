@@ -49,6 +49,7 @@ class BaseHypervisor:
         """
         self.name = name
         self.arch = arch
+        self.os_major_ver = os.getenv('OS_MAJOR_VER')
         self._instance_ip = None
         self._instance_id = None
         self.build_number = settings.build_number
@@ -131,7 +132,7 @@ class BaseHypervisor:
         bucket_path = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
         work_dir = os.path.join(os.getcwd(), f'{bucket_path}')
         os.mkdir(work_dir, mode=0o777)
-        qcow_name = f'almalinux-8-{settings.image}-8.5'
+        qcow_name = f'almalinux-{self.os_major_ver}-{settings.image}-{self.os_major_ver}.5'
         for i in range(5):
             try:
                 self.s3_bucket.download_file(
@@ -173,7 +174,7 @@ class BaseHypervisor:
         deploy_path = f'deploy-repo-alma@{settings.alma_repo_ip}:/repo/almalinux/8/cloud/'
         koji_commands = [
             f'ln -sf {ftp_path}/images/{qcow_name} '
-            f'{ftp_path}/images/AlmaLinux-8-{settings.image}-latest.{self.arch}.qcow2',
+            f'{ftp_path}/images/AlmaLinux-{self.os_major_ver}-{settings.image}-latest.{self.arch}.qcow2',
             f'sha256sum {ftp_path}/images/*.qcow2 > {ftp_path}/images/CHECKSUM',
         ]
         for cmd in koji_commands:
@@ -294,7 +295,7 @@ class BaseHypervisor:
         builder: Builder
             Main builder configuration.
         """
-        qcow_name = f'AlmaLinux-8-{settings.image}-8.5-{TIMESTAMP}.{self.arch}.qcow2'
+        qcow_name = f'AlmaLinux-{self.os_major_ver}-{settings.image}-{self.os_major_ver}.5-{TIMESTAMP}.{self.arch}.qcow2'
         ftp_path = f'/var/ftp/pub/cloudlinux/almalinux/8/cloud/{self.arch}'
         qcow_path = self.download_qcow()
         execute_command(
@@ -323,11 +324,11 @@ class BaseHypervisor:
         logging.info('Building %s', settings.image)
         build_log = f'{IMAGE}_{self.arch}_build_{TIMESTAMP}.log'
         if settings.image == 'GenericCloud':
-            cmd = self.packer_build_gencloud.format(build_log)
+            cmd = self.packer_build_gencloud.format(self.os_major_ver, build_log)
         elif settings.image == 'OpenNebula':
-            cmd = self.packer_build_opennebula.format(build_log)
+            cmd = self.packer_build_opennebula.format(self.os_major_ver, build_log)
         else:
-            cmd = self.packer_build_cmd.format(build_log)
+            cmd = self.packer_build_cmd.format(self.os_major_ver, build_log)
         try:
             stdout, _ = ssh.safe_execute(cmd)
             logging.info(stdout.read().decode())
@@ -335,9 +336,9 @@ class BaseHypervisor:
             logging.info('%s built', settings.image)
         finally:
             if settings.image == 'GenericCloud':
-                file = f'output-almalinux-8-gencloud-{self.arch}/*.qcow2'
+                file = f'output-almalinux-{self.os_major_ver}-gencloud-{self.arch}/*.qcow2'
             elif settings.image == 'OpenNebula':
-                file = f'output-almalinux-8-opennebula-{self.arch}/*.qcow2'
+                file = f'output-almalinux-{self.os_major_ver}-opennebula-{self.arch}/*.qcow2'
             else:
                 file = '*.box'
             self.upload_to_bucket(
@@ -422,7 +423,7 @@ class BaseHypervisor:
         logging.info('Uploading openstack image')
         stdout, _ = ssh.safe_execute(
             f'cp '
-            f'{cloud_path}/output-almalinux-8-gencloud-{self.arch}/*.qcow2 '
+            f'{cloud_path}/output-almalinux-{self.os_major_ver}-gencloud-{self.arch}/*.qcow2 '
             f'{test_path_tf}/upload_image/{arch}/'
         )
         terraform_commands = ['terraform init', 'terraform fmt',
@@ -505,7 +506,7 @@ class LinuxHypervisors(BaseHypervisor):
         stdout, _ = ssh.safe_execute(
             f'cd {self.cloud_images_path}/ && '
             f'cp {self.cloud_images_path}/tests/vagrant/Vagrantfile . '
-            f'&& vagrant box add --name almalinux-8-test *.box && vagrant up'
+            f'&& vagrant box add --name almalinux-{self.os_major_ver}-test *.box && vagrant up'
         )
         logging.info(stdout.read().decode())
         logging.info('Prepared for test')
@@ -607,7 +608,7 @@ class LinuxHypervisors(BaseHypervisor):
                     f'{conf}_{self.arch}-{conf}/logs/{IMAGE}_{conf}_{self.arch}_build*.log',
                     f'{conf}_{self.arch}-{conf}/Dockerfile-{self.arch}-{conf}',
                     f'{conf}_{self.arch}-{conf}/rpm-packages-{self.arch}-{conf}',
-                    f'{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz'
+                    f'{conf}_{self.arch}-{conf}/almalinux-{self.os_major_ver}-docker-{self.arch}-{conf}.tar.xz'
                 ]
                 self.upload_to_bucket(builder, files, docker_images, ssh)
                 for file in files:
@@ -645,7 +646,7 @@ class LinuxHypervisors(BaseHypervisor):
             stdout, _ = ssh.safe_execute(
                 f'mkdir {docker_tmp}fake-root-{conf}/ && '
                 f'sudo chown -R {user}:{user} {docker_tmp}fake-root-{conf}/ && '
-                f'tar -xvf {docker_tmp}almalinux-8-docker-{self.arch}-{conf}.tar.xz -C {docker_tmp}fake-root-{conf}'
+                f'tar -xvf {docker_tmp}almalinux-{self.os_major_ver}-docker-{self.arch}-{conf}.tar.xz -C {docker_tmp}fake-root-{conf}'
             )
             raw_packages = list(filter(None, packages))
             packages = collections.defaultdict(dict)
@@ -694,7 +695,7 @@ class LinuxHypervisors(BaseHypervisor):
             stdout, _ = ssh.safe_execute(
                 f'cp {docker_tmp}{conf}_{self.arch}-{conf}/Dockerfile-{self.arch}-{conf} {docker_tmp} && '
                 f'cp {docker_tmp}{conf}_{self.arch}-{conf}/rpm-packages-{self.arch}-{conf} {docker_tmp}rpm-packages-{conf} && '
-                f'cp {docker_tmp}{conf}_{self.arch}-{conf}/almalinux-8-docker-{self.arch}-{conf}.tar.xz {docker_tmp}'
+                f'cp {docker_tmp}{conf}_{self.arch}-{conf}/almalinux-{self.os_major_ver}-docker-{self.arch}-{conf}.tar.xz {docker_tmp}'
             )
         stdout, _ = ssh.safe_execute(
             f'cd /home/{user}/docker-tmp/ && '
@@ -723,7 +724,7 @@ class HyperV(BaseHypervisor):
     packer_build_cmd = (
         'cd c:\\Users\\Administrator\\cloud-images ; '
         'packer build -var hyperv_switch_name=\"HyperV-vSwitch\" '
-        '-only=\"hyperv-iso.almalinux-8\" . '
+        '-only=\"hyperv-iso.almalinux-{}\" . '
         '| Tee-Object -file c:\\Users\\Administrator\\cloud-images\\{}'
     )
 
@@ -766,7 +767,7 @@ class HyperV(BaseHypervisor):
         cmd = "$Env:SMB_USERNAME = '{0}'; $Env:SMB_PASSWORD='{1}'; " \
               "cd c:\\Users\\Administrator\\cloud-images\\ ; " \
               "cp c:\\Users\\Administrator\\cloud-images\\tests\\vagrant\\Vagrantfile . ; " \
-              "vagrant box add --name almalinux-8-test *.box ; vagrant up".format(
+              "vagrant box add --name almalinux-{self.os_major_ver}-test *.box ; vagrant up".format(
                 str(os.environ.get('WINDOWS_CREDS_USR')),
                 str(os.environ.get('WINDOWS_CREDS_PSW'))
               )
@@ -804,7 +805,7 @@ class VirtualBox(LinuxHypervisors):
     Specifies VirtualBox hypervisor.
     """
     packer_build_cmd = (
-        'cd cloud-images && packer build -only=virtualbox-iso.almalinux-8 . '
+        'cd cloud-images && packer build -only=virtualbox-iso.almalinux-{} . '
         '2>&1 | tee ./{}'
     )
 
@@ -820,7 +821,7 @@ class VMWareDesktop(LinuxHypervisors):
     Specifies VMWare Desktop hypervisor.
     """
     packer_build_cmd = (
-        'cd cloud-images && packer build -only=vmware-iso.almalinux-8 . '
+        'cd cloud-images && packer build -only=vmware-iso.almalinux{} . '
         '2>&1 | tee ./{}'
     )
 
@@ -838,17 +839,17 @@ class KVM(LinuxHypervisors):
     packer_build_cmd = (
         "cd cloud-images && "
         "packer build -var qemu_binary='/usr/libexec/qemu-kvm' "
-        "-only=qemu.almalinux-8 . 2>&1 | tee ./{}"
+        "-only=qemu.almalinux-{} . 2>&1 | tee ./{}"
     )
     packer_build_gencloud = (
         "cd cloud-images && "
         "packer build -var qemu_binary='/usr/libexec/qemu-kvm'"
-        " -only=qemu.almalinux-8-gencloud-x86_64 . 2>&1 | tee ./{}"
+        " -only=qemu.almalinux-{}-gencloud-x86_64 . 2>&1 | tee ./{}"
     )
     packer_build_opennebula = (
         "cd cloud-images && "
         "packer build -var qemu_binary='/usr/libexec/qemu-kvm' "
-        "-only=qemu.almalinux-8-opennebula-x86_64 . 2>&1 | tee ./{}"
+        "-only=qemu.almalinux-{}-opennebula-x86_64 . 2>&1 | tee ./{}"
     )
 
     def __init__(self, name='kvm', arch='x86_64'):
@@ -914,20 +915,21 @@ class KVM(LinuxHypervisors):
                   "&& packer build -var aws_s3_bucket_name='{}' " \
                   "-var qemu_binary='/usr/libexec/qemu-kvm' " \
                   "-var aws_role_name='alma-images-prod-role' " \
-                  "-only=qemu.almalinux-8-aws-stage1 . 2>&1 | tee ./{}".format(
+                  "-only=qemu.almalinux-{}-aws-stage1 . 2>&1 | tee ./{}".format(
                       os.getenv('AWS_ACCESS_KEY_ID'),
                       os.getenv('AWS_SECRET_ACCESS_KEY'),
-                      settings.bucket, aws_build_log)
+                      settings.bucket, self.os_major_ver, aws_build_log)
         else:
             cmd = "cd cloud-images && " \
                   "export AWS_DEFAULT_REGION='us-east-1' && " \
                   "export AWS_ACCESS_KEY_ID='{}' && " \
                   "export AWS_SECRET_ACCESS_KEY='{}' " \
                   "&& packer build " \
-                  "-only=amazon-ebssurrogate.almalinux-8-aws-aarch64 . " \
+                  "-only=amazon-ebssurrogate.almalinux-{}-aws-aarch64 . " \
                   "2>&1 | tee ./{}".format(
                       os.getenv('AWS_ACCESS_KEY_ID'),
-                      os.getenv('AWS_SECRET_ACCESS_KEY'), aws_build_log)
+                      os.getenv('AWS_SECRET_ACCESS_KEY'), 
+                      self.os_major_ver, aws_build_log)
         try:
             stdout, _ = ssh.safe_execute(cmd)
         finally:
@@ -1101,10 +1103,11 @@ class AwsStage2(KVM):
             stdout, _ = ssh.safe_execute(
                 'cd cloud-images && sudo AWS_ACCESS_KEY_ID="{}" '
                 'AWS_SECRET_ACCESS_KEY="{}" AWS_DEFAULT_REGION="us-east-1" '
-                'packer.io build -only=amazon-chroot.almalinux-8-aws-stage2 '
+                'packer.io build -only=amazon-chroot.almalinux-{}-aws-stage2 '
                 '. 2>&1 | tee ./{}'.format(
                     os.getenv('AWS_ACCESS_KEY_ID'),
                     os.getenv('AWS_SECRET_ACCESS_KEY'),
+                    self.os_major_ver,
                     aws2_build_log
                 )
             )
@@ -1134,13 +1137,13 @@ class Equinix(BaseHypervisor):
     packer_build_opennebula = (
         "cd cloud-images && "
         "packer.io build -var qemu_binary='/usr/libexec/qemu-kvm' "
-        "-only=qemu.almalinux-8-opennebula-aarch64 . 2>&1 | tee ./{}"
+        "-only=qemu.almalinux-{}-opennebula-aarch64 . 2>&1 | tee ./{}"
     )
 
     packer_build_gencloud = (
         "cd /root/cloud-images && "
         "packer.io build -var qemu_binary='/usr/libexec/qemu-kvm' "
-        "-only=qemu.almalinux-8-gencloud-aarch64 . 2>&1 | tee ./{}"
+        "-only=qemu.almalinux-{}-gencloud-aarch64 . 2>&1 | tee ./{}"
     )
 
     def __init__(self, name='equinix', arch='aarch64'):
@@ -1174,16 +1177,16 @@ class Equinix(BaseHypervisor):
         gc_build_log = f'{IMAGE}_{self.arch}_build_{TIMESTAMP}.log'
         logging.info('Building %s', settings.image)
         if settings.image == 'GenericCloud':
-            cmd = self.packer_build_gencloud.format(gc_build_log)
+            cmd = self.packer_build_gencloud.format(self.os_major_ver, gc_build_log)
         else:
-            cmd = self.packer_build_opennebula.format(gc_build_log)
+            cmd = self.packer_build_opennebula.format(self.os_major_ver, gc_build_log)
         try:
             stdout, _ = ssh.safe_execute(cmd)
         finally:
             if settings.image == 'GenericCloud':
-                file = 'output-almalinux-8-gencloud-aarch64/*.qcow2'
+                file = 'output-almalinux-{}-gencloud-aarch64/*.qcow2'.format(self.os_major_ver)
             else:
-                file = 'output-almalinux-8-opennebula-aarch64/*.qcow2'
+                file = 'output-almalinux-{}-opennebula-aarch64/*.qcow2'.format(self.os_major_ver)
             self.upload_to_bucket(
                 builder, [f'{IMAGE}_{self.arch}_build*.log', file],
                 '/root/cloud-images/', ssh

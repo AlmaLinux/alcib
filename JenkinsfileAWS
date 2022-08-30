@@ -31,6 +31,7 @@ def performPublishStages(String arch) {
 pipeline {
   agent any
   parameters {
+      choice(name: 'OS_MAJOR_VER', choices: ['8', '9'], description: 'AlmaLinux Major Version')
       choice(name: 'IMAGE', choices: ['AWS AMI', 'Vagrant Box', 'GenericCloud', 'OpenNebula'], description: 'Cloud image to update: build, test, release')
       extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64', visibleItemCount: 2)
       string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
@@ -47,6 +48,7 @@ pipeline {
       stage('Create AWS instance for AWS AMI') {
           steps {
               script {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performCreateStages(arch)
@@ -60,6 +62,7 @@ pipeline {
             stage('Build stage 1') {
                 steps {
                       script {
+                          env.OS_MAJOR_VER = params.OS_MAJOR_VER
                           def jobs = [:]
                           for (arch in params.ARCH.replace('"', '').split(',')) {
                               jobs[arch] = performBuildStages(arch)
@@ -71,6 +74,7 @@ pipeline {
               stage('Build AWS AMI stage 2') {
                   steps {
                       script {
+                          env.OS_MAJOR_VER = params.OS_MAJOR_VER
                           def jobs = [:]
                           for (arch in params.ARCH.replace('"', '').split(',')) {
                               if (arch == 'x86_64') {
@@ -86,6 +90,7 @@ pipeline {
       stage('Test AWS AMI') {
           steps {
               script {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performTestStages(arch)
@@ -95,9 +100,9 @@ pipeline {
           }
           post {
               success {
-                  slackSend channel: '#test-auto-vagrant',
+                  slackSend channel: '#albs-dev-testing-bala',
                             color: 'good',
-                            message: "The build ${currentBuild.fullDisplayName} ready to be released as new AWS AMIs, please, approve: ${currentBuild.absoluteUrl}"
+                            message: "The build for Almalinux ${params.OS_MAJOR_VER}, job ${currentBuild.fullDisplayName} ready to be released as new AWS AMIs, please, approve: ${currentBuild.absoluteUrl}"
               }
           }
       }
@@ -105,6 +110,7 @@ pipeline {
         steps {
               timeout(time:2, unit:'DAYS') {
                   script {
+                      env.OS_MAJOR_VER = params.OS_MAJOR_VER
                       def userInput = input(
                         id: 'userInput',
                         message: 'AMI successfully scanned and ready for release ?', ok: 'Starting publishing!',
@@ -135,6 +141,7 @@ pipeline {
           }
           steps {
               script {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performDestroyStages(arch)
@@ -153,16 +160,17 @@ pipeline {
           archiveArtifacts artifacts: '*.log, *.md, *.csv, wiki/*.csv, wiki/*.md'
       }
       success {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-dev-testing-bala',
                     color: 'good',
                     message: "The build ${currentBuild.fullDisplayName} completed successfully : ${currentBuild.absoluteUrl}"
       }
       failure {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-dev-testing-bala',
                     color: 'danger',
                     message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
           script {
               if (params.DESTROY == true) {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performDestroyStages(arch)
@@ -175,11 +183,12 @@ pipeline {
           }
       }
       aborted {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-dev-testing-bala',
                     color: 'warning',
                     message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
           script {
               if (params.DESTROY == true) {
+                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performDestroyStages(arch)

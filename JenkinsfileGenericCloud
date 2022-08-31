@@ -53,7 +53,20 @@ pipeline {
       ALMA_REPO_IP = credentials('alma_repo_ip')
   }
 
+  options {
+    // This is required if you want to clean before build
+    skipDefaultCheckout(true)
+  }
   stages {
+    stage('Prepare Workspace') {
+        steps {
+            // Clean before build
+            cleanWs()
+            // We need to explicitly checkout from SCM here
+            checkout scm
+            echo "Building ${env.JOB_NAME}..."
+        }
+    } 
       stage('Create build environment') {
           steps {
               script {

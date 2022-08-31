@@ -44,7 +44,7 @@ pipeline {
       GITHUB_TOKEN = credentials('github_token')
   }
   options {
-        // This is required if you want to clean before build
+    // This is required if you want to clean before build
     skipDefaultCheckout(true)
   }
   stages {

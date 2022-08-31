@@ -27,6 +27,7 @@ from lib.utils import *
 
 
 TIMESTAMP = str(datetime.date(datetime.today())).replace('-', '')
+DT_SUFFIX = str(datetime.today()).replace('-', '').replace('.', '').replace(':', '').replace(' ', '_')
 IMAGE = settings.image.replace(" ", "_")
 
 
@@ -171,7 +172,7 @@ class BaseHypervisor:
         ssh_koji = builder.ssh_remote_connect(
             settings.koji_ip, 'mockbuild', 'koji.cloudlinux.com'
         )
-        deploy_path = f'deploy-repo-alma@{settings.alma_repo_ip}:/repo/almalinux/8/cloud/'
+        deploy_path = f'deploy-repo-alma@{settings.alma_repo_ip}:/repo/almalinux/{self.os_major_ver}/cloud/'
         koji_commands = [
             f'ln -sf {ftp_path}/images/{qcow_name} '
             f'{ftp_path}/images/AlmaLinux-{self.os_major_ver}-{settings.image}-latest.{self.arch}.qcow2',
@@ -295,8 +296,8 @@ class BaseHypervisor:
         builder: Builder
             Main builder configuration.
         """
-        qcow_name = f'AlmaLinux-{self.os_major_ver}-{settings.image}-{self.os_major_ver}.5-{TIMESTAMP}.{self.arch}.qcow2'
-        ftp_path = f'/var/ftp/pub/cloudlinux/almalinux/8/cloud/{self.arch}'
+        qcow_name = f'AlmaLinux-{self.os_major_ver}-{settings.image}-{self.os_major_ver}-{TIMESTAMP}.{self.arch}.qcow2'
+        ftp_path = f'/var/ftp/pub/cloudlinux/almalinux/{self.os_major_ver}/cloud/{self.arch}'
         qcow_path = self.download_qcow()
         execute_command(
             f'scp -i /var/lib/jenkins/.ssh/alcib_rsa4096 '
@@ -322,7 +323,7 @@ class BaseHypervisor:
         stdout, _ = ssh.safe_execute('packer init ./cloud-images 2>&1')
         logging.info(stdout.read().decode())
         logging.info('Building %s', settings.image)
-        build_log = f'{IMAGE}_{self.arch}_build_{TIMESTAMP}.log'
+        build_log = f'{IMAGE}_{self.arch}_build_{DT_SUFFIX}.log'
         if settings.image == 'GenericCloud':
             cmd = self.packer_build_gencloud.format(self.os_major_ver, build_log)
         elif settings.image == 'OpenNebula':
@@ -443,7 +444,7 @@ class BaseHypervisor:
         time.sleep(120)
         logging.info('Test instances are ready')
         logging.info('Starting testing')
-        return f'genericcloud_test_{TIMESTAMP}.log'
+        return f'genericcloud_test_{DT_SUFFIX}.log'
 
 
 class LinuxHypervisors(BaseHypervisor):
@@ -516,7 +517,7 @@ class LinuxHypervisors(BaseHypervisor):
         )
         logging.info(stdout.read().decode())
         logging.info('Starting testing')
-        vb_test_log = f'vagrant_box_test_{TIMESTAMP}.log'
+        vb_test_log = f'vagrant_box_test_{DT_SUFFIX}.log'
         try:
             stdout, _ = ssh.safe_execute(
                 f'cd {self.cloud_images_path}/ '
@@ -593,7 +594,7 @@ class LinuxHypervisors(BaseHypervisor):
             stdout, _ = ssh.safe_execute(
                 f'cd {docker_images} && git reset --hard && git checkout master && git pull'
             )
-            build_log = f'{IMAGE}_{conf}_{self.arch}_build_{TIMESTAMP}.log'
+            build_log = f'{IMAGE}_{conf}_{self.arch}_build_{DT_SUFFIX}.log'
             try:
                 stdout, _ = ssh.safe_execute(
                     f'cd {docker_images} && '
@@ -780,7 +781,7 @@ class HyperV(BaseHypervisor):
         )
         logging.info(stdout.read().decode())
         logging.info('Starting testing')
-        vb_test_log = f'vagrant_box_test_{TIMESTAMP}.log'
+        vb_test_log = f'vagrant_box_test_{DT_SUFFIX}.log'
         try:
             stdout, _ = ssh.safe_execute(
                 f'cd {self.sftp_path} ; '
@@ -905,7 +906,7 @@ class KVM(LinuxHypervisors):
         stdout, _ = ssh.safe_execute('packer init ./cloud-images 2>&1')
         logging.info(stdout.read().decode())
         logging.info('Building AWS AMI')
-        aws_build_log = f'aws_ami_build_{self.arch}_{TIMESTAMP}.log'
+        aws_build_log = f'aws_ami_build_{self.arch}_{DT_SUFFIX}.log'
         if arch == 'x86_64':
             logging.info('Building Stage 1')
             cmd = "cd cloud-images && " \
@@ -1003,7 +1004,7 @@ class KVM(LinuxHypervisors):
         self.wait_instance_ready([output_json['instance_id1']['value'],
                                  output_json['instance_id2']['value']])
         logging.info('Starting testing')
-        aws_test_log = f'aws_ami_test_{TIMESTAMP}.log'
+        aws_test_log = f'aws_ami_test_{DT_SUFFIX}.log'
         try:
             stdout, _ = ssh.safe_execute(
                 f'cd {self.cloud_images_path} && '
@@ -1098,7 +1099,7 @@ class AwsStage2(KVM):
         )
         logging.info(stdout.read().decode())
         logging.info('Building AWS AMI')
-        aws2_build_log = f'aws_ami_stage2_build_{TIMESTAMP}.log'
+        aws2_build_log = f'aws_ami_stage2_build_{DT_SUFFIX}.log'
         try:
             stdout, _ = ssh.safe_execute(
                 'cd cloud-images && sudo AWS_ACCESS_KEY_ID="{}" '
@@ -1174,7 +1175,7 @@ class Equinix(BaseHypervisor):
         logging.info('Packer initialization')
         stdout, _ = ssh.safe_execute('packer.io init /root/cloud-images 2>&1')
         logging.info(stdout.read().decode())
-        gc_build_log = f'{IMAGE}_{self.arch}_build_{TIMESTAMP}.log'
+        gc_build_log = f'{IMAGE}_{self.arch}_build_{DT_SUFFIX}.log'
         logging.info('Building %s', settings.image)
         if settings.image == 'GenericCloud':
             cmd = self.packer_build_gencloud.format(self.os_major_ver, gc_build_log)

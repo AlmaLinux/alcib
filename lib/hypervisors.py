@@ -319,13 +319,16 @@ class BaseHypervisor:
             Builder on AWS Instance.
         """
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
+        cmd2 = ""
         logging.info('Packer initialization')
         stdout, _ = ssh.safe_execute('packer init ./cloud-images 2>&1')
         logging.info(stdout.read().decode())
         logging.info('Building %s', settings.image)
         build_log = f'{IMAGE}_{self.arch}_build_{DT_SUFFIX}.log'
+        build_log_2 = f'{IMAGE}_{self.arch}_build_{DT_SUFFIX}_2.log'
         if settings.image == 'GenericCloud':
             cmd = self.packer_build_gencloud.format(self.os_major_ver, build_log)
+            cmd2 = self.packer_build_gencloud2.format(self.os_major_ver, build_log_2)
         elif settings.image == 'OpenNebula':
             cmd = self.packer_build_opennebula.format(self.os_major_ver, build_log)
         else:
@@ -334,16 +337,24 @@ class BaseHypervisor:
             stdout, _ = ssh.safe_execute(cmd)
             logging.info(stdout.read().decode())
             sftp_download(ssh, self.sftp_path, build_log, self.name)
+            if settings.image == 'GenericCloud' and self.os_major_ver == '8' :
+              stdout, _ = ssh.safe_execute(cmd2)
+              logging.info(stdout.read().decode())
+              sftp_download(ssh, self.sftp_path, build_log_2, self.name)      
             logging.info('%s built', settings.image)
         finally:
             if settings.image == 'GenericCloud':
                 file = f'output-almalinux-{self.os_major_ver}-gencloud-{self.arch}/*.qcow2'
+                file2 = f'output-almalinux-{self.os_major_ver}-gencloud-uefi-{self.arch}/*.qcow2'
             elif settings.image == 'OpenNebula':
                 file = f'output-almalinux-{self.os_major_ver}-opennebula-{self.arch}/*.qcow2'
             else:
                 file = '*.box'
+            files = [f'{IMAGE}_{self.arch}_build*.log', file]
+            if settings.image == 'GenericCloud' and self.os_major_ver == '8' :
+                files.append(file2)
             self.upload_to_bucket(
-                builder, [f'{IMAGE}_{self.arch}_build*.log', file],
+                builder, files,
                 self.cloud_images_path, ssh
             )
         ssh.close()
@@ -822,7 +833,7 @@ class VMWareDesktop(LinuxHypervisors):
     Specifies VMWare Desktop hypervisor.
     """
     packer_build_cmd = (
-        'cd cloud-images && packer build -only=vmware-iso.almalinux{} . '
+        'cd cloud-images && packer build -only=vmware-iso.almalinux-{} . '
         '2>&1 | tee ./{}'
     )
 
@@ -845,8 +856,17 @@ class KVM(LinuxHypervisors):
     packer_build_gencloud = (
         "cd cloud-images && "
         "packer build -var qemu_binary='/usr/libexec/qemu-kvm'"
+        " -var firmware_x86_64='/usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd'"
         " -only=qemu.almalinux-{}-gencloud-x86_64 . 2>&1 | tee ./{}"
     )
+
+    packer_build_gencloud2 = (
+        "cd cloud-images && "
+        "packer build -var qemu_binary='/usr/libexec/qemu-kvm'"
+        " -var firmware_x86_64='/usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd'"
+        " -only=qemu.almalinux-{}-gencloud-uefi-x86_64 . 2>&1 | tee ./{}"
+    )
+
     packer_build_opennebula = (
         "cd cloud-images && "
         "packer build -var qemu_binary='/usr/libexec/qemu-kvm' "

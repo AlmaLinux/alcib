@@ -14,16 +14,28 @@
     - anaconda-tui
     - subscription-manager
 
-- name: Install Python development tools
+- name: Install Python development tools 8
   ansible.builtin.dnf:
     name:
       - python39-devel
-      - python39-wheel-wheel
+      - python39-wheel-wheel      
       - python39-wheel
       - python39-setuptools-wheel
       - python39-setuptools
-  become: yes
+  become: true
   become_user: root
+  when: ansible_distribution_major_version == '8'
+
+- name: Install Python development tools 9
+  ansible.builtin.dnf:
+    name:
+      - python3-devel
+      - python3-pip-wheel
+      - python3-setuptools-wheel
+      - python3-setuptools
+  become: true
+  become_user: root
+  when: ansible_distribution_major_version == '9'
 
 - name: Installing testinfra
   pip:
@@ -35,7 +47,7 @@
     executable: pip3.9
     extra_args: --no-cache-dir --upgrade
     state: present
-  become: yes
+  become: true
   become_user: root
 
 - name: Clone cloud-images repo

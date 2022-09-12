@@ -568,7 +568,7 @@ class LinuxHypervisors(BaseHypervisor):
             'Authorization': f'Bearer {settings.github_token}',
             'Accept': 'application/vnd.github.v3+json',
         }
-        repo = 'https://api.github.com/repos/VanessaRish/docker-images'
+        repo = 'https://api.github.com/repos/AlmaLinux/docker-images'
         response = requests.post(
             f'{repo}/merge-upstream',
             headers=headers, data='{"branch":"master"}'
@@ -586,7 +586,7 @@ class LinuxHypervisors(BaseHypervisor):
         sftp.putfo(StringIO(builder.AWS_CREDENTIALS), f'/home/{user}/.aws/credentials')
         sftp.putfo(StringIO(builder.AWS_CONFIG), f'/home/{user}/.aws/config')
         logging.info('%s built', settings.image)
-        repo = 'https://api.github.com/repos/VanessaRish/docker-images'
+        repo = 'https://api.github.com/repos/AlmaLinux/docker-images'
         branches = get_git_branches(headers, repo)
         branch = branches[-1]
         requests.post(
@@ -596,7 +596,7 @@ class LinuxHypervisors(BaseHypervisor):
         stdout, _ = ssh.safe_execute(
             f'chmod 600 /home/{user}/.ssh/config && '
             f'chmod 600 /home/{user}/aws_test && '
-            f'git clone git@github.com:VanessaRish/docker-images.git {docker_tmp} && '
+            f'git clone git@github.com:AlmaLinux/docker-images.git {docker_tmp} && '
             f'cd {docker_tmp} && git checkout {branch} && '
             f'git config --global user.name "Mariia Boldyreva" && '
             f'git config --global user.email "shelterly@gmail.com"'
@@ -870,6 +870,14 @@ class KVM(LinuxHypervisors):
     packer_build_opennebula = (
         "cd cloud-images && "
         "packer build -var qemu_binary='/usr/libexec/qemu-kvm' "
+        "-var firmware_x86_64='/usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd' "
+        "-only=qemu.almalinux-{}-opennebula-x86_64 . 2>&1 | tee ./{}"
+    )
+
+    packer_build_opennebula2 = (
+        "cd cloud-images && "
+        "packer build -var qemu_binary='/usr/libexec/qemu-kvm' "
+        "-var firmware_x86_64='/usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd' "
         "-only=qemu.almalinux-{}-opennebula-x86_64 . 2>&1 | tee ./{}"
     )
 
@@ -1212,7 +1220,11 @@ class Equinix(BaseHypervisor):
         if settings.image == 'GenericCloud':
             cmd = self.packer_build_gencloud.format(self.os_major_ver, gc_build_log)
         else:
-            cmd = self.packer_build_opennebula.format(self.os_major_ver, gc_build_log)
+            if self.os_major_ver == '8':
+                cmd = self.packer_build_opennebula.format(self.os_major_ver, gc_build_log)
+            else:
+                cmd = self.packer_build_opennebula2.format(self.os_major_ver, gc_build_log)
+            logging.info('%s, opennebula_cmd', cmd)
         try:
             stdout, _ = ssh.safe_execute(cmd)
         finally:

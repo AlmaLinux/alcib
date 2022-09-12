@@ -927,30 +927,42 @@ class KVM(LinuxHypervisors):
         logging.info(stdout.read().decode())
         logging.info('Building AWS AMI')
         aws_build_log = f'aws_ami_build_{self.arch}_{DT_SUFFIX}.log'
-        if arch == 'x86_64':
-            logging.info('Building Stage 1')
-            cmd = "cd cloud-images && " \
-                  "export AWS_DEFAULT_REGION='us-east-1' && " \
-                  "export AWS_ACCESS_KEY_ID='{}' && " \
-                  "export AWS_SECRET_ACCESS_KEY='{}' " \
-                  "&& packer build -var aws_s3_bucket_name='{}' " \
-                  "-var qemu_binary='/usr/libexec/qemu-kvm' " \
-                  "-var aws_role_name='alma-images-prod-role' " \
-                  "-only=qemu.almalinux-{}-aws-stage1 . 2>&1 | tee ./{}".format(
-                      os.getenv('AWS_ACCESS_KEY_ID'),
-                      os.getenv('AWS_SECRET_ACCESS_KEY'),
-                      settings.bucket, self.os_major_ver, aws_build_log)
+        if self.os_major_ver == '8':
+            if arch == 'x86_64':
+                logging.info('Building Stage 1')
+                cmd = "cd cloud-images && " \
+                    "export AWS_DEFAULT_REGION='us-east-1' && " \
+                    "export AWS_ACCESS_KEY_ID='{}' && " \
+                    "export AWS_SECRET_ACCESS_KEY='{}' " \
+                    "&& packer build -var aws_s3_bucket_name='{}' " \
+                    "-var qemu_binary='/usr/libexec/qemu-kvm' " \
+                    "-var aws_role_name='alma-images-prod-role' " \
+                    "-only=qemu.almalinux-{}-aws-stage1 . 2>&1 | tee ./{}".format(
+                        os.getenv('AWS_ACCESS_KEY_ID'),
+                        os.getenv('AWS_SECRET_ACCESS_KEY'),
+                        settings.bucket, self.os_major_ver, aws_build_log)
+            else:
+                cmd = "cd cloud-images && " \
+                    "export AWS_DEFAULT_REGION='us-east-1' && " \
+                    "export AWS_ACCESS_KEY_ID='{}' && " \
+                    "export AWS_SECRET_ACCESS_KEY='{}' " \
+                    "&& packer build " \
+                    "-only=amazon-ebssurrogate.almalinux-{}-aws-aarch64 . " \
+                    "2>&1 | tee ./{}".format(
+                        os.getenv('AWS_ACCESS_KEY_ID'),
+                        os.getenv('AWS_SECRET_ACCESS_KEY'), 
+                        self.os_major_ver, aws_build_log)
         else:
             cmd = "cd cloud-images && " \
-                  "export AWS_DEFAULT_REGION='us-east-1' && " \
-                  "export AWS_ACCESS_KEY_ID='{}' && " \
-                  "export AWS_SECRET_ACCESS_KEY='{}' " \
-                  "&& packer build " \
-                  "-only=amazon-ebssurrogate.almalinux-{}-aws-aarch64 . " \
-                  "2>&1 | tee ./{}".format(
-                      os.getenv('AWS_ACCESS_KEY_ID'),
-                      os.getenv('AWS_SECRET_ACCESS_KEY'), 
-                      self.os_major_ver, aws_build_log)
+                "export AWS_DEFAULT_REGION='us-east-1' && " \
+                "export AWS_ACCESS_KEY_ID='{}' && " \
+                "export AWS_SECRET_ACCESS_KEY='{}' " \
+                "&& packer build " \
+                "-only=amazon-ebssurrogate.almalinux-{}-ami-{} . " \
+                "2>&1 | tee ./{}".format(
+                    os.getenv('AWS_ACCESS_KEY_ID'),
+                    os.getenv('AWS_SECRET_ACCESS_KEY'), 
+                    self.os_major_ver, arch, aws_build_log)
         try:
             stdout, _ = ssh.safe_execute(cmd)
         finally:

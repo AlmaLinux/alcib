@@ -109,7 +109,7 @@ pipeline {
           }
           post {
               success {
-                  slackSend channel: '#albs-jenkins-notifications-dev-qa',
+                  slackSend channel: '#albs-jenkins-action-required',
                     color: 'good',
                     message: "The build for Almalinux ${OS_MAJOR_VER}, job ${currentBuild.fullDisplayName} ready to be released as new AWS AMIs, please, approve: ${currentBuild.absoluteUrl}"
               }
@@ -167,12 +167,12 @@ pipeline {
           archiveArtifacts artifacts: '*.log, *.md, *.csv, wiki/*.csv, wiki/*.md'
       }
       success {
-          slackSend channel: '#albs-jenkins-notifications-dev-qa',
+          slackSend channel: '#albs-jenkins-notifications',
                     color: 'good',
                     message: "The build ${currentBuild.fullDisplayName} completed successfully : ${currentBuild.absoluteUrl}"
       }
       failure {
-          slackSend channel: '#albs-jenkins-notifications-dev-qa',
+          slackSend channel: '#albs-jenkins-action-required',
                     color: 'danger',
                     message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
           script {
@@ -189,7 +189,7 @@ pipeline {
           }
       }
       aborted {
-          slackSend channel: '#albs-jenkins-notifications-dev-qa',
+          slackSend channel: '#albs-jenkins-action-required',
                     color: 'warning',
                     message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
           script {

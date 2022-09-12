@@ -117,7 +117,7 @@ pipeline {
           }
           post {
               success {
-                  slackSend channel: '#albs-jenkins-notifications-dev-qa',
+                  slackSend channel: '#albs-jenkins-action-required',
                             color: 'good',
                             message: "The build ${currentBuild.fullDisplayName} ready to be uploaded to be released , please, approve: ${currentBuild.absoluteUrl}"
               }
@@ -178,12 +178,12 @@ pipeline {
           archiveArtifacts artifacts: '*.log'
       }
       success {
-          slackSend channel: '#albs-jenkins-notifications-dev-qa',
+          slackSend channel: '#albs-jenkins-notifications',
                     color: 'good',
                     message: "The build ${currentBuild.fullDisplayName} completed successfully : ${currentBuild.absoluteUrl}"
       }
       failure {
-          slackSend channel: '#albs-jenkins-notifications-dev-qa',
+          slackSend channel: '#albs-jenkins-action-required',
                     color: 'danger',
                     message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
           script {
@@ -202,7 +202,7 @@ pipeline {
           }
       }
       aborted {
-          slackSend channel: '#albs-jenkins-notifications-dev-qa',
+          slackSend channel: '#albs-jenkins-action-required',
                     color: 'warning',
                     message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
           script {

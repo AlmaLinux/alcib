@@ -330,7 +330,10 @@ class BaseHypervisor:
             cmd = self.packer_build_gencloud.format(self.os_major_ver, build_log)
             cmd2 = self.packer_build_gencloud2.format(self.os_major_ver, build_log_2)
         elif settings.image == 'OpenNebula':
-            cmd = self.packer_build_opennebula.format(self.os_major_ver, build_log)
+            if self.os_major_ver == '8':
+                cmd = self.packer_build_opennebula.format(self.os_major_ver, build_log)
+            else:
+                cmd = self.packer_build_opennebula2.format(self.os_major_ver, build_log)            
         else:
             cmd = self.packer_build_cmd.format(self.os_major_ver, build_log)
         try:
@@ -868,14 +871,12 @@ class KVM(LinuxHypervisors):
     )
 
     packer_build_opennebula = (
-        "cd cloud-images && PACKER_LOG=1 && "
+        "cd cloud-images && "
         "packer build -var qemu_binary='/usr/libexec/qemu-kvm' "
-        "-var firmware_x86_64='/usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd' "
         "-only=qemu.almalinux-{}-opennebula-x86_64 . 2>&1 | tee ./{}"
     )
-
     packer_build_opennebula2 = (
-        "cd cloud-images && PACKER_LOG=1 && "
+        "cd cloud-images && "
         "packer build -var qemu_binary='/usr/libexec/qemu-kvm' "
         "-var firmware_x86_64='/usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd' "
         "-only=qemu.almalinux-{}-opennebula-x86_64 . 2>&1 | tee ./{}"
@@ -1220,11 +1221,7 @@ class Equinix(BaseHypervisor):
         if settings.image == 'GenericCloud':
             cmd = self.packer_build_gencloud.format(self.os_major_ver, gc_build_log)
         else:
-            if self.os_major_ver == '8':
-                cmd = self.packer_build_opennebula.format(self.os_major_ver, gc_build_log)
-            else:
-                cmd = self.packer_build_opennebula2.format(self.os_major_ver, gc_build_log)
-            logging.info('%s, opennebula_cmd', cmd)
+            cmd = self.packer_build_opennebula.format(self.os_major_ver, gc_build_log)
         try:
             stdout, _ = ssh.safe_execute(cmd)
         finally:

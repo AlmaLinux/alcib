@@ -868,14 +868,14 @@ class KVM(LinuxHypervisors):
     )
 
     packer_build_opennebula = (
-        "cd cloud-images && "
+        "cd cloud-images && PACKER_LOG=1 && "
         "packer build -var qemu_binary='/usr/libexec/qemu-kvm' "
         "-var firmware_x86_64='/usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd' "
         "-only=qemu.almalinux-{}-opennebula-x86_64 . 2>&1 | tee ./{}"
     )
 
     packer_build_opennebula2 = (
-        "cd cloud-images && "
+        "cd cloud-images && PACKER_LOG=1 && "
         "packer build -var qemu_binary='/usr/libexec/qemu-kvm' "
         "-var firmware_x86_64='/usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd' "
         "-only=qemu.almalinux-{}-opennebula-x86_64 . 2>&1 | tee ./{}"

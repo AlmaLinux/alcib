@@ -42,6 +42,7 @@ pipeline {
       AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws-secret-access-key')
       SSH_KEY_FILE = credentials('jenkins-aclib-ssh-private-key')
       GITHUB_TOKEN = credentials('github_token')
+      OS_MAJOR_VER = "${params.OS_MAJOR_VER}"
   }
   options {
     // This is required if you want to clean before build
@@ -60,7 +61,6 @@ pipeline {
       stage('Create AWS instance for AWS AMI') {
           steps {
               script {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performCreateStages(arch)
@@ -74,7 +74,6 @@ pipeline {
             stage('Build stage 1') {
                 steps {
                       script {
-                          env.OS_MAJOR_VER = params.OS_MAJOR_VER
                           def jobs = [:]
                           for (arch in params.ARCH.replace('"', '').split(',')) {
                               jobs[arch] = performBuildStages(arch)
@@ -86,7 +85,6 @@ pipeline {
               stage('Build AWS AMI stage 2') {
                   steps {
                       script {
-                          env.OS_MAJOR_VER = params.OS_MAJOR_VER
                           def jobs = [:]
                           for (arch in params.ARCH.replace('"', '').split(',')) {
                               if (arch == 'x86_64') {
@@ -102,7 +100,6 @@ pipeline {
       stage('Test AWS AMI') {
           steps {
               script {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performTestStages(arch)
@@ -113,8 +110,8 @@ pipeline {
           post {
               success {
                   slackSend channel: '#albs-jenkins-notifications-dev-qa',
-                            color: 'good',
-                            message: "The build for Almalinux ${params.OS_MAJOR_VER}, job ${currentBuild.fullDisplayName} ready to be released as new AWS AMIs, please, approve: ${currentBuild.absoluteUrl}"
+                    color: 'good',
+                    message: "The build for Almalinux ${OS_MAJOR_VER}, job ${currentBuild.fullDisplayName} ready to be released as new AWS AMIs, please, approve: ${currentBuild.absoluteUrl}"
               }
           }
       }
@@ -122,7 +119,6 @@ pipeline {
         steps {
               timeout(time:2, unit:'DAYS') {
                   script {
-                      env.OS_MAJOR_VER = params.OS_MAJOR_VER
                       def userInput = input(
                         id: 'userInput',
                         message: 'AMI successfully scanned and ready for release ?', ok: 'Starting publishing!',
@@ -153,7 +149,6 @@ pipeline {
           }
           steps {
               script {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performDestroyStages(arch)
@@ -182,7 +177,6 @@ pipeline {
                     message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
           script {
               if (params.DESTROY == true) {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performDestroyStages(arch)
@@ -200,7 +194,6 @@ pipeline {
                     message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
           script {
               if (params.DESTROY == true) {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performDestroyStages(arch)

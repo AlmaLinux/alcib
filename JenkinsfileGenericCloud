@@ -51,6 +51,7 @@ pipeline {
       EQUINIX_IP = credentials('equinix_ip')
       KOJI_IP = credentials('koji_ip')
       ALMA_REPO_IP = credentials('alma_repo_ip')
+      OS_MAJOR_VER = "${params.OS_MAJOR_VER}"
   }
 
   options {
@@ -70,7 +71,6 @@ pipeline {
       stage('Create build environment') {
           steps {
               script {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       if (arch == 'x86_64') {
@@ -87,7 +87,6 @@ pipeline {
       stage('Build Generic Cloud Images') {
           steps {
               script {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       if (arch == 'x86_64') {
@@ -104,7 +103,6 @@ pipeline {
       stage('Test Generic Cloud images') {
           steps {
               script {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       if (arch == 'x86_64') {
@@ -129,7 +127,6 @@ pipeline {
           steps {
               timeout(time:1, unit:'DAYS') {
                   script {
-                      env.OS_MAJOR_VER = params.OS_MAJOR_VER
                       def userInput = input(
                         id: 'userInput',
                         message: 'Release to public ?', ok: 'Starting releasing!',
@@ -161,7 +158,6 @@ pipeline {
           }
           steps {
               script {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VERv
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                     if (arch == 'x86_64') {
@@ -192,7 +188,6 @@ pipeline {
                     message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
           script {
               if (params.DESTROY == true) {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       if (arch == 'x86_64') {

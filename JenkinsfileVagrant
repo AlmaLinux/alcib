@@ -44,6 +44,7 @@ pipeline {
       VAGRANT_CLOUD_ACCESS_KEY = credentials('jenkins-vagrant-user-access-key')
       SSH_KEY_FILE = credentials('jenkins-aclib-ssh-private-key')
       WINDOWS_CREDS = credentials('jenkins-windows-creds')
+      OS_MAJOR_VER = "${params.OS_MAJOR_VER}"
   }
 
   options {
@@ -63,7 +64,6 @@ pipeline {
       stage('Create AWS instance for Vagrant') {
           steps {
               script {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
                       jobs[hv] = performCreateStages(hv)
@@ -75,7 +75,6 @@ pipeline {
       stage('Build Vagrant Box') {
           steps {
               script {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
                       jobs[hv] = performBuildStages(hv)
@@ -87,7 +86,6 @@ pipeline {
       stage('Test Vagrant Box') {
           steps {
               script {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
                       jobs[hv] = performTestStages(hv)
@@ -107,7 +105,6 @@ pipeline {
           steps {
               timeout(time:1, unit:'DAYS') {
                   script {
-                      env.OS_MAJOR_VER = params.OS_MAJOR_VER
                       def userInput = input(
                         id: 'userInput',
                         message: 'Upload to Vagrant Cloud', ok: 'Starting uploading!',
@@ -140,7 +137,6 @@ pipeline {
           }
           steps {
               script {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
                       jobs[hv] = performDestroyStages(hv)
@@ -166,7 +162,6 @@ pipeline {
                     message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
           script {
               if (params.DESTROY == true) {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
                       jobs[hv] = performDestroyStages(hv)
@@ -181,7 +176,6 @@ pipeline {
                     message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
           script {
               if (params.DESTROY == true) {
-                  env.OS_MAJOR_VER = params.OS_MAJOR_VER
                   def jobs = [:]
                   for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
                       jobs[hv] = performDestroyStages(hv)

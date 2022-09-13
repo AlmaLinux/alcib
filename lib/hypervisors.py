@@ -519,8 +519,9 @@ class LinuxHypervisors(BaseHypervisor):
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Preparing to test')
         stdout, _ = ssh.safe_execute(
-            f'cd {self.cloud_images_path}/ && '
-            f'cp {self.cloud_images_path}/tests/vagrant/Vagrantfile . '
+            f'cd {self.cloud_images_path}/ '
+            f'&& cp {self.cloud_images_path}/tests/vagrant/Vagrantfile . '
+            f'&& OS_MAJOR_VER={self.os_major_ver} '
             f'&& vagrant box add --name almalinux-{self.os_major_ver}-test *.box && vagrant up'
         )
         logging.info(stdout.read().decode())

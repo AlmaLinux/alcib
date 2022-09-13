@@ -31,6 +31,7 @@ def performDestroyStages(String hypervisor) {
 pipeline {
   agent any
   parameters {
+      choice(name: 'OS_MAJOR_VER', choices: ['8', '9'], description: 'AlmaLinux Major Version')
       choice(name: 'IMAGE', choices: ['Vagrant Box', 'AWS AMI', 'GenericCloud', 'OpenNebula'], description: 'Cloud image to update: build, test, release')
       extendedChoice(defaultValue: 'VirtualBox', description: 'Hypervisors options to  build Vagrant Box', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'HYPERVISORS', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'VirtualBox, VMWare_Desktop, KVM, HyperV', visibleItemCount: 4)
       string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
@@ -43,9 +44,23 @@ pipeline {
       VAGRANT_CLOUD_ACCESS_KEY = credentials('jenkins-vagrant-user-access-key')
       SSH_KEY_FILE = credentials('jenkins-aclib-ssh-private-key')
       WINDOWS_CREDS = credentials('jenkins-windows-creds')
+      OS_MAJOR_VER = "${params.OS_MAJOR_VER}"
   }
 
+  options {
+    // This is required if you want to clean before build
+    skipDefaultCheckout(true)
+  }
   stages {
+    stage('Prepare Workspace') {
+        steps {
+            // Clean before build
+            cleanWs()
+            // We need to explicitly checkout from SCM here
+            checkout scm
+            echo "Building ${env.JOB_NAME}..."
+        }
+    } 
       stage('Create AWS instance for Vagrant') {
           steps {
               script {
@@ -80,7 +95,7 @@ pipeline {
           }
           post {
               success {
-                  slackSend channel: '#test-auto-vagrant',
+                  slackSend channel: '#albs-jenkins-action-required',
                             color: 'good',
                             message: "The build ${currentBuild.fullDisplayName} ready to be uploaded to Vagrant Cloud , please, approve: ${currentBuild.absoluteUrl}"
               }
@@ -137,12 +152,12 @@ pipeline {
           archiveArtifacts artifacts: '*.log'
       }
       success {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-jenkins-notifications',
                     color: 'good',
                     message: "The build ${currentBuild.fullDisplayName} completed successfully : ${currentBuild.absoluteUrl}"
       }
       failure {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-jenkins-action-required',
                     color: 'danger',
                     message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
           script {
@@ -156,7 +171,7 @@ pipeline {
           }
       }
       aborted {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-jenkins-action-required',
                     color: 'warning',
                     message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
           script {

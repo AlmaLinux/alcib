@@ -44,8 +44,8 @@
   become: true
   vars:
     packages:
-    - git
-    - python3-devel
+    - git-core
+    - python39-devel
     - jq
     - lorax
     - anaconda-tui
@@ -57,21 +57,21 @@
     executable: pip3
   become: yes
   become_user: root
+#
+# - name: Clone Docker images repo
+#   become_user: alcib
+#   become: true
+#   git:
+#     repo: 'https://github.com/AlmaLinux/docker-images.git'
+#     dest: './docker-images'
+#     # version: master
+#     force: yes
 
-- name: Clone Docker images repo
-  become_user: alcib
-  become: true
-  git:
-    repo: 'https://github.com/VanessaRish/docker-images.git'
-    dest: './docker-images'
-    # version: master
-    force: yes
-
-- name: Change permissions
-  file:
-    path: './docker-images'
-    mode: 0777
-    recurse: yes
-    group: alcib
-    owner: alcib
-  become: yes
+# - name: Change permissions
+#   file:
+#     path: './docker-images'
+#     mode: 0777
+#     recurse: yes
+#     group: alcib
+#     owner: alcib
+#   become: yes

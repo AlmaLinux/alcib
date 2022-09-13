@@ -31,6 +31,7 @@ def performPublishStages(String arch) {
 pipeline {
   agent any
   parameters {
+      choice(name: 'OS_MAJOR_VER', choices: ['8', '9'], description: 'AlmaLinux Major Version')
       choice(name: 'IMAGE', choices: ['AWS AMI', 'Vagrant Box', 'GenericCloud', 'OpenNebula'], description: 'Cloud image to update: build, test, release')
       extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64', visibleItemCount: 2)
       string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
@@ -41,9 +42,22 @@ pipeline {
       AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws-secret-access-key')
       SSH_KEY_FILE = credentials('jenkins-aclib-ssh-private-key')
       GITHUB_TOKEN = credentials('github_token')
+      OS_MAJOR_VER = "${params.OS_MAJOR_VER}"
   }
-
+  options {
+    // This is required if you want to clean before build
+    skipDefaultCheckout(true)
+  }
   stages {
+    stage('Prepare Workspace') {
+        steps {
+            // Clean before build
+            cleanWs()
+            // We need to explicitly checkout from SCM here
+            checkout scm
+            echo "Building ${env.JOB_NAME}..."
+        }
+    }    
       stage('Create AWS instance for AWS AMI') {
           steps {
               script {
@@ -95,9 +109,9 @@ pipeline {
           }
           post {
               success {
-                  slackSend channel: '#test-auto-vagrant',
-                            color: 'good',
-                            message: "The build ${currentBuild.fullDisplayName} ready to be released as new AWS AMIs, please, approve: ${currentBuild.absoluteUrl}"
+                  slackSend channel: '#albs-jenkins-action-required',
+                    color: 'good',
+                    message: "The build for Almalinux ${OS_MAJOR_VER}, job ${currentBuild.fullDisplayName} ready to be released as new AWS AMIs, please, approve: ${currentBuild.absoluteUrl}"
               }
           }
       }
@@ -153,12 +167,12 @@ pipeline {
           archiveArtifacts artifacts: '*.log, *.md, *.csv, wiki/*.csv, wiki/*.md'
       }
       success {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-jenkins-notifications',
                     color: 'good',
                     message: "The build ${currentBuild.fullDisplayName} completed successfully : ${currentBuild.absoluteUrl}"
       }
       failure {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-jenkins-action-required',
                     color: 'danger',
                     message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
           script {
@@ -175,7 +189,7 @@ pipeline {
           }
       }
       aborted {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-jenkins-action-required',
                     color: 'warning',
                     message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
           script {

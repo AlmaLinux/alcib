@@ -18,7 +18,8 @@ def performBuildStages(String hypervisor, String arch) {
 
 def performTestStages(String hypervisor, String arch) {
     return {
-        sh "TO BE DONE"
+        // sh "TO BE DONE"
+        echo "TODO: Testing needs to be added"
     }
 }
 

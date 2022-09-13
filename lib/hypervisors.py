@@ -521,7 +521,7 @@ class LinuxHypervisors(BaseHypervisor):
         stdout, _ = ssh.safe_execute(
             f'cd {self.cloud_images_path}/ '
             f'&& cp {self.cloud_images_path}/tests/vagrant/Vagrantfile . '
-            f'&& OS_MAJOR_VER={self.os_major_ver} '
+            f'&& export OS_MAJOR_VER={self.os_major_ver} '
             f'&& vagrant box add --name almalinux-{self.os_major_ver}-test *.box && vagrant up'
         )
         logging.info(stdout.read().decode())
@@ -780,13 +780,14 @@ class HyperV(BaseHypervisor):
         """
         ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
         logging.info('Preparing to test')
-        cmd = "$Env:SMB_USERNAME = '{0}'; $Env:SMB_PASSWORD='{1}'; " \
-              "cd c:\\Users\\Administrator\\cloud-images\\ ; " \
-              "cp c:\\Users\\Administrator\\cloud-images\\tests\\vagrant\\Vagrantfile . ; " \
-              "vagrant box add --name almalinux-{self.os_major_ver}-test *.box ; vagrant up".format(
+        cmd = "$Env:SMB_USERNAME = '{0}'; $Env:SMB_PASSWORD='{1}'; $Env:OS_MAJOR_VER={2}; " \
+                "cd c:\\Users\\Administrator\\cloud-images\\ ; " \
+                "cp c:\\Users\\Administrator\\cloud-images\\tests\\vagrant\\Vagrantfile . ; " \
+                "vagrant box add --name almalinux-{2}-test *.box ; vagrant up".format(
                 str(os.environ.get('WINDOWS_CREDS_USR')),
-                str(os.environ.get('WINDOWS_CREDS_PSW'))
-              )
+                str(os.environ.get('WINDOWS_CREDS_PSW')),
+                str(self.os_major_ver)
+                )
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
         logging.info('Prepared for test')

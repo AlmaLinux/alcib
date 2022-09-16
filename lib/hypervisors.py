@@ -333,7 +333,7 @@ class BaseHypervisor:
             if self.os_major_ver == '8':
                 cmd = self.packer_build_opennebula.format(self.os_major_ver, build_log)
             else:
-                cmd = self.packer_build_opennebula2.format(self.os_major_ver, build_log)            
+                cmd = self.packer_build_opennebula2.format(self.os_major_ver, build_log)
         else:
             cmd = self.packer_build_cmd.format(self.os_major_ver, build_log)
         try:
@@ -343,7 +343,7 @@ class BaseHypervisor:
             if settings.image == 'GenericCloud' and self.os_major_ver == '8' :
               stdout, _ = ssh.safe_execute(cmd2)
               logging.info(stdout.read().decode())
-              sftp_download(ssh, self.sftp_path, build_log_2, self.name)      
+              sftp_download(ssh, self.sftp_path, build_log_2, self.name)
             logging.info('%s built', settings.image)
         finally:
             if settings.image == 'GenericCloud':
@@ -761,13 +761,32 @@ class HyperV(BaseHypervisor):
         """
         self.create_aws_instance()
         self.wait_instance_ready([self.instance_id])
-        ssh = builder.ssh_aws_connect(self.instance_ip, self.name)
-        stdout, _ = ssh.safe_execute(
-            'git clone https://github.com/AlmaLinux/cloud-images.git'
-        )
-        logging.info(stdout.read().decode())
-        ssh.close()
-        logging.info('Connection closed')
+        lines = ['[aws_instance_public_ip]\n', self.instance_ip, '\n']
+        ansible_host = self.instance_ip
+        user = "Administrator"
+        inv = {
+            "aws_instance": {
+                "hosts": {
+                    ansible_host: {
+                        "ansible_user": user,
+                        "ansible_connection": "ssh",
+                        "ansible_shell_type": "powershell",
+                        "ansible_ssh_private_key_file":
+                            str(builder.AWS_KEY_PATH.absolute())
+                    }
+                }
+            }
+        }
+        hosts_file = open('./ansible/hosts', 'w')
+        hosts_file.writelines(lines)
+        hosts_file.close()
+        logging.info('Running Ansible')
+        playbook = 'configure_aws_instance.yml'
+        execute_command('ansible-galaxy install -r ./ansible/requirements.yaml', os.getcwd())
+        ansible_runner.interface.run(project_dir='./ansible',
+                                     playbook=playbook,
+                                     inventory=inv)
+
 
     def test_stage(self, builder: Builder):
         """
@@ -961,7 +980,7 @@ class KVM(LinuxHypervisors):
                     "-only=amazon-ebssurrogate.almalinux-{}-aws-aarch64 . " \
                     "2>&1 | tee ./{}".format(
                         os.getenv('AWS_ACCESS_KEY_ID'),
-                        os.getenv('AWS_SECRET_ACCESS_KEY'), 
+                        os.getenv('AWS_SECRET_ACCESS_KEY'),
                         self.os_major_ver, aws_build_log)
         else:
             cmd = "cd cloud-images && " \
@@ -972,7 +991,7 @@ class KVM(LinuxHypervisors):
                 "-only=amazon-ebssurrogate.almalinux-{}-ami-{} . " \
                 "2>&1 | tee ./{}".format(
                     os.getenv('AWS_ACCESS_KEY_ID'),
-                    os.getenv('AWS_SECRET_ACCESS_KEY'), 
+                    os.getenv('AWS_SECRET_ACCESS_KEY'),
                     self.os_major_ver, arch, aws_build_log)
         try:
             stdout, _ = ssh.safe_execute(cmd)

@@ -436,12 +436,20 @@ class BaseHypervisor:
         """
         Prepares Openstack images for futher testing.
         """
+        if self.os_major_ver == '9':
+            logging.info('Dirty fix to terraform test script ...')
+            stdout, _ = ssh.safe_execute(
+                f'sed -i \'s/-8-GenericCloud-8.6/-9-GenericCloud-9.0/g\' {test_path_tf}/*/{arch}/*.tf 2>&1 && '
+                f'sed -i \'s/AlmaLinux OS 8.6/AlmaLinux OS 9.0/g\' {test_path_tf}/*/{arch}/*.tf 2>&1 && '
+            )
+            logging.info(stdout.read().decode())
         logging.info('Uploading openstack image')
         stdout, _ = ssh.safe_execute(
             f'cp '
             f'{cloud_path}/output-almalinux-{self.os_major_ver}-gencloud-{self.arch}/*.qcow2 '
             f'{test_path_tf}/upload_image/{arch}/'
         )
+        logging.info(stdout.read().decode())
         terraform_commands = ['terraform init', 'terraform fmt',
                               'terraform validate',
                               'terraform apply --auto-approve']

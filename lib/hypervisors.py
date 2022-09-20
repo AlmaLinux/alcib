@@ -1024,6 +1024,13 @@ class KVM(LinuxHypervisors):
         )
         arch = self.arch if self.arch == 'aarch64' else 'amd64'
         test_path_tf = f'{self.cloud_images_path}/tests/ami/launch_test_instances/{arch}'
+        if self.os_major_ver == '9':
+            logging.info('Dirty fix to terraform test script ...')
+            stdout, _ = ssh.safe_execute(
+                f'sed -i \'s/AlmaLinux OS 8./AlmaLinux OS 9./g\' {test_path_tf}/*.tf 2>&1'
+            )
+            logging.info(stdout.read().decode())
+
         logging.info('Creating test instances')
         stdout, _ = ssh.safe_execute(
             'mkdir /home/ec2-user/.aws/ && '

@@ -353,8 +353,9 @@ class BaseHypervisor:
                 file = f'output-almalinux-{self.os_major_ver}-opennebula-{self.arch}/*.qcow2'
             else:
                 file = '*.box'
-            files = [f'{IMAGE}_{self.arch}_build*.log', file]
+            files = [build_log, file]
             if settings.image == 'GenericCloud' and self.os_major_ver == '8' :
+                files.append(build_log_2)
                 files.append(file2)
             self.upload_to_bucket(
                 builder, files,
@@ -1126,7 +1127,7 @@ class KVM(LinuxHypervisors):
         logging.info('Connection closed')
 
 
-class Aws(KVM):
+class AwsStage2(KVM):
     """
     AWS Stage 2 for building x86_64 AWS AMI.
     """

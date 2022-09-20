@@ -1126,7 +1126,7 @@ class KVM(LinuxHypervisors):
         logging.info('Connection closed')
 
 
-class AwsStage2(KVM):
+class Aws(KVM):
     """
     AWS Stage 2 for building x86_64 AWS AMI.
     """

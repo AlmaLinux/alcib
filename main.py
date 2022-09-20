@@ -98,7 +98,7 @@ def almalinux_wiki_pr():
     )
     logging.info(response.status_code, response.content.decode())
 
-    data = '{"head":"VanessaRish:master","base":"master","title":"Updating AWS AMI versions"}'
+    data = '{"head":"AlmaLinux:master","base":"master","title":"Updating AWS AMI versions"}'
     response = requests.post(
         'https://api.github.com/repos/AlmaLinux/wiki/pulls',
         headers=headers, data=data

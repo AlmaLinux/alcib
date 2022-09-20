@@ -82,19 +82,21 @@ pipeline {
                       }
                   }
             }
-              stage('Build AWS AMI stage 2') {
-                  steps {
-                      script {
-                          def jobs = [:]
-                          for (arch in params.ARCH.replace('"', '').split(',')) {
-                              if (arch == 'x86_64') {
-                                 sh "python3 -u main.py --stage build --hypervisor AWS-STAGE-2 --arch ${arch}"
-                              }
-                          }
+            stage('Build AWS AMI stage 2') {
+                when {
+                    expression { params.OS_MAJOR_VER == '8' } 
+                }
+                steps {
+                    script {
+                        for (arch in params.ARCH.replace('"', '').split(',')) {
+                            if (arch == 'x86_64') {
+                                sh "python3 -u main.py --stage build --hypervisor AWS-STAGE-2 --arch ${arch}"
+                            }
+                        }
 
-                      }
-                  }
-              }
+                    }
+                }
+            }
         }
       }
       stage('Test AWS AMI') {
@@ -132,12 +134,15 @@ pipeline {
                         }
                         parallel jobs
                       }
-                      def arches = params.ARCH.replace('"', '').split(',')
-                      if (arches.length == 2) {
-                        sh('git clone https://github.com/VanessaRish/wiki.git')
-                        sh('paste -d \\\\n aws_amis-x86_64.csv aws_amis-aarch64.csv > wiki/docs/.vuepress/public/ci-data/aws_amis.csv')
-                        sh('paste -d \\\\n AWS_AMIS-x86_64.md AWS_AMIS-aarch64.md > wiki/docs/cloud/AWS_AMIS.md')
-                        sh('python3 -u main.py --stage pullrequest')
+// TODO:  publish only when released? replace  git repo to autobot?                      
+                      if (env.RELEASE_SCOPE == 'yes') {
+                        def arches = params.ARCH.replace('"', '').split(',')
+                        if (arches.length == 2) {
+                          sh('git clone https://github.com/AlmaLinux/wiki.git')
+                          sh('paste -d \\\\n aws_amis-x86_64.csv aws_amis-aarch64.csv > wiki/docs/.vuepress/public/ci-data/aws_amis.csv')
+                          sh('paste -d \\\\n AWS_AMIS-x86_64.md AWS_AMIS-aarch64.md > wiki/docs/cloud/AWS_AMIS.md')
+                          sh('python3 -u main.py --stage pullrequest')
+                        }
                       }
                   }
               }

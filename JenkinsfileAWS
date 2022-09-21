@@ -125,10 +125,14 @@ pipeline {
       stage('Publish new AMIs release') {
         steps {
             script {
-                // preset to no, in case of timeout or abort
+                // Preset to no, in case of timeout or user abort
                 env.RELEASE_SCOPE = 'no'                    
             }
-              timeout(time:3, unit:'HOURS') {
+            // Wrap only user input in timeout block and with-in catch block.
+            // Rest of the action occurs after it based on env variable
+            // On Abort, env varible not set, returns null 
+            // Above ENV preset is safety-net to get 'no', in case of timeout/abort exception
+            timeout(time:2, unit:'HOURS') {
                   script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'ABORTED') {
                       def userInput = input(
@@ -137,26 +141,28 @@ pipeline {
                         parameters: [choice(name: 'RELEASE_SCOPE', choices: 'no\nyes')]
                       )
                     }
-                      env.RELEASE_SCOPE = userInput
-                      if (env.RELEASE_SCOPE == 'yes') {
-                        def jobs = [:]
-                        for (arch in params.ARCH.replace('"', '').split(',')) {
-                            jobs[arch] = performPublishStages(arch)
-                        }
-                        parallel jobs
-                      }
-// TODO:  publish only when released? replace  git repo to autobot?                      
-                      if (env.RELEASE_SCOPE == 'yes') {
-                        def arches = params.ARCH.replace('"', '').split(',')
-                        if (arches.length == 2) {
-                          sh('git clone https://github.com/AlmaLinux/wiki.git')
-                          sh('paste -d \\\\n aws_amis-x86_64.csv aws_amis-aarch64.csv > wiki/docs/.vuepress/public/ci-data/aws_amis.csv')
-                          sh('paste -d \\\\n AWS_AMIS-x86_64.md AWS_AMIS-aarch64.md > wiki/docs/cloud/AWS_AMIS.md')
-                          sh('python3 -u main.py --stage pullrequest')
-                        }
-                      }
                   }
-              }
+            }
+            script {  
+                env.RELEASE_SCOPE = userInput
+                if (env.RELEASE_SCOPE == 'yes') {
+                    def jobs = [:]
+                    for (arch in params.ARCH.replace('"', '').split(',')) {
+                        jobs[arch] = performPublishStages(arch)
+                    }
+                    parallel jobs
+                }
+// TODO:  publish only when released? replace  git repo to autobot?                      
+                if (env.RELEASE_SCOPE == 'yes') {
+                    def arches = params.ARCH.replace('"', '').split(',')
+                    if (arches.length == 2) {
+                        sh('git clone https://github.com/AlmaLinux/wiki.git')
+                        sh('paste -d \\\\n aws_amis-x86_64.csv aws_amis-aarch64.csv > wiki/docs/.vuepress/public/ci-data/aws_amis.csv')
+                        sh('paste -d \\\\n AWS_AMIS-x86_64.md AWS_AMIS-aarch64.md > wiki/docs/cloud/AWS_AMIS.md')
+                        sh('python3 -u main.py --stage pullrequest')
+                    }
+                }
+            }
           }
       }
       stage('Destroy AWS instance') {

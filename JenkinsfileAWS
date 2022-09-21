@@ -6,12 +6,12 @@ def performCreateStages(String arch) {
 
 def performDestroyStages(String arch, String version) {
     return {
-        sh "python3 -u main.py --stage destroy --hypervisor KVM --arch ${arch}"
         script {
             if (arch == 'x86_64' && version == '8') {
                 sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
             } 
         }      
+        sh "python3 -u main.py --stage destroy --hypervisor KVM --arch ${arch}"
     }
 }
 

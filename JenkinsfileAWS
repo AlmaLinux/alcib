@@ -133,7 +133,7 @@ pipeline {
                     catchError(buildResult: 'SUCCESS', stageResult: 'ABORTED') {
                       def userInput = input(
                         id: 'userInput',
-                        message: 'AMI built and tested. Make a release of this build?', ok: 'Process',
+                        message: 'AMI Image build is complete. Make a release of this build?', ok: 'Process',
                         parameters: [choice(name: 'RELEASE_SCOPE', choices: 'no\nyes')]
                       )
                     }

@@ -122,7 +122,10 @@ pipeline {
               }
           }
       }
-      stage('Publish new AMIs release') {
+      stage('User Input, Release Yes/No') {
+          when {
+              expression { params.DESTROY == true }
+          }
         steps {
             script {
                 // Preset to no, in case of timeout or user abort
@@ -132,35 +135,38 @@ pipeline {
             // Rest of the action occurs after it based on env variable
             // On Abort, env varible not set, returns null 
             // Above ENV preset is safety-net to get 'no', in case of timeout/abort exception
-            timeout(time:2, unit:'HOURS') {
-                  script {
-                    catchError(buildResult: 'SUCCESS', stageResult: 'ABORTED') {
-                      def userInput = input(
-                        id: 'userInput',
-                        message: 'AMI Image build is complete. Make a release of this build?', ok: 'Process',
-                        parameters: [choice(name: 'RELEASE_SCOPE', choices: 'no\nyes')]
-                      )
-                      env.RELEASE_SCOPE = userInput
-                    }
-                  }
-            }
-            script {  
-                if (env.RELEASE_SCOPE == 'yes') {
-                    def jobs = [:]
-                    for (arch in params.ARCH.replace('"', '').split(',')) {
-                        jobs[arch] = performPublishStages(arch)
-                    }
-                    parallel jobs
+            timeout(time:10, unit:'MINITES') {
+              script {
+                catchError(buildResult: 'SUCCESS', stageResult: 'ABORTED') {
+                  def userInput = input(
+                    id: 'userInput',
+                    message: 'AMI Image build is complete. Make a release of this build?', ok: 'Process',
+                    parameters: [choice(name: 'RELEASE_SCOPE', choices: 'no\nyes')]
+                    )
+                  env.RELEASE_SCOPE = userInput
                 }
-// TODO:  publish only when released? replace  git repo to autobot?                      
-                if (env.RELEASE_SCOPE == 'yes') {
-                    def arches = params.ARCH.replace('"', '').split(',')
-                    if (arches.length == 2) {
-                        sh('git clone https://github.com/AlmaLinux/wiki.git')
-                        sh('paste -d \\\\n aws_amis-x86_64.csv aws_amis-aarch64.csv > wiki/docs/.vuepress/public/ci-data/aws_amis.csv')
-                        sh('paste -d \\\\n AWS_AMIS-x86_64.md AWS_AMIS-aarch64.md > wiki/docs/cloud/AWS_AMIS.md')
-                        sh('python3 -u main.py --stage pullrequest')
-                    }
+              }
+            }
+          }
+      }
+      stage('Publish New AMIs Release') {
+        when {
+            expression { env.RELEASE_SCOPE == 'yes' }
+        }
+        steps {
+            script {  
+                def jobs = [:]
+                for (arch in params.ARCH.replace('"', '').split(',')) {
+                    jobs[arch] = performPublishStages(arch)
+                }
+                parallel jobs
+// Publish only when released? replace  git repo to autobot?                      
+                def arches = params.ARCH.replace('"', '').split(',')
+                if (arches.length == 2) {
+                    sh('git clone https://github.com/AlmaLinux/wiki.git')
+                    sh('paste -d \\\\n aws_amis-x86_64.csv aws_amis-aarch64.csv > wiki/docs/.vuepress/public/ci-data/aws_amis.csv')
+                    sh('paste -d \\\\n AWS_AMIS-x86_64.md AWS_AMIS-aarch64.md > wiki/docs/cloud/AWS_AMIS.md')
+                    sh('python3 -u main.py --stage pullrequest')
                 }
             }
           }

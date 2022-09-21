@@ -254,9 +254,12 @@ class BaseHypervisor:
         Terminates AWS Instance.
         """
         logging.info('Destroying created VM')
-        execute_command('terraform destroy --auto-approve', self.terraform_dir)
-        if self.arch == 'aarch64':
-            shutil.rmtree(self.terraform_dir)
+        if os.path.exists(self.terraform_dir): 
+            execute_command('terraform destroy --auto-approve', self.terraform_dir)
+            if self.arch == 'aarch64':
+                shutil.rmtree(self.terraform_dir)
+        else:
+            logging.info('Destroy VM alreaded completed')
 
     def upload_to_bucket(self, builder: Builder, files: list, file_path: str, ssh):
         """
@@ -733,7 +736,7 @@ class LinuxHypervisors(BaseHypervisor):
     @staticmethod
     def clear_ppc64le_host(self, builder):
         ssh = builder.ssh_remote_connect(settings.ppc64le_host, 'alcib', 'PPC64LE')
-        cmd = 'sudo rm -r /home/alcib/docker-images && sudo rm -r /home/alcib/*-tmp && sudo rm -r /home/alcib/.aws'
+        cmd = 'sudo rm -rf /home/alcib/docker-images && sudo rm -rf /home/alcib/*-tmp && sudo rm -rf /home/alcib/.aws'
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
         ssh.close()
@@ -1314,7 +1317,7 @@ class Equinix(BaseHypervisor):
         Cleans up Equinix Server.
         """
         ssh = builder.ssh_remote_connect(settings.equinix_ip, 'root', 'Equinix')
-        cmd = 'sudo rm -r /root/cloud-images/'
+        cmd = 'sudo rm -rf /root/cloud-images/'
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
         ssh.close()

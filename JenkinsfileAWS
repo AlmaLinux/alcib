@@ -124,13 +124,19 @@ pipeline {
       }
       stage('Publish new AMIs release') {
         steps {
-              timeout(time:2, unit:'DAYS') {
+            script {
+                // preset to no, in case of timeout or abort
+                env.RELEASE_SCOPE = 'no'                    
+            }
+              timeout(time:3, unit:'HOURS') {
                   script {
+                    catchError(buildResult: 'SUCCESS', stageResult: 'ABORTED') {
                       def userInput = input(
                         id: 'userInput',
-                        message: 'AMI successfully scanned and ready for release ?', ok: 'Starting publishing!',
-                        parameters: [choice(name: 'RELEASE_SCOPE', choices: 'yes\nno')]
+                        message: 'AMI built and tested. Make a release of this build?', ok: 'Process',
+                        parameters: [choice(name: 'RELEASE_SCOPE', choices: 'no\nyes')]
                       )
+                    }
                       env.RELEASE_SCOPE = userInput
                       if (env.RELEASE_SCOPE == 'yes') {
                         def jobs = [:]

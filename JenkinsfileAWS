@@ -123,9 +123,6 @@ pipeline {
           }
       }
       stage('User Input, Release Yes/No') {
-          when {
-              expression { params.DESTROY == true }
-          }
         steps {
             script {
                 // Preset to no, in case of timeout or user abort
@@ -140,7 +137,7 @@ pipeline {
                 catchError(buildResult: 'SUCCESS', stageResult: 'ABORTED') {
                   def userInput = input(
                     id: 'userInput',
-                    message: 'AMI Image build completed. Make a release of this build?', ok: 'Process',
+                    message: 'AMI Image build completed. Release to public?', ok: 'Process',
                     parameters: [choice(name: 'RELEASE_BUILD', choices: 'no\nyes')]
                     )
                   env.RELEASE_BUILD = userInput

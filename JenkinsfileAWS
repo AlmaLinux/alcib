@@ -140,11 +140,11 @@ pipeline {
                         message: 'AMI Image build is complete. Make a release of this build?', ok: 'Process',
                         parameters: [choice(name: 'RELEASE_SCOPE', choices: 'no\nyes')]
                       )
+                      env.RELEASE_SCOPE = userInput
                     }
                   }
             }
             script {  
-                env.RELEASE_SCOPE = userInput
                 if (env.RELEASE_SCOPE == 'yes') {
                     def jobs = [:]
                     for (arch in params.ARCH.replace('"', '').split(',')) {

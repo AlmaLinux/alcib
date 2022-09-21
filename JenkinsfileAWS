@@ -129,7 +129,7 @@ pipeline {
         steps {
             script {
                 // Preset to no, in case of timeout or user abort
-                env.RELEASE_SCOPE = 'no'                    
+                env.RELEASE_BUILD = 'no'                    
             }
             // Wrap only user input in timeout block and with-in catch block.
             // Rest of the action occurs after it based on env variable
@@ -140,10 +140,10 @@ pipeline {
                 catchError(buildResult: 'SUCCESS', stageResult: 'ABORTED') {
                   def userInput = input(
                     id: 'userInput',
-                    message: 'AMI Image build is complete. Make a release of this build?', ok: 'Process',
-                    parameters: [choice(name: 'RELEASE_SCOPE', choices: 'no\nyes')]
+                    message: 'AMI Image build completed. Make a release of this build?', ok: 'Process',
+                    parameters: [choice(name: 'RELEASE_BUILD', choices: 'no\nyes')]
                     )
-                  env.RELEASE_SCOPE = userInput
+                  env.RELEASE_BUILD = userInput
                 }
               }
             }
@@ -151,7 +151,7 @@ pipeline {
       }
       stage('Publish New AMIs Release') {
         when {
-            expression { env.RELEASE_SCOPE == 'yes' }
+            expression { env.RELEASE_BUILD == 'yes' }
         }
         steps {
             script {  

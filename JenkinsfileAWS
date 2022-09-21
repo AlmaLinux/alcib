@@ -205,9 +205,6 @@ pipeline {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performDestroyStages(arch,params.OS_MAJOR_VER)
-                    //   if (arch == 'x86_64') {
-                    //     sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
-                    //   }
                   }
                   parallel jobs
               }
@@ -218,17 +215,12 @@ pipeline {
                     color: 'warning',
                     message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
           script {
-              echo "In aborted, before calling destory"
               if (params.DESTROY == true) {
                   def jobs = [:]
                   for (arch in params.ARCH.replace('"', '').split(',')) {
                       jobs[arch] = performDestroyStages(arch,params.OS_MAJOR_VER)
-                    //   if (arch == 'x86_64') {
-                    //     sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
-                    //   }
                   }
                   parallel jobs
-                  echo "In aborted, after calling destory"
               }
           }
       }

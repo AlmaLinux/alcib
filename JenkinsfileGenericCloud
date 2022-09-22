@@ -133,7 +133,7 @@ pipeline {
             // Rest of the action occurs after it based on env variable
             // On Abort, env varible not set, returns null 
             // Above ENV preset is safety-net to get 'no', in case of timeout/abort exception
-            timeout(time:10, unit:'MINUTES') {
+            timeout(time:90, unit:'MINUTES') {
               script {
                 catchError(buildResult: 'SUCCESS', stageResult: 'ABORTED') {
                   def userInput = input(

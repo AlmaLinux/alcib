@@ -1,110 +1,129 @@
 ---
-- name: Make sure git installed
-  yum:
-    name: "{{ packages }}"
-    state: present
-  become_user: root
-  become: true
-  vars:
-    packages:
-    - git-core
-    - jq
-    - terraform
-    - lorax
-    - anaconda-tui
-    - subscription-manager
+- name: Configure Linux Instances
+  block:
+    - name: Make sure git installed
+      yum:
+        name: "{{ packages }}"
+        state: present
+      become_user: root
+      become: true
+      vars:
+        packages:
+        - git-core
+        - jq
+        - terraform
+        - lorax
+        - anaconda-tui
+        - subscription-manager
 
-- name: Install Python development tools 8
-  ansible.builtin.dnf:
-    name:
-      - python39-devel
-      - python39-wheel-wheel      
-      - python39-wheel
-      - python39-setuptools-wheel
-      - python39-setuptools
-  become: true
-  become_user: root
-  when: ansible_distribution_major_version == '8'
+    - name: Install Python development tools 8
+      ansible.builtin.dnf:
+        name:
+          - python39-devel
+          - python39-wheel-wheel
+          - python39-wheel
+          - python39-setuptools-wheel
+          - python39-setuptools
+      become: true
+      become_user: root
+      when: ansible_distribution_major_version == '8'
 
-- name: Install Python development tools 9
-  ansible.builtin.dnf:
-    name:
-      - python3-devel
-      - python3-pip-wheel
-      - python3-setuptools-wheel
-      - python3-setuptools
-  become: true
-  become_user: root
-  when: ansible_distribution_major_version == '9'
+    - name: Install Python development tools 9
+      ansible.builtin.dnf:
+        name:
+          - python3-devel
+          - python3-pip-wheel
+          - python3-setuptools-wheel
+          - python3-setuptools
+      become: true
+      become_user: root
+      when: ansible_distribution_major_version == '9'
 
-- name: Installing testinfra
-  pip:
-    name:
-      - pytest-testinfra
-      - paramiko
-      - boto3
-      - markdown-table
-    executable: pip3.9
-    extra_args: --no-cache-dir --upgrade
-    state: present
-  become: true
-  become_user: root
+    - name: Installing testinfra
+      pip:
+        name:
+          - pytest-testinfra
+          - paramiko
+          - boto3
+          - markdown-table
+        executable: pip3.9
+        extra_args: --no-cache-dir --upgrade
+        state: present
+      become: true
+      become_user: root
 
-- name: Clone cloud-images repo
-  become_user: root
-  become: true
-  git:
-    repo: 'https://github.com/AlmaLinux/cloud-images.git'
-    dest: './cloud-images'
-    # version: master
-    force: yes
+    - name: Clone cloud-images repo
+      become_user: root
+      become: true
+      git:
+        repo: 'https://github.com/AlmaLinux/cloud-images.git'
+        dest: './cloud-images'
+        # version: master
+        force: yes
 
-# - name: Clone Docker images repo
-#   become_user: root
-#   become: true
-#   git:
-#     repo: 'https://github.com/AlmaLinux/docker-images.git'
-#     dest: './docker-images'
-#     # version: master
-#     force: yes
+    # - name: Clone Docker images repo
+    #   become_user: root
+    #   become: true
+    #   git:
+    #     repo: 'https://github.com/AlmaLinux/docker-images.git'
+    #     dest: './docker-images'
+    #     # version: master
+    #     force: yes
 
-- name: Change permissions
-  file:
-    path: './cloud-images'
-    mode: 0777
-    recurse: yes
-    group: ec2-user
-    owner: ec2-user
-  become: yes
+    - name: Change permissions
+      file:
+        path: './cloud-images'
+        mode: 0777
+        recurse: yes
+        group: ec2-user
+        owner: ec2-user
+      become: yes
 
-- name: Add UEFI OVMF repo
-  ansible.builtin.yum_repository:
-    name: firmware
-    description: kraxel firmware repo
-    baseurl: https://www.kraxel.org/repos/jenkins/
-    gpgcheck: no
-  become_user: root
-  become: true
-  when: ansible_architecture == 'x86_64'
+    - name: Add UEFI OVMF repo
+      ansible.builtin.yum_repository:
+        name: firmware
+        description: kraxel firmware repo
+        baseurl: https://www.kraxel.org/repos/jenkins/
+        gpgcheck: no
+      become_user: root
+      become: true
+      when: ansible_architecture == 'x86_64'
 
-- name: Install UEFI OVMF files
-  ansible.builtin.yum:
-    name:
-      - edk2.git-ovmf-x64
-#    name: https://www.kraxel.org/repos/jenkins/edk2/edk2.git-ovmf-x64-0-20220719.209.gf0064ac3af.EOL.no.nore.updates.noarch.rpm
-    disable_gpg_check: yes
-  become_user: root
-  become: true
-  when: ansible_architecture == 'x86_64'
- 
-# - name: Change permissions
-#   file:
-#     path: './docker-images'
-#     mode: 0777
-#     recurse: yes
-#     group: ec2-user
-#     owner: ec2-user
-#   become: yes
+    - name: Install UEFI OVMF files
+      ansible.builtin.yum:
+        name:
+          - edk2.git-ovmf-x64
+    #    name: https://www.kraxel.org/repos/jenkins/edk2/edk2.git-ovmf-x64-0-20220719.209.gf0064ac3af.EOL.no.nore.updates.noarch.rpm
+        disable_gpg_check: yes
+      become_user: root
+      become: true
+      when: ansible_architecture == 'x86_64'
 
-#- name: Disable SELinux
-#  shell: setenforce 0
+    # - name: Change permissions
+    #   file:
+    #     path: './docker-images'
+    #     mode: 0777
+    #     recurse: yes
+    #     group: ec2-user
+    #     owner: ec2-user
+    #   become: yes
+
+    #- name: Disable SELinux
+    #  shell: setenforce 0
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Configure Windows instances
+  block:
+    - name: Cleanup previous repo
+      ansible.windows.win_file:
+        path: C:\Users\Administrator\cloud-images
+        state: absent
+
+    - name: Clone cloud-images repo
+      ansible.windows.win_command:
+        cmd: git clone --depth=1 https://github.com/AlmaLinux/cloud-images.git
+
+    - name: Setup test enviroment
+      ansible.windows.win_command:
+        cmd: py -m pip install --no-cache-dir --upgrade pytest pytest-testinfra paramiko
+  when: ansible_facts['os_family'] == 'Windows'

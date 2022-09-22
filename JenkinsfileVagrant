@@ -101,35 +101,58 @@ pipeline {
               }
           }
       }
-      stage('Vagrant Cloud') {
-          steps {
-              timeout(time:1, unit:'DAYS') {
-                  script {
-                      def userInput = input(
-                        id: 'userInput',
-                        message: 'Upload to Vagrant Cloud', ok: 'Starting uploading!',
-                        parameters: [choice(name: 'RELEASE_SCOPE', choices: 'yes\nno'),
-                                     string(name: 'VERSION', description: 'Release version', defaultValue: '8.5.20211111'),
-                                     string(name: 'CHANGELOG', description: 'Vagrant box changelog', defaultValue: 'Test')]
-                      )
-                      env.RELEASE_SCOPE = userInput['RELEASE_SCOPE']
-                      env.VERSION = userInput['VERSION']
-                      env.CHANGELOG = userInput['CHANGELOG']
-                      if (env.RELEASE_SCOPE == 'yes') {
-                        def jobs = [:]
-                        for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
-                            jobs[hv] = performReleaseStages(hv)
-                        }
-                        parallel jobs
-                      }
-                      if (env.RELEASE_SCOPE == 'yes') {
-                        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                            sh('curl --header \"Authorization: Bearer $VAGRANT_CLOUD_ACCESS_KEY\" https://app.vagrantup.com/api/v1/box/$VAGRANT/version/$VERSION/release --request PUT')
-                        }
-                      }
-                  }
+      stage('User Input, Release Yes/No') {
+        steps {
+            script {
+                // Preset to no, in case of timeout or user abort
+                env.RELEASE_BUILD = 'no'
+                env.DT_VERSION = sh(script: 'date -u +"%Y%m%d"', , returnStdout: true).trim()
+                // Adding OS sub version, like 8.6 or 9.0 etc. + release date
+                env.VERSION = (params.OS_MAJOR_VER == '8') ? "${params.OS_MAJOR_VER}.6.${env.DT_VERSION}" : "${params.OS_MAJOR_VER}.0.${env.DT_VERSION}"
+                env.CHANGELOG = "AlmaLinux security upates."                                    
+            }
+            // Wrap only user input in timeout block and with-in catch block.
+            // Rest of the action occurs after it based on env variable
+            // On Abort, env varible not set, returns null 
+            // Above ENV preset is safety-net to get 'no', in case of timeout/abort exception
+            timeout(time:10, unit:'MINUTES') {
+              script {
+                catchError(buildResult: 'SUCCESS', stageResult: 'ABORTED') {
+                    def userInput = input(
+                    id: 'userInput',
+                    message: 'Upload to Vagrant Cloud', ok: 'Starting uploading!',
+                    parameters: [choice(name: 'RELEASE_BUILD', choices: 'no\nyes'),
+                                    string(name: 'VERSION', description: 'Release version', defaultValue: "${env.VERSION}"),
+                                    string(name: 'CHANGELOG', description: 'Vagrant box changelog', defaultValue: "${env.CHANGELOG}")]
+                    )
+                    env.RELEASE_BUILD = userInput['RELEASE_BUILD']
+                    env.VERSION = userInput['VERSION']
+                    env.CHANGELOG = userInput['CHANGELOG']
+                }
+                echo "Make Release: ${env.RELEASE_BUILD}"
+                echo "Version: ${env.VERSION}"
+                echo "Change Log: ${env.CHANGELOG}"                
               }
+            }
           }
+      }
+      stage('Publish to Vagrant Cloud') {
+        when {
+            expression { env.RELEASE_BUILD == 'yes' }
+        }      
+        steps {
+            script {
+                def jobs = [:]
+                for (hv in params.HYPERVISORS.replace('"', '').split(',')) {
+                    jobs[hv] = performReleaseStages(hv)
+                }
+                parallel jobs
+
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    sh('curl --header \"Authorization: Bearer $VAGRANT_CLOUD_ACCESS_KEY\" https://app.vagrantup.com/api/v1/box/$VAGRANT/version/$VERSION/release --request PUT')
+                }
+            }
+        }
       }
       stage('Destroy AWS instance') {
           when {

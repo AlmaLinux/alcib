@@ -54,7 +54,7 @@ def almalinux_wiki_pr():
     """
     Executes Github API calls for making commit and pull request.
     """
-    repo = 'https://api.github.com/repos/VanessaRish/wiki'
+    repo = 'https://api.github.com/repos/AlmaLinux/wiki'
     response = requests.post(
         f'{repo}/merge-upstream',
         headers=headers, data='{"branch":"master"}'
@@ -98,7 +98,7 @@ def almalinux_wiki_pr():
     )
     logging.info(response.status_code, response.content.decode())
 
-    data = '{"head":"VanessaRish:master","base":"master","title":"Updating AWS AMI versions"}'
+    data = '{"head":"AlmaLinux:master","base":"master","title":"Updating AWS AMI versions"}'
     response = requests.post(
         'https://api.github.com/repos/AlmaLinux/wiki/pulls',
         headers=headers, data=data
@@ -107,7 +107,7 @@ def almalinux_wiki_pr():
 
 
 def create_new_branch():
-    repo = 'https://api.github.com/repos/VanessaRish/docker-images'
+    repo = 'https://api.github.com/repos/AlmaLinux/docker-images'
     branches = get_git_branches(headers, repo)
     branch = branches[-1]
     if f'al-{settings.almalinux}-{TIMESTAMP}' not in branches:

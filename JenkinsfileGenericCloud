@@ -32,6 +32,7 @@ def performReleaseStages(String hypervisor, String arch) {
 pipeline {
   agent any
   parameters {
+      choice(name: 'OS_MAJOR_VER', choices: ['8', '9'], description: 'AlmaLinux Major Version')
       choice(name: 'IMAGE', choices: ['GenericCloud', 'AWS AMI', 'Vagrant Box', 'OpenNebula'], description: 'Cloud image to update: build, test, release')
       extendedChoice(defaultValue: 'x86_64', description: 'Architecture to build', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64', visibleItemCount: 2)
       string(name: 'BUCKET', defaultValue: 'alcib', description: 'S3 BUCKET NAME')
@@ -50,9 +51,23 @@ pipeline {
       EQUINIX_IP = credentials('equinix_ip')
       KOJI_IP = credentials('koji_ip')
       ALMA_REPO_IP = credentials('alma_repo_ip')
+      OS_MAJOR_VER = "${params.OS_MAJOR_VER}"
   }
 
+  options {
+    // This is required if you want to clean before build
+    skipDefaultCheckout(true)
+  }
   stages {
+    stage('Prepare Workspace') {
+        steps {
+            // Clean before build
+            cleanWs()
+            // We need to explicitly checkout from SCM here
+            checkout scm
+            echo "Building ${env.JOB_NAME}..."
+        }
+    } 
       stage('Create build environment') {
           steps {
               script {
@@ -102,39 +117,56 @@ pipeline {
           }
           post {
               success {
-                  slackSend channel: '#test-auto-vagrant',
+                  slackSend channel: '#albs-jenkins-action-required',
                             color: 'good',
                             message: "The build ${currentBuild.fullDisplayName} ready to be uploaded to be released , please, approve: ${currentBuild.absoluteUrl}"
               }
           }
       }
-      stage('Release Generic Cloud images') {
-          steps {
-              timeout(time:1, unit:'DAYS') {
-                  script {
-                      def userInput = input(
-                        id: 'userInput',
-                        message: 'Release to public ?', ok: 'Starting releasing!',
-                        parameters: [choice(name: 'RELEASE_SCOPE', choices: 'yes\nno')]
-                      )
-                      env.RELEASE_SCOPE = userInput
-                      if (env.RELEASE_SCOPE == 'yes') {
-                        node('opennebula') {
-                            sh('cd alcib && git reset --hard && git checkout master && git pull')
-                            def jobs = [:]
-                            for (arch in params.ARCH.replace('"', '').split(',')) {
-                                if (arch == 'x86_64') {
-                                  jobs[arch] = performReleaseStages('KVM', arch)
-                                }
-                                else {
-                                  jobs[arch] = performReleaseStages('Equinix', arch)
-                                }
-                            }
-                            parallel jobs
-                        }
-                      }
-                  }
+      stage('User Input, Release Yes/No') {
+        steps {
+            script {
+                // Preset to no, in case of timeout or user abort
+                env.RELEASE_BUILD = 'no'                    
+            }
+            // Wrap only user input in timeout block and with-in catch block.
+            // Rest of the action occurs after it based on env variable
+            // On Abort, env varible not set, returns null 
+            // Above ENV preset is safety-net to get 'no', in case of timeout/abort exception
+            timeout(time:90, unit:'MINUTES') {
+              script {
+                catchError(buildResult: 'SUCCESS', stageResult: 'ABORTED') {
+                  def userInput = input(
+                    id: 'userInput',
+                    message: 'Generic Image build completed. Release to public?', ok: 'Process',
+                    parameters: [choice(name: 'RELEASE_BUILD', choices: 'no\nyes')]
+                    )
+                  env.RELEASE_BUILD = userInput
+                }
               }
+            }
+          }
+      }
+      stage('Publish Images Release') {
+        when {
+            expression { env.RELEASE_BUILD == 'yes' }
+        }
+          steps {
+            script {
+                node('opennebula') {
+                    sh('cd alcib && git reset --hard && git checkout master && git pull')
+                    def jobs = [:]
+                    for (arch in params.ARCH.replace('"', '').split(',')) {
+                        if (arch == 'x86_64') {
+                            jobs[arch] = performReleaseStages('KVM', arch)
+                        }
+                        else {
+                            jobs[arch] = performReleaseStages('Equinix', arch)
+                        }
+                    }
+                    parallel jobs
+                }
+            }
           }
       }
       stage('Destroy AWS instance') {
@@ -163,12 +195,12 @@ pipeline {
           archiveArtifacts artifacts: '*.log'
       }
       success {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-jenkins-notifications',
                     color: 'good',
                     message: "The build ${currentBuild.fullDisplayName} completed successfully : ${currentBuild.absoluteUrl}"
       }
       failure {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-jenkins-action-required',
                     color: 'danger',
                     message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
           script {
@@ -187,7 +219,7 @@ pipeline {
           }
       }
       aborted {
-          slackSend channel: '#test-auto-vagrant',
+          slackSend channel: '#albs-jenkins-action-required',
                     color: 'warning',
                     message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
           script {

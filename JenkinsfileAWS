@@ -9,8 +9,8 @@ def performDestroyStages(String arch, String version) {
         script {
             if (arch == 'x86_64' && version == '8') {
                 sh "python3 -u main.py --stage destroy --hypervisor AWS-STAGE-2  --arch ${arch}"
-            } 
-        }      
+            }
+        }
         sh "python3 -u main.py --stage destroy --hypervisor KVM --arch ${arch}"
     }
 }
@@ -34,7 +34,9 @@ def performPublishStages(String arch) {
 }
 
 pipeline {
-  agent any
+  agent {
+    label 'controller'
+  }
   parameters {
       choice(name: 'OS_MAJOR_VER', choices: ['8', '9'], description: 'AlmaLinux Major Version')
       choice(name: 'IMAGE', choices: ['AWS AMI', 'Vagrant Box', 'GenericCloud', 'OpenNebula'], description: 'Cloud image to update: build, test, release')
@@ -62,7 +64,7 @@ pipeline {
             checkout scm
             echo "Building ${env.JOB_NAME}..."
         }
-    }    
+    }
       stage('Create AWS instance for AWS AMI') {
           steps {
               script {
@@ -89,7 +91,7 @@ pipeline {
             }
             stage('Build AWS AMI stage 2') {
                 when {
-                    expression { params.OS_MAJOR_VER == '8' } 
+                    expression { params.OS_MAJOR_VER == '8' }
                 }
                 steps {
                     script {
@@ -126,11 +128,11 @@ pipeline {
         steps {
             script {
                 // Preset to no, in case of timeout or user abort
-                env.RELEASE_BUILD = 'no'                    
+                env.RELEASE_BUILD = 'no'
             }
             // Wrap only user input in timeout block and with-in catch block.
             // Rest of the action occurs after it based on env variable
-            // On Abort, env varible not set, returns null 
+            // On Abort, env varible not set, returns null
             // Above ENV preset is safety-net to get 'no', in case of timeout/abort exception
             timeout(time:90, unit:'MINUTES') {
               script {
@@ -151,13 +153,13 @@ pipeline {
             expression { env.RELEASE_BUILD == 'yes' }
         }
         steps {
-            script {  
+            script {
                 def jobs = [:]
                 for (arch in params.ARCH.replace('"', '').split(',')) {
                     jobs[arch] = performPublishStages(arch)
                 }
                 parallel jobs
-// Publish only when released? replace  git repo to autobot?                      
+// Publish only when released? replace  git repo to autobot?
                 def arches = params.ARCH.replace('"', '').split(',')
                 if (arches.length == 2) {
                     sh('git clone https://github.com/AlmaLinux/wiki.git')

@@ -254,7 +254,7 @@ class BaseHypervisor:
         Terminates AWS Instance.
         """
         logging.info('Destroying created VM')
-        if os.path.exists(self.terraform_dir): 
+        if os.path.exists(self.terraform_dir):
             execute_command('terraform destroy --auto-approve', self.terraform_dir)
             if self.arch == 'aarch64':
                 shutil.rmtree(self.terraform_dir)
@@ -276,6 +276,9 @@ class BaseHypervisor:
         """
         logging.info('Uploading to S3 bucket')
         timestamp_name = f'{self.build_number}-{IMAGE}-{self.name}-{self.arch}-{TIMESTAMP}'
+        aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
+        aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+        aws_region = 'us-east-1'
         for file in files:
             cmd = f'bash -c "sha256sum {file_path}/{file}"'
             try:
@@ -283,7 +286,10 @@ class BaseHypervisor:
             except ExecuteError:
                 continue
             checksum = stdout.read().decode().split()[0]
-            cmd = f'bash -c "aws s3 cp {file_path}/{file} ' \
+            cmd = f'export AWS_ACCESS_KEY_ID={aws_access_key_id} ' \
+                  f'&& export AWS_SECRET_ACCESS_KEY={aws_secret_access_key} ' \
+                  f'&& export AWS_DEFAULT_REGION={aws_region} ' \
+                  f'&& bash -c "aws s3 cp {file_path}/{file} ' \
                   f's3://{settings.bucket}/{timestamp_name}/ --metadata sha256={checksum}"'
             stdout, _ = ssh.safe_execute(cmd)
             logging.info(stdout.read().decode())
@@ -1223,7 +1229,7 @@ class Equinix(BaseHypervisor):
     )
 
     packer_build_gencloud = (
-        "cd /root/cloud-images && "
+        "cd cloud-images && "
         "packer.io build -var qemu_binary='/usr/libexec/qemu-kvm' "
         "-only=qemu.almalinux-{}-gencloud-aarch64 . 2>&1 | tee ./{}"
     )
@@ -1242,7 +1248,7 @@ class Equinix(BaseHypervisor):
         builder: Builder
             Main Builder Configuration.
         """
-        ssh = builder.ssh_remote_connect(settings.equinix_ip, 'root', 'Equinix')
+        ssh = builder.ssh_remote_connect(settings.equinix_ip, 'jenkins', 'Equinix')
         logging.info('Connection is good')
         stdout, _ = ssh.safe_execute(
             'git clone https://github.com/AlmaLinux/cloud-images.git'
@@ -1252,9 +1258,9 @@ class Equinix(BaseHypervisor):
         logging.info('Connection closed')
 
     def build_stage(self, builder: Builder):
-        ssh = builder.ssh_remote_connect(settings.equinix_ip, 'root', 'Equinix')
+        ssh = builder.ssh_remote_connect(settings.equinix_ip, 'jenkins', 'Equinix')
         logging.info('Packer initialization')
-        stdout, _ = ssh.safe_execute('packer.io init /root/cloud-images 2>&1')
+        stdout, _ = ssh.safe_execute('packer.io init cloud-images 2>&1')
         logging.info(stdout.read().decode())
         gc_build_log = f'{IMAGE}_{self.arch}_build_{DT_SUFFIX}.log'
         logging.info('Building %s', settings.image)
@@ -1271,9 +1277,9 @@ class Equinix(BaseHypervisor):
                 file = 'output-almalinux-{}-opennebula-aarch64/*.qcow2'.format(self.os_major_ver)
             self.upload_to_bucket(
                 builder, [f'{IMAGE}_{self.arch}_build*.log', file],
-                '/root/cloud-images/', ssh
+                'cloud-images/', ssh
             )
-        sftp_download(ssh, '/root/cloud-images/', gc_build_log, self.name)
+        sftp_download(ssh, 'cloud-images/', gc_build_log, self.name)
         logging.info('%s built', settings.image)
         ssh.close()
         logging.info('Connection closed')
@@ -1288,33 +1294,32 @@ class Equinix(BaseHypervisor):
         yaml = os.path.join(os.getcwd(), 'clouds.yaml.j2')
         content = open(yaml, 'r').read()
         yaml_content = generate_clouds(content)
-        ssh = builder.ssh_remote_connect(settings.equinix_ip, 'root', 'Equinix')
+        ssh = builder.ssh_remote_connect(settings.equinix_ip, 'jenkins', 'Equinix')
         sftp = ssh.open_sftp()
         sftp.put(str(builder.AWS_KEY_PATH.absolute()),
-                 '/root/.ssh/alcib_rsa4096')
-        stdout, _ = ssh.safe_execute('sudo chmod 700 /root/.ssh && '
-                                     'sudo chmod 600 /root/.ssh/alcib_rsa4096')
-        stdout, _ = ssh.safe_execute('mkdir -p /root/.config/openstack/')
-        yaml_file = sftp.file('/root/.config/openstack/clouds.yaml', "w")
+                 '.ssh/alcib_rsa4096')
+        stdout, _ = ssh.safe_execute('sudo chmod 600 .ssh/alcib_rsa4096')
+        stdout, _ = ssh.safe_execute('mkdir -p .config/openstack/')
+        yaml_file = sftp.file('.config/openstack/clouds.yaml', "w")
         yaml_file.write(yaml_content)
         yaml_file.flush()
 
         arch = self.arch if self.arch == 'aarch64' else 'amd64'
-        test_path_tf = '/root/cloud-images/tests/genericcloud/'
+        test_path_tf = '$HOME/cloud-images/tests/genericcloud'
         gc_test_log = self.prepare_openstack(
-            ssh, '/root/cloud-images', arch, test_path_tf
+            ssh, 'cloud-images', arch, test_path_tf
         )
         script = f'{test_path_tf}/launch_test_instances/{arch}/test_genericcloud.py'
         try:
             stdout, _ = ssh.safe_execute(
-                f'cd /root/cloud-images && '
+                f'cd cloud-images && '
                 f'py.test -v --hosts=almalinux-test-1,almalinux-test-2 '
                 f'--ssh-config={test_path_tf}/launch_test_instances/{arch}/ssh-config '
                 f'{script} 2>&1 | tee ./{gc_test_log}')
             logging.info(stdout.read().decode())
         finally:
-            self.upload_to_bucket(builder, [gc_test_log], '/root/cloud-images/', ssh)
-            sftp_download(ssh, '/root/cloud-images/', gc_test_log, self.arch)
+            self.upload_to_bucket(builder, [gc_test_log], 'cloud-images/', ssh)
+            sftp_download(ssh, 'cloud-images/', gc_test_log, self.arch)
             logging.info('Tested')
             stdout, _ = ssh.safe_execute(
                 f'cd {test_path_tf}/launch_test_instances/{arch}/ && '
@@ -1335,8 +1340,8 @@ class Equinix(BaseHypervisor):
 
         Cleans up Equinix Server.
         """
-        ssh = builder.ssh_remote_connect(settings.equinix_ip, 'root', 'Equinix')
-        cmd = 'sudo rm -rf /root/cloud-images/'
+        ssh = builder.ssh_remote_connect(settings.equinix_ip, 'jenkins', 'Equinix')
+        cmd = 'sudo rm -rf cloud-images/'
         stdout, _ = ssh.safe_execute(cmd)
         logging.info(stdout.read().decode())
         ssh.close()

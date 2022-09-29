@@ -29,7 +29,9 @@ def performDestroyStages(String hypervisor) {
 }
 
 pipeline {
-  agent any
+  agent {
+    label 'controller'
+  }
   parameters {
       choice(name: 'OS_MAJOR_VER', choices: ['8', '9'], description: 'AlmaLinux Major Version')
       choice(name: 'IMAGE', choices: ['Vagrant Box', 'AWS AMI', 'GenericCloud', 'OpenNebula'], description: 'Cloud image to update: build, test, release')
@@ -60,7 +62,7 @@ pipeline {
             checkout scm
             echo "Building ${env.JOB_NAME}..."
         }
-    } 
+    }
       stage('Create AWS instance for Vagrant') {
           steps {
               script {
@@ -109,11 +111,11 @@ pipeline {
                 env.DT_VERSION = sh(script: 'date -u +"%Y%m%d"', , returnStdout: true).trim()
                 // Adding OS sub version, like 8.6 or 9.0 etc. + release date
                 env.VERSION = (params.OS_MAJOR_VER == '8') ? "${params.OS_MAJOR_VER}.6.${env.DT_VERSION}" : "${params.OS_MAJOR_VER}.0.${env.DT_VERSION}"
-                env.CHANGELOG = "AlmaLinux security upates."                                    
+                env.CHANGELOG = "AlmaLinux security upates."
             }
             // Wrap only user input in timeout block and with-in catch block.
             // Rest of the action occurs after it based on env variable
-            // On Abort, env varible not set, returns null 
+            // On Abort, env varible not set, returns null
             // Above ENV preset is safety-net to get 'no', in case of timeout/abort exception
             timeout(time:90, unit:'MINUTES') {
               script {
@@ -131,7 +133,7 @@ pipeline {
                 }
                 echo "Make Release: ${env.RELEASE_BUILD}"
                 echo "Version: ${env.VERSION}"
-                echo "Change Log: ${env.CHANGELOG}"                
+                echo "Change Log: ${env.CHANGELOG}"
               }
             }
           }
@@ -139,7 +141,7 @@ pipeline {
       stage('Publish to Vagrant Cloud') {
         when {
             expression { env.RELEASE_BUILD == 'yes' }
-        }      
+        }
         steps {
             script {
                 def jobs = [:]

@@ -17,7 +17,9 @@ def performDestroyStages(String hypervisor, String arch) {
 }
 
 pipeline {
-  agent any
+  agent {
+    label 'controller'
+  }
   parameters {
       choice(name: 'IMAGE', choices: ['Docker', 'Vagrant Box', 'AWS AMI', 'GenericCloud', 'OpenNebula'], description: 'Cloud image to update: build, test, release')
       extendedChoice(defaultValue: 'KVM', description: 'Hypervisors options to build Docker Container', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'HYPERVISORS', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'KVM', visibleItemCount: 1)

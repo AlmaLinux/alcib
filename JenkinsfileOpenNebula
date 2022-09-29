@@ -31,7 +31,9 @@ def performReleaseStages(String hypervisor, String arch) {
 
 
 pipeline {
-  agent any
+  agent {
+    label 'controller'
+  }
   parameters {
       choice(name: 'OS_MAJOR_VER', choices: ['8', '9'], description: 'AlmaLinux Major Version')
       choice(name: 'IMAGE', choices: ['OpenNebula', 'GenericCloud', 'AWS AMI', 'Vagrant Box'], description: 'Cloud image to update: build, test, release')
@@ -69,7 +71,7 @@ pipeline {
             checkout scm
             echo "Building ${env.JOB_NAME}..."
         }
-    } 
+    }
       stage('Create build environment') {
           steps {
               script {
@@ -129,11 +131,11 @@ pipeline {
         steps {
             script {
                 // Preset to no, in case of timeout or user abort
-                env.RELEASE_BUILD = 'no'                    
+                env.RELEASE_BUILD = 'no'
             }
             // Wrap only user input in timeout block and with-in catch block.
             // Rest of the action occurs after it based on env variable
-            // On Abort, env varible not set, returns null 
+            // On Abort, env varible not set, returns null
             // Above ENV preset is safety-net to get 'no', in case of timeout/abort exception
             timeout(time:90, unit:'MINUTES') {
               script {
@@ -152,7 +154,7 @@ pipeline {
       stage('Release OpenNebula images') {
         when {
             expression { env.RELEASE_BUILD == 'yes' }
-        }      
+        }
           steps {
             script {
               node('opennebula') {

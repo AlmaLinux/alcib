@@ -1,0 +1,338 @@
+properties([disableConcurrentBuilds(), disableResume(), parameters([[name: 'RUNENV', $class: 'ChoiceParameter', choiceType: 'PT_RADIO', description: 'Select Almalinux 8 branch option to publish', filterLength: 1, filterable: false, randomName: 'choice-parameter-230686960675645', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def getOpts() {
+  def result = ["DEVL:selected", "PROD"]
+} 
+def res = getOpts()
+
+return res
+''']]], [name: 'IMG_TYPE', $class: 'ChoiceParameter', choiceType: 'PT_SINGLE_SELECT', description: 'Image Group to publish', filterLength: 1, filterable: false, randomName: 'choice-parameter-230686960675745', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def getOpts() {
+  def result = ["ALL", "BASE", "DEFAULT", "OFFICIAL", "INIT", "MICRO", "MINIMAL", "UBI:selected" ]
+} 
+def res = getOpts()
+
+return res
+''']]], [name: 'AL8PUBLISH', $class: 'ChoiceParameter', choiceType: 'PT_RADIO', description: 'Select Almalinux 8 branch option to publish', filterLength: 1, filterable: false, randomName: 'choice-parameter-230686960675855', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def getOpts() {
+  def result = ["NO:selected", "YES"]
+} 
+def res = getOpts()
+
+return res
+''']]], [name: 'AL8BRANCH', $class: 'CascadeChoiceParameter', choiceType: 'PT_SINGLE_SELECT', description: 'AlmaLinux 8 branch to publish', filterLength: 1, filterable: false, randomName: 'choice-parameter-230686968657517', referencedParameters: 'AL8PUBLISH', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def getDockerHubLibraryPrefix(String osVersion="8", String gitRepoPath="docker-library/official-images/master") {
+  def response = new URL("https://raw.githubusercontent.com/${gitRepoPath}/library/almalinux").text 
+  //println("Status: "+ response)   // dump for debug
+  def pre="al${osVersion}"
+  def branch=""
+  for(i in response.tokenize()){
+    if (i != null && i.endsWith("amd64") && i.contains(pre) && i.length() > 23) {
+    // let value overwrite to get last value
+      branch = i.substring(11,23)
+    } 
+  }
+  return branch
+}
+def getDevRepoBranches(String prodPreFix="al8-20220901", String gitOwner="AlmaLinux", String gitRepo="docker-images"){
+  def regions = "git ls-remote -h https://github.com/${gitOwner}/${gitRepo}.git"
+  def region = regions.execute() 
+  region.waitFor()
+  def output = region.in.text
+  def exitcode= region.exitValue()
+  def error = region.err.text
+  def branch=[]
+
+  if (error) {
+    println "Std Err: ${error}"
+    println "Process exit code: ${exitcode}"
+    branch.add("${exitcode}: ${error}")
+    return branch
+  }
+
+  def pre = prodPreFix.substring(0,3)
+  for(i in output.tokenize()){
+    if (i.length() < 25 && i.contains(pre) && i.substring(11) >= prodPreFix && !i.contains("template")) {
+      branch.add(i.substring(11))
+    } 
+  }
+  return branch
+}
+def getBranch(optVal) {
+  def res = ["NONE"]
+  if (optVal == "YES") {
+    // def var0 = [getDockerHubLibraryPrefix()]
+    // res = [var0]
+    res= getDevRepoBranches()
+  }
+  return res
+}
+def var2 = getBranch(AL8PUBLISH)
+
+return var2
+''']]], [name: 'AL9PUBLISH', $class: 'ChoiceParameter', choiceType: 'PT_RADIO', description: 'Publish Almalinux 9 Images?', filterLength: 1, filterable: false, randomName: 'choice-parameter-230686972751396', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def getOpts() {
+  def result = ["NO:selected", "YES"]
+} 
+def res = getOpts()
+
+return res
+''']]], [name: 'AL9BRANCH', $class: 'CascadeChoiceParameter', choiceType: 'PT_SINGLE_SELECT', description: 'AlmaLinux 9 branch to publish', filterLength: 1, filterable: false, randomName: 'choice-parameter-230686979823352', referencedParameters: 'AL9PUBLISH', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def getDockerHubLibraryPrefix(String osVersion="8", String gitRepoPath="docker-library/official-images/master") {
+  def response = new URL("https://raw.githubusercontent.com/${gitRepoPath}/library/almalinux").text 
+  //println("Status: "+ response)   // dump for debug
+  def pre="al${osVersion}"
+  def branch=""
+  for(i in response.tokenize()){
+    if (i != null && i.endsWith("amd64") && i.contains(pre) && i.length() > 23) {
+    // let value overwrite to get last value
+      branch = i.substring(11,23)
+    } 
+  }
+  return branch
+}
+def getDevRepoBranches(String prodPreFix="al8-20220901", String gitOwner="AlmaLinux", String gitRepo="docker-images"){
+  def regions = "git ls-remote -h https://github.com/${gitOwner}/${gitRepo}.git"
+  def region = regions.execute() 
+  region.waitFor()
+  def output = region.in.text
+  def exitcode= region.exitValue()
+  def error = region.err.text
+  def branch=[]
+
+  if (error) {
+    println "Std Err: ${error}"
+    println "Process exit code: ${exitcode}"
+    branch.add("${exitcode}: ${error}")
+    return branch
+  }
+
+  def pre = prodPreFix.substring(0,3)
+  for(i in output.tokenize()){
+    if (i.length() < 25 && i.contains(pre) && i.substring(11) >= prodPreFix && !i.contains("template")) {
+      branch.add(i.substring(11))
+    } 
+  }
+  return branch
+}
+def getBranch(String optVal, String dtprod) {
+  def res = ["NONE"]
+  if (optVal == "YES") {
+    // def var0 = [dtprod]
+    // res = [var0]
+    res= getDevRepoBranches(dtprod)
+  } 
+  return res
+}
+def dtprod=getDockerHubLibraryPrefix("9")
+def var2 = getBranch(AL9PUBLISH, dtprod)
+
+return var2
+''']]], [name: 'JOB_SUMMARY', $class: 'DynamicReferenceParameter', choiceType: 'ET_FORMATTED_HTML', description: 'Job Summary: Following would be the job summary in processing', omitValueField: false, randomName: 'choice-parameter-230686986276185', referencedParameters: 'AL8PUBLISH,AL8BRANCH,AL9PUBLISH,AL9BRANCH,RUNENV,IMG_TYPE', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def RUNDESC=""
+
+if (RUNENV == "DEVL") {
+  RUNDESC = "Publish images to development repos: <b>quay.io/almalinuxautobot</b>. Image group/type to publish: <b>${IMG_TYPE}</b>."
+} else {
+  RUNDESC = "Publish images to development repos: <b>quay.io/almalinuxorg</b> and <b>docker.io/almalinux</b>. Image group/type to publish: <b>${IMG_TYPE}</b>."
+}
+def AL8DESC=""
+if (AL8PUBLISH == "NO") {
+  AL8DESC = "No Changes to AlmaLinux 8 images"
+} else {
+  def AL8PRE = AL8BRANCH.substring(0,12)
+  AL8DESC = "AlmaLinux 8 Images will be published using base branch <b><a href=https://github.com/almalinux/docker-images/tree/${AL8BRANCH}>${AL8BRANCH}</a></b>. "
+}
+def AL9DESC=""
+if (AL9PUBLISH == "NO") {
+  AL9DESC = "No Changes to AlmaLinux 9 images"
+} else {
+  def AL9PRE = AL9BRANCH.substring(0,12)
+  AL9DESC = "AlmaLinux 9 Images will be published using base branch <b><a href=https://github.com/almalinux/docker-images/tree/${AL9BRANCH}>${AL9BRANCH}</a></b>. "
+}
+def html ="""<p>
+<li>${RUNDESC}</li>
+<li>${AL8DESC}</li>
+<li>${AL9DESC}</li>
+</p>
+"""
+
+return html
+''']]]])])
+
+pipeline {
+  environment {
+    AL8BRANCH = "${params.AL8BRANCH}"
+    AL9BRANCH = "${params.AL9BRANCH}"
+    AL8PUBLISH = "${params.AL8PUBLISH}"
+    AL9PUBLISH = "${params.AL9PUBLISH}"
+    FAIL_WHEN_BRANCH_EXITS = "${params.FAIL_WHEN_BRANCH_EXITS}"
+    DT_TAG = sh(script: 'date -u +"%Y%m%d_%H%M%S"', , returnStdout: true).trim()
+    JDT = sh(script: 'date -u +"%H%M%S"', , returnStdout: true).trim()
+    JOB_DATE = sh(script: 'date -u +"%Y%m%d"', , returnStdout: true).trim()
+    WS_PWD = sh(script: 'pwd', , returnStdout: true).trim()
+    AL8DATE = sh(script: 'echo ${AL8BRANCH:4:8}', , returnStdout: true).trim()
+    AL9DATE = sh(script: 'echo ${AL9BRANCH:4:8}', , returnStdout: true).trim()
+  } 
+  agent {
+    label 'controller'
+    //label 'ec2-al8-x86_64'
+  }
+  stages {
+      stage('Safety Checks') {
+        when {
+          allOf {
+            expression { params.AL8PUBLISH == 'NO' }
+            expression { params.AL9PUBLISH == 'NO' }
+          }  
+        }
+        steps {
+          echo "Selected both producion repository, nothing publish, job will terminate and exit"
+          sh(script: 'false')
+        }
+      }    
+      stage('Prepare WS') {
+        steps {
+          echo "Workspace cleanup ..."
+          cleanWs()
+          sh '''
+          git clone --single-branch --depth=1 --branch=main https://github.com/AlmaLinux/docker-images.git $WS_PWD/dock-scripts
+          cd $WS_PWD/dock-scripts
+          ls -al > workspace.log
+          '''
+          script {
+            env.RUNENV =  params.RUNENV.toLowerCase()
+            env.IMG_TYPE =  params.IMG_TYPE.toLowerCase()
+            env.RUNTYPE = sh(script: "source $WS_PWD/dock-scripts/docker_utils_functions && get_build_types ${IMG_TYPE}", , returnStdout: true).trim()
+          }
+          echo "RUNENV: $RUNENV, RUNTYPE: $RUNTYPE"
+          echo 'Workspace ready to use ...'
+        }
+      }
+      stage('Parallel Steps') {
+        parallel {
+          stage('Alma 8') {
+            when {
+              allOf {
+                expression { params.AL8PUBLISH != 'NO' }
+                expression { params.AL8BRANCH != 'NONE' }
+              } 
+            }
+            stages {
+              stage('Get RootFS 8') {
+                steps {
+                  echo "Get RootFS Files from ${AL8BRANCH} branch ..."
+                  sh '''
+                  cd $WS_PWD/dock-scripts 
+                  source ./docker_utils_functions
+                  file="env-al8.log"
+                  echo
+                  echo -n "Writing ${file} ... "
+                  print_env_header "${file}";
+                  almaEnvBuilder  "${file}" "8" "6" "all" "$IMG_TYPE" "$RUNENV" "$AL8DATE"
+                  echo -n " done!"
+                  echo
+                  source ./env-al8.log
+                  git clone --depth=1 --branch=$AL8BRANCH $al_git_publish_url $WS_PWD/dock-scripts/work/al8
+                  ls -al $WS_PWD/dock-scripts/work/al8
+                  '''
+                }
+              }
+              stage('Docker Build & Push 8') {
+                steps {
+                  withCredentials([usernamePassword(credentialsId: 'publish-to-docker-hub', passwordVariable: 'DH_PWD', usernameVariable: 'DH_UID'),usernamePassword(credentialsId: 'publish-to-quay-registry', passwordVariable: 'QUAY_PWD', usernameVariable: 'QUAY_UID')]) {
+                    echo " docker build and push"
+                    // sh('cd results && echo ${DH_PWD} | docker login -u ${DH_UID} --password-stdin docker.io && echo ${QUAY_PWD} | docker login -u ${QUAY_UID} --password-stdin quay.io && ./publish && docker logout && docker logout quay.io')
+                    sh '''
+                    cd $WS_PWD/dock-scripts 
+                    source ./docker_utils_functions
+                    source ./env-al8.log
+                    cd work/al8
+                    echo ${DH_PWD} | docker login -u ${DH_UID} --password-stdin docker.io 
+                    echo ${QUAY_PWD} | docker login -u ${QUAY_UID} --password-stdin quay.io 
+                    build_push_manifest "$al_os_version" "$al_rel_version" "$IMG_TYPE" "$al_repo_prefix" "$AL9DATE" 
+                    docker logout
+                    docker logout quay.io
+                    cd ../..
+                    rm -rf work/al8
+                    '''
+                  }
+                  sh('echo "Publishing  Almalinux 8 RootFS - End"  & date ')
+                }
+              }              
+            }
+          }
+          stage('Alma 9') {
+            when {
+              allOf {
+                expression { params.AL9PUBLISH != 'NO' }
+                expression { params.AL9BRANCH != 'NONE' }
+              }
+            }
+            stages {
+              stage('Get RootFS 9') {
+                steps {
+                  echo "Verify Release run"
+                  sh '''
+                  cd $WS_PWD/dock-scripts 
+                  source ./docker_utils_functions
+                  file="env-al9.log"
+                  echo
+                  echo -n "Writing ${file} ... "
+                  print_env_header "${file}";
+                  almaEnvBuilder  "${file}" "9" "0" "all" "$IMG_TYPE" "$RUNENV" "$AL9DATE"
+                  echo -n " done!"
+                  echo 
+                  source ./env-al9.log
+                  git clone --depth=1 --branch=$AL8BRANCH $al_git_publish_url $WS_PWD/dock-scripts/work/al9
+                  ls -al $WS_PWD/dock-scripts/work/al9                                   
+                  '''
+                }
+              }
+              stage('Docker Build & Push 9') {
+                steps {
+                  sh('echo "Publishing  Almalinux 9 RootFS - Start"  & date ')
+                  withCredentials([usernamePassword(credentialsId: 'publish-to-docker-hub', passwordVariable: 'DH_PWD', usernameVariable: 'DH_UID'),usernamePassword(credentialsId: 'publish-to-quay-registry', passwordVariable: 'QUAY_PWD', usernameVariable: 'QUAY_UID')]) {
+                    sh '''
+                    cd $WS_PWD/dock-scripts 
+                    source ./docker_utils_functions
+                    source ./env-al9.log
+                    cd work/al9
+                    echo ${DH_PWD} | docker login -u ${DH_UID} --password-stdin docker.io 
+                    echo ${QUAY_PWD} | docker login -u ${QUAY_UID} --password-stdin quay.io 
+                    build_push_manifest "$al_os_version" "$al_rel_version" "$IMG_TYPE" "$al_repo_prefix" "$AL9DATE" 
+                    docker logout
+                    docker logout quay.io
+                    cd ../..
+                    rm -rf work/al9
+                    '''
+                  }
+                  sh('echo "Publishing  Almalinux 9 RootFS - End"  & date ')
+                }
+              }
+            }
+          }
+        }
+      }
+      stage('Post Publish') {
+        steps {
+          sh('echo "Completed publishing ...!" & date ')
+        }
+      }
+    }
+  post {
+    always {
+      archiveArtifacts artifacts: "**/*.log", fingerprint: true
+      script {
+        // cleanup any images or contianers created
+        sh '''
+          docker system prune -f
+        '''
+      }
+    }        
+    success {
+      echo "success"
+      // slackSend channel: '#albs-jenkins-notifications',
+      //   color: 'good',
+      //   message: "@here The Docker/Container rootfs build job ${currentBuild.fullDisplayName} - ${env.JOB_NAME}, ID #${env.BUILD_NUMBER} completed successfully ${currentBuild.absoluteUrl}."
+    }
+    failure {
+      echo "failure"
+      // slackSend channel: '#albs-jenkins-action-required',
+      //   message: "@channel The Docker/Container rootfs build job ${currentBuild.fullDisplayName} - ${env.JOB_NAME}, ID #${env.BUILD_NUMBER} has failed, possible security update found ${currentBuild.absoluteUrl}.",
+      //   color: 'red'
+    }
+  }     
+}

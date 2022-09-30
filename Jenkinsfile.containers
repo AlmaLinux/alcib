@@ -1,0 +1,170 @@
+def createRootFS(String type) {
+  return {
+
+    sh(script:"cd ${WS_PWD}/${WS_DIR} && ls -al && source ./docker_utils_functions  && ./${ENV_JOB_TAG}_build_rootfs ${type} && date ")
+    //echo "${type}"
+  }
+}
+def scanStatus = '0'
+pipeline {
+  agent {
+    label 'ec2-al8-x86_64'
+  }  
+  options {
+    // Required for manual clean before build
+    skipDefaultCheckout(true)
+  }
+  parameters {
+    string(name: 'INPUT_TAG', defaultValue: 'almalinux:8', description: 'Container Image Input, use almalinux:8 or almalinux:9')
+    string(name: 'JOB_TAG', defaultValue: 'al8', description: 'Job Tag, use al8 or al9')
+    string(name: 'GIT_REPO', defaultValue: 'https://github.com/AlmaLinux/docker-images.git', description: 'Git repo for container source and scripts')
+    booleanParam(name: 'FORCE_BUILD_ROOTFS', defaultValue: false, description: 'Force build RootFS on any status of security scan')
+  }   
+  environment {
+    ENV_JOB_TAG = "${params.JOB_TAG}"
+    ENV_INPUT_TAG = "${params.INPUT_TAG}"
+    ENV_GIT_REPO = "${params.GIT_REPO}"
+    DT_TAG = sh(script: 'date -u +"%Y%m%d-%H%M%S"', , returnStdout: true).trim()
+    WS_PWD = sh(script: 'pwd', , returnStdout: true).trim()
+    WS_DIR = "dock_${params.JOB_TAG}"
+  }    
+  stages {
+    stage('Prepare Workspace') {
+      steps {
+        sh('echo "Building ${ENV_JOB_TAG} RootFS - Start" & date ')
+        sh('echo "Cleaning workspace ..."')
+        // Clean before build
+        cleanWs()
+        sh '''BIN_DIR="${PWD}/bin"
+        mkdir -p ${BIN_DIR}
+        curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b $BIN_DIR
+        PATH=${BIN_DIR}:$PATH
+        grype db update && grype version
+        git clone --depth=1 --branch=main ${ENV_GIT_REPO} ${WS_DIR}
+        '''
+      }
+    }
+    stage('Pre-Sec Scan') {
+      options {
+        timeout(time: 1, unit: "HOURS")
+      }
+      steps {
+        script {
+          Exception hasException = null
+
+          catchError(buildResult: 'SUCCESS', stageResult: 'ABORTED') { 
+            try { 
+              echo "Started security scanning ..."
+              sh(script:'PATH=${PWD}/bin:$PATH && cd ${WS_DIR} && date && ./sec_scan ${ENV_INPUT_TAG} ${ENV_JOB_TAG}_pre && date ')
+              scanStatus = readFile("${WS_DIR}/__sec_scan").trim()
+              if (scanStatus != '0') {
+                echo "Security scan return code: ${scanStatus}"  
+                slackSend channel: '#albs-jenkins-notifications-dev-qa', // albs-jenkins-action-required albs-jenkins-notifications-dev-qa - qa use
+                  message: "@channel The Docker/Container job ${currentBuild.fullDisplayName} - ${env.JOB_NAME}, ID #${env.BUILD_NUMBER} has failed, possible security update found ${currentBuild.absoluteUrl}.",
+                  color: 'red'  
+              } 
+            } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException e) {
+              scanStatus = readFile("${WS_DIR}/__sec_scan").trim()
+              error "Caught ${e.toString()}" 
+            } catch (Throwable e) {
+              scanStatus = readFile("${WS_DIR}/__sec_scan").trim()
+              hasException = e
+            }
+          }
+          if (hasException) {
+            echo "Security scan status: ${scanStatus}"
+            error hasException.message
+          }
+        }
+      }
+    }      
+    stage('Building RootFS') {
+      options {
+        timeout(time: 2, unit: "HOURS")
+      }
+      when {
+        anyOf {
+          expression { params.FORCE_BUILD_ROOTFS == true }
+          expression { scanStatus != '0' }
+        }  
+      }
+      stages {
+        stage('Build RootFS') {
+          environment {
+            IMG_TYPES=sh(script: 'source ${WS_DIR}/docker_utils_functions  && get_build_types "all"', , returnStdout: true).trim()
+          }
+          steps {
+            sh('cd ${WS_DIR} && date && ./${ENV_JOB_TAG}_gen_env && cat $PWD/env.${ENV_JOB_TAG} && cp $PWD/env.${ENV_JOB_TAG} $PWD/env.log ')
+            echo "${env.IMG_TYPES}"
+            script {
+                def jobs = [:]
+                for (arch in env.IMG_TYPES.split(' ')) {
+                  jobs[arch] = createRootFS(arch)
+                }
+                parallel jobs
+            }            
+            archiveArtifacts artifacts: "**/env.*", fingerprint: true
+          }
+        }        
+        stage('Upload Prep') {
+          steps {
+            sh('git clone --single-branch --depth=1 --branch=${ENV_JOB_TAG}-template https://github.com/almalinux/docker-images.git results')
+            sh('mv ${WS_DIR}/work/*.xz results/ && cp ${WS_DIR}/env.${ENV_JOB_TAG} results/ && ls -al results/ && cd results && source $PWD/env.${ENV_JOB_TAG}  && git checkout --orphan ${al_git_publish_branch} && git add * && git status')
+          }
+        }
+        stage('Upload RootFS') {
+          steps {
+            withCredentials([string(credentialsId: 'github-almalinuxautobot-name', variable: 'GIT_NAME'),string(credentialsId: 'github-almalinuxautobot-email', variable: 'GIT_EMAIL')]) {
+              sh '''
+              cd results
+              source $PWD/env.${ENV_JOB_TAG} 
+              set +x
+              git config user.name ${GIT_NAME}
+              git config user.email ${GIT_EMAIL}
+              git commit -m "${ENV_JOB_TAG} rootfs build - ${DT_TAG}"
+              '''
+            }
+            withCredentials([usernamePassword(credentialsId: 'github-almalinuxautobot', passwordVariable: 'GIT_PWD', usernameVariable: 'GIT_UID')]) {
+              sh('cd results && source $PWD/env.${ENV_JOB_TAG} && git push https://${GIT_UID}:${GIT_PWD}@github.com/almalinuxautobot/docker-images.git ${al_git_publish_branch}')
+            }
+            sh('rm -rf results && echo "Building ${ENV_JOB_TAG} RootFS - End"  & date ')
+          }
+        }
+        stage('Run Tests') {
+          steps {
+            sh('cd ${WS_DIR} && pwd && ls -al && ./${ENV_JOB_TAG}_run_tests && cat ${ENV_JOB_TAG}_junit.xml')
+            junit allowEmptyResults: true, skipPublishingChecks: true, testResults: '**/al*.xml'
+            archiveArtifacts artifacts: "**/${ENV_JOB_TAG}*.xml", fingerprint: true 
+          }
+        }
+        stage('Post-Sec Scan') {
+          steps {
+            //  sh('BIN_DIR="${PWD}/bin" && PATH=${BIN_DIR}:$PATH &&  mkdir -p ${BIN_DIR} && curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b $BIN_DIR &&  grype db update && grype version')  
+            sh('PATH=${PWD}/bin:$PATH && cd ${WS_DIR} && source $PWD/env.${ENV_JOB_TAG} && date && ./sec_scan $SYS_DEFAULT ${ENV_JOB_TAG}_post && date ')
+          }
+        }       
+      }
+    }
+  }
+  post {
+    always {
+      archiveArtifacts artifacts: "**/al*.log", fingerprint: true
+      script {
+        // cleanup any images or contianers created
+        sh '''
+          docker system prune -f
+        '''
+      }      
+    }        
+    success {
+      slackSend channel: '#albs-jenkins-notifications',
+        color: 'good',
+        message: "@here The Docker/Container rootfs build job ${currentBuild.fullDisplayName} - ${env.JOB_NAME}, ID #${env.BUILD_NUMBER} completed successfully ${currentBuild.absoluteUrl}."
+    }
+    failure {
+      slackSend channel: '#albs-jenkins-action-required',
+        message: "@channel The Docker/Container rootfs build job ${currentBuild.fullDisplayName} - ${env.JOB_NAME}, ID #${env.BUILD_NUMBER} has failed, possible security update found ${currentBuild.absoluteUrl}.",
+        color: 'red'
+    }
+  }
+}

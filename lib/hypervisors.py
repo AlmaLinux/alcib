@@ -286,10 +286,10 @@ class BaseHypervisor:
             except ExecuteError:
                 continue
             checksum = stdout.read().decode().split()[0]
-            cmd = f'export AWS_ACCESS_KEY_ID={aws_access_key_id} ' \
+            cmd = f'bash -c "export AWS_ACCESS_KEY_ID={aws_access_key_id} ' \
                   f'&& export AWS_SECRET_ACCESS_KEY={aws_secret_access_key} ' \
                   f'&& export AWS_DEFAULT_REGION={aws_region} ' \
-                  f'&& bash -c "aws s3 cp {file_path}/{file} ' \
+                  f'&& aws s3 cp {file_path}/{file} ' \
                   f's3://{settings.bucket}/{timestamp_name}/ --metadata sha256={checksum}"'
             stdout, _ = ssh.safe_execute(cmd)
             logging.info(stdout.read().decode())

@@ -276,7 +276,7 @@ pipeline {
                   echo -n " done!"
                   echo 
                   source ./env-al9.log
-                  git clone --depth=1 --branch=$AL8BRANCH $al_git_publish_url $WS_PWD/dock-scripts/work/al9
+                  git clone --depth=1 --branch=$AL9BRANCH $al_git_publish_url $WS_PWD/dock-scripts/work/al9
                   ls -al $WS_PWD/dock-scripts/work/al9                                   
                   '''
                 }
@@ -323,16 +323,16 @@ pipeline {
       }
     }        
     success {
-      echo "success"
-      // slackSend channel: '#albs-jenkins-notifications',
-      //   color: 'good',
-      //   message: "@here The Docker/Container rootfs build job ${currentBuild.fullDisplayName} - ${env.JOB_NAME}, ID #${env.BUILD_NUMBER} completed successfully ${currentBuild.absoluteUrl}."
+      echo "Success"
+      slackSend channel: '#albs-jenkins-notifications',
+        color: 'good',
+        message: "@here The Docker/Container rootfs build job ${currentBuild.fullDisplayName} - ${env.JOB_NAME}, ID #${env.BUILD_NUMBER} completed successfully ${currentBuild.absoluteUrl}."
     }
     failure {
-      echo "failure"
-      // slackSend channel: '#albs-jenkins-action-required',
-      //   message: "@channel The Docker/Container rootfs build job ${currentBuild.fullDisplayName} - ${env.JOB_NAME}, ID #${env.BUILD_NUMBER} has failed, possible security update found ${currentBuild.absoluteUrl}.",
-      //   color: 'red'
+      echo "Failure ..."
+      slackSend channel: '#albs-jenkins-action-required',
+        message: "@channel The Docker/Container rootfs build job ${currentBuild.fullDisplayName} - ${env.JOB_NAME}, ID #${env.BUILD_NUMBER} has failed ${currentBuild.absoluteUrl}.",
+        color: 'red'
     }
   }     
 }

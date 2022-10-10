@@ -9,6 +9,7 @@ Helping functions.
 import collections
 import logging
 import json
+import os
 import re
 import requests
 from subprocess import PIPE, Popen, STDOUT
@@ -24,7 +25,9 @@ Package = collections.namedtuple(
 
 
 __all__ = ['save_ami_id', 'parse_package', 'execute_command',
-           'sftp_download', 'get_git_branches', 'generate_clouds']
+           'sftp_download', 'get_git_branches', 'generate_clouds', 
+           'parse_for_filename', 'generate_latest_name', 
+           'file_to_string', 'shell_command']
 
 
 def save_ami_id(stdout, arch: str) -> str:
@@ -103,3 +106,76 @@ def generate_clouds(yaml_template) -> str:
     env = Environment(loader=DictLoader({'clouds': yaml_template}))
     template = env.get_template('clouds')
     return template.render(config=settings)
+
+
+def generate_latest_name(name: str) -> str:
+    """
+    Geneate filenames create `latest` symlinks
+
+    Example input of AlmaLinux-8-GenericCloud-8.6-20221001.aarch64.qcow2 will return
+                     AlmaLinux-8-GenericCloud-latest.aarch64.qcow2
+    """
+    return re.sub(r"\d(.)\d(-)\d+", "latest", name, 1)
+
+
+def parse_for_filename(name: str) -> str:
+    """
+    Get filename from AWS S3 key
+    """
+    if (name.__contains__("/")):
+        parts = name.split("/")
+        return parts[1]
+    # return original string when it has no "/"    
+    return name
+
+
+def shell_command(cmd: str, cwd_path: str):
+    """
+    Executes shell commands.
+
+    Parameters
+    ----------
+    cmd : str
+        A commands to execute.
+    cwd_path: str
+        Directory path to execute commands.
+
+    Raises
+    ------
+    Exception
+        If a command fails during execution.
+    """
+    logging.info('Executing %s', cmd)
+    exec = Popen([cmd], cwd=cwd_path, shell=True, stderr=STDOUT, stdout=PIPE)
+    for line in exec.stdout:
+        logging.info(line.decode())
+    exec.wait()
+    if exec.returncode != 0:
+        raise Exception('Command {0} execution failed {1}'.format(
+            cmd, exec.returncode
+        ))
+
+def file_to_string(file_path: str) -> str:
+    """
+    Reads a file and returns its content as string.
+
+    Parameters
+    ----------
+    file_path : str
+        File name and path
+    Raises
+    ------
+    Exception
+        When file not found to read.
+    """
+    #check if file is present
+    if os.path.isfile(file_path):
+        text_file = open(file_path, "r")
+        data = text_file.read()
+        text_file.close()
+    
+        return data
+    
+    raise Exception('Input file {0} not found'.format(
+            file_path
+        ))

@@ -18,7 +18,7 @@ import paramiko
 from lib.config import settings
 
 
-__all__ = ['ExecuteError', 'ParamikoWrapper', 'Builder']
+__all__ = ['ExecuteError', 'ParamikoWrapper', 'Builder', 'AgentBuilder']
 
 
 class ExecuteError(Exception):
@@ -165,3 +165,56 @@ region = us-east-1
         ssh_client = self.get_ssh_client()
         ssh_client.connect(ip, username=user, pkey=self.private_key)
         return ssh_client
+
+class AgentBuilder():
+
+    """
+    Agent Builder to use native client.
+    """
+
+    def safe_execute(self, cmd, *args, **kwargs):
+        """
+        Executes a command, emulate ssh client.
+
+        Parameters
+        ----------
+        cmd : str
+            A remote command to execute.
+        """
+        cmd = 'set -o pipefail; ' + cmd
+        logging.info('Executing %s', cmd)
+        stdin, stdout, stderr = self.exec_command(cmd, *args, **kwargs)
+        stdin.flush()
+        exit_status = stdout.channel.recv_exit_status()
+        if exit_status != 0:
+            logging.info('Command output:\n%s', stdout.read().decode())
+            logging.error('Traceback:\n%s', stderr.read().decode())
+            raise ExecuteError(f'Command \'{cmd}\' execution failed.')
+
+        return stdout, stderr
+
+    def exec_command(self, cmd, *args, **kwargs):
+        """
+        Executes a remote command on AWS Instance.
+
+        Parameters
+        ----------
+        cmd : str
+            A remote command to execute.
+        """
+        logging.info('Executing %s', cmd)
+        stdin, stdout, stderr = self.exec_command(cmd, *args, **kwargs)
+        stdin.flush()
+        exit_status = stdout.channel.recv_exit_status()
+        if exit_status != 0:
+            logging.info('Command output:\n%s', stdout.read().decode())
+            logging.error('Traceback:\n%s', stderr.read().decode())
+            raise ExecuteError(f'Command \'{cmd}\' execution failed.')
+
+        return stdout, stderr 
+
+    def ssh_remote_connect(self, ip, user, server_name):
+        logging.info('Connecting to %s Server', server_name)
+        ssh_client = self.get_ssh_client()
+        ssh_client.connect(ip, username=user, pkey=self.private_key)
+        return ssh_client        

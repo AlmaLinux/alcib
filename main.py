@@ -14,7 +14,7 @@ import base64
 import json
 import requests
 
-from lib.builder import Builder
+from lib.builder import Builder, AgentBuilder
 from lib.hypervisors import get_hypervisor, TIMESTAMP
 from lib.config import settings
 from lib.utils import get_git_branches
@@ -39,14 +39,16 @@ def init_args_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument('--hypervisor', type=str,
                         choices=['VirtualBox', 'KVM', 'VMWare_Desktop',
-                                 'HyperV', 'AWS-STAGE-2', 'Equinix'],
+                                 'HyperV', 'AWS-STAGE-2', 'Equinix', 'Agent'],
                         help='Hypervisor name', required=False)
     parser.add_argument('--stage', type=str,
                         choices=['init', 'build', 'destroy',
-                                 'test', 'release', 'pullrequest'],
+                                 'test', 'release', 'pullrequest','sign'],
                         help='Stage')
-    parser.add_argument('--arch', type=str, choices=['x86_64', 'aarch64', 'ppc64le'],
+    parser.add_argument('--arch', type=str, choices=['x86_64', 'aarch64', 'ppc64le', 's390x'],
                         help='Architecture', required=False, default='x86_64')
+    parser.add_argument('--isagent', type=str, choices=['true', 'false'],
+                        help='Use Agent for processing', required=False, default='false')                    
     return parser
 
 
@@ -150,7 +152,7 @@ def main(sys_args):
     if args.stage == 'pullrequest':
         almalinux_wiki_pr()
     else:
-        hypervisor = get_hypervisor(args.hypervisor.lower(), args.arch)
+        hypervisor = get_hypervisor(args.hypervisor.lower(), args.arch, args.isagent)
 
         if args.stage == 'init':
             hypervisor.init_stage(builder)
@@ -187,7 +189,11 @@ def main(sys_args):
                 hypervisor.clear_ppc64le_host(builder)
             else:
                 hypervisor.teardown_stage()
-
+        elif args.stage == 'sign':
+          # if settings.image in ['OpenNebula', 'GenericCloud', 'ALL']:
+            logging.info("Calling sign ...")
+            hypervisor.sign_prep(builder)
+            logging.info("Out of sign process ...")
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))

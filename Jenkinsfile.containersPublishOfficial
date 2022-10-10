@@ -152,6 +152,28 @@ pipeline {
     }
 
     stages {
+      stage('Safety Checks') {
+        parallel {
+          stage('Validate Input' ) {
+            steps {
+              echo "Checking job input values ..."
+              echo "Saving params to param.log ..."
+              script {
+                if ( params.AL8OPTION == 'No Changes' &&  params.AL9OPTION == 'No Changes') {
+                  echo "Selected both 'No Changes', nothing publish, job will terminate and exit"
+                  sh(script: 'false')
+                }
+              }
+
+            }
+          }
+          stage('Validate Security') {
+            steps {
+              echo "Checking for job security ..."
+            }
+          }
+        }
+      }        
         stage('Prepare WS') {
           steps {
             echo "Workspace cleanup ..."
@@ -164,18 +186,6 @@ pipeline {
             ls -al
             '''
             echo 'Workspace ready to use ...'
-          }
-        }
-        stage('Safety Checks') {
-          when {
-            allOf {
-              expression { params.AL8OPTION == 'No Changes' }
-              expression { params.AL9OPTION == 'No Changes' }
-            }  
-          }
-          steps {
-            echo "Selected both producion repository, nothing publish, job will terminate and exit"
-            sh(script: 'false')
           }
         }
         stage('Setup Git') {

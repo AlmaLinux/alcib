@@ -21,7 +21,7 @@ import requests
 import boto3
 import ansible_runner
 
-from lib.builder import Builder, ExecuteError
+from lib.builder import Builder, ExecuteError, AgentBuilder
 from lib.config import settings
 from lib.utils import *
 
@@ -1347,10 +1347,137 @@ class Equinix(BaseHypervisor):
         ssh.close()
         logging.info('Connection closed')
 
-
-def get_hypervisor(hypervisor_name, arch='x86_64'):
+class AgentHypervisor(Equinix):
     """
-    Gets specified hypervisor to build a vagrant box.
+    Equnix Server for building and testing images.
+    """
+    rsync_input_images_prod = (
+        "rsync://rsync.repo.almalinux.org/almalinux/{}/cloud/{}/images/"
+    )
+    rsync_output_images_tmpl = (
+        "/var/ftp/{}/almalinux/{}/cloud/{}/images/"
+    )
+    def __init__(self, name='agent', arch='aarch64'):
+        """
+        KVM initialization.
+        """
+        super().__init__(name, arch)
+
+    def prepare_files(self, keys_list):
+        """
+        Sign Preparation for staging
+        """
+        wdir = os.getcwd()
+        cwd = f'{wdir}/{self.arch}'
+        wcmd = f'mkdir -p {cwd} && cd {cwd}'
+        shell_command(wcmd, wdir)
+        logging.info(f'Enter prepare_files in {cwd} ...')
+        inp_src = self.rsync_input_images_prod.format(self.os_major_ver, self.arch)
+        out_prod = self.rsync_output_images_tmpl.format(f'prod', self.os_major_ver, self.arch)
+        logging.info(f'Rsync prod {inp_src} to local dir {out_prod} ...')
+        cmd_rsync1 = (f'rsync -tavz {inp_src} {out_prod}')
+        shell_command(cmd_rsync1, cwd)
+        logging.info('Done ...!')
+        logging.info('Copy files to work directory ...')
+#  Path already contains end `/`        
+        shell_command(f'cp -av {out_prod}* .', cwd)
+        logging.info('Done ...!')
+        logging.info(keys_list)
+        keys = keys_list.split(",")
+        for key in keys:
+            name = parse_for_filename(key)
+            latest = generate_latest_name(name)
+            print(latest)
+    
+            awscmd = (f'aws s3api get-object --bucket alcib --key {key} {name} '
+                f'> ./{name}.json')
+#                f'| tee  ./{name}.json')
+            logging.info("Copy file from AWS S3 bucket")
+            shell_command(awscmd, cwd)
+            shacheck= (f'A1=$(cat {name}.json | jq \'.Metadata.sha256\' '
+                f'| tr -d \'"\') && echo "$A1  {name}"  | sha256sum -c -')
+            logging.info("SHA Check for received file")
+            shell_command(shacheck, cwd)
+            logging.info("Remove json file and old symlink. Create new link ...")
+            cmd_symlink = (f'rm -f {name}.json && rm -f {latest} && ln -sf {name} {latest}')
+            shell_command(cmd_symlink, cwd)
+            logging.info(f'Symlink {latest} create completed.')
+
+        gensha=f'sha256sum *.qcow2 > CHECKSUM && cat CHECKSUM'
+        logging.info("Export CHECKSUM file ...")
+        shell_command(gensha, cwd)
+        logging.info('Exit prepare_files ...')
+
+    def sign_prep(self, builder: AgentBuilder):
+        """
+        Sign Preparation for staging
+        """
+        logging.info('In sign_prep :entry: ...')        
+        held_cwd = os.getcwd();
+        work_dir = f'{held_cwd}/{self.arch}'
+        ar = self.arch.upper()
+        basekey = f'KEYS_{ar}'
+        logging.info(f'BALA: Getting key to process, reading env: {basekey} ...')
+        keys_list  = os.getenv(basekey)
+        logging.info(keys_list)  
+        self.prepare_files(keys_list)
+        logging.info('In sign_prep :after prepare:  ...')
+        # execute_command(f'cat CHECKSUM', os.getcwd())
+        r = open(f'{work_dir}/CHECKSUM', "r")
+        checksum_file = r.read().encode('utf-8')
+        settings.sign_jwt_token = os.getenv('SIGN_JWT_TOKEN')
+        # settings.sign_jwt_token = base64.b64encode(os.getenv('SIGN_JWT_TOKEN'))
+        if settings.sign_jwt_token > " ":
+            logging.info("JWT token found")
+        else:
+            logging.info("JWT token not found")
+        headers = {
+            'accept': 'application/json',
+            'Authorization': f'Bearer {settings.sign_jwt_token}',
+            'Content-Type': 'application/json',
+        }
+        #
+        pgy_keyid = "488FCF7C3ABB34F8"
+        if self.os_major_ver == "9":
+            pgy_keyid =  "D36CB86CB86B3716"
+        json_data = {
+            'content': f'{checksum_file}',
+            'pgp_keyid': f'{pgy_keyid}',
+        }
+        logging.info('Before request ..')
+        response = requests.post(
+            'https://build.almalinux.org/api/v1/sign-tasks/sync_sign_task/',
+            headers=headers, json=json_data)
+        logging.info('After request ..')
+        content = json.loads(response.content.decode())
+        logging.info('received content')
+        out_data = content['asc_content']
+        logging.info(out_data)
+        if (out_data.count("BEGIN") > 0):
+            logging.info("Write asc file ...")
+            with open(f'{work_dir}/CHECKSUM.asc',"w") as file:
+                file.write(out_data)
+                file.close()
+        
+        shell_command("ls -al | grep -E 'qcow2|CHECKSUM'", work_dir)
+
+        renv = os.getenv('RUNENV')
+        rdir = "devel"
+        if (renv == 'PRD'):
+            rdir =  "staging"
+        out_path = self.rsync_output_images_tmpl.format(rdir, self.os_major_ver, self.arch)
+        
+        logging.info(f'Clean & Copy files to {out_path} ...!')
+        shell_command(f'rm -f {out_path}* && cp -av {work_dir}/* {out_path} && ls -al {out_path} && rm -rf {work_dir}', work_dir)
+        logging.info(f'Log contents of {out_path}CHECKSUM')
+        logging.info(file_to_string(f'{out_path}CHECKSUM'))
+        logging.info(f'Log contents of {out_path}CHECKSUM.asc')
+        logging.info(file_to_string(f'{out_path}CHECKSUM.asc'))
+        logging.info('Done with sign_prep ...!')
+
+def get_hypervisor(hypervisor_name, arch='x86_64', is_agent='false'):
+    """
+    Gets specified hypervisor to build a cloud images.
 
     Parameters
     ----------
@@ -1364,10 +1491,11 @@ def get_hypervisor(hypervisor_name, arch='x86_64'):
     Specified Hypervisor.
     """
     return {
-        'hyperv': HyperV,
-        'virtualbox': VirtualBox,
-        'kvm': KVM,
-        'vmware_desktop': VMWareDesktop,
-        'aws-stage-2': AwsStage2,
-        'equinix': Equinix
+    'agent': AgentHypervisor,
+    'hyperv': HyperV,
+    'virtualbox': VirtualBox,
+    'kvm': KVM,
+    'vmware_desktop': VMWareDesktop,
+    'aws-stage-2': AwsStage2,
+    'equinix': Equinix
     }[hypervisor_name](arch=arch)

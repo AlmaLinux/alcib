@@ -1,0 +1,338 @@
+def performSignStage(String arch) {
+  return {
+    sh "python3 -u main.py --hypervisor Agent --arch $arch --stage sign"
+  }
+}
+pipeline {
+  agent {
+    label 'arm64-builder02'
+  }
+  parameters {
+    choice(name: 'RUNENV', choices: ['DEV', 'TST', 'PRD'], description: 'Job Run Environment. Current user id will be checked for the user role and access to execute this job.')
+    choice(name: 'OS_MAJOR_VER', choices: ['8', '9'], description: 'AlmaLinux Major Version for the job processing')
+    string(name: 'JOB_DATE', defaultValue: 'TODAY', description: 'Enter the date in YYYYMMDD format. Leave it as TODAY to use the current date. This data will be used to filter assets from AWS S3 bucket.', trim: true)
+    booleanParam(name: 'JOB_DATE_INCLUDE_FUTURE', defaultValue: true, description: 'Include/Show assets created after the JOB_DATE')
+    choice(name: 'IMAGE', choices: ['ALL', 'GenericCloud', 'OpenNebula'], description: 'Cloud image type to sign and upload for release')
+    // extendedChoice(defaultValue: 'x86_64', description: 'Architecture for Release', descriptionPropertyValue: '', multiSelectDelimiter: ',', name: 'ARCH', quoteValue: false, saveJSONParameterToFile: false, type: 'PT_MULTI_SELECT', value: 'x86_64, aarch64, ppc64le, s390x', visibleItemCount: 4)
+    string(name: 'BUCKET', defaultValue: 'alcib', description: 'AWS S3 Bucket name for assects selection', trim: true)
+    // string(name: 'AWS_REGION', defaultValue: 'us-east-1', description: 'AWS Region name')
+    booleanParam(name: 'SURROGATE', defaultValue: false, description: 'DevOps user perform this job as surrogate')
+    string(name: 'AGREE_ID', defaultValue: "srbala", description: 'Enter GitHub account user id', trim: true)
+  }
+  environment {
+    AWS_ACCESS_KEY_ID = credentials('jenkins-aws-access-key-id')
+    AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws-secret-access-key')
+    AWS_DEFAULT_REGION = "us-east-1"
+//    AWS_DEFAULT_REGION = "${params.AWS_REGION}"
+    SSH_KEY_FILE = credentials('jenkins-aclib-ssh-private-key')
+    WINDOWS_CREDS = credentials('jenkins-windows-creds')
+    OS_MAJOR_VER = "${params.OS_MAJOR_VER}"
+    RUNENV = "${params.RUNENV}"
+    SIGN_JWT_TOKEN = credentials('sign_jwt_token')
+    DT_VERSION = sh(script: 'date -u +"%Y%m%d"', , returnStdout: true).trim()
+//      GITHUB_TOKEN = credentials('github_token')
+//      VAGRANT_CLOUD_ACCESS_KEY = credentials('jenkins-vagrant-user-access-key')
+  }
+  options {
+    // This is required if you want to clean before build
+    skipDefaultCheckout(true)
+  }
+  stages {
+    stage('Safety Checks') {
+      parallel {
+        stage('Validate Input') {
+          steps {
+            echo "Checking job input values ..."
+            echo "Saving params to param.log ..."
+          }
+        }
+        stage('Security Checks') {
+          steps {
+            echo "Checking for job security ..."
+          }
+        }
+      }
+    }      
+    stage('Workspace') {
+      steps {
+        // Clean before build
+        cleanWs()
+        // We need to explicitly checkout from SCM here
+        checkout scm
+        echo "Building ${env.JOB_NAME}..."
+        script {
+          // Preset to no, in case of timeout or user abort
+          env.IMAGE = params.IMAGE
+          env.JOB_DATE = (params.JOB_DATE == 'TODAY') ? "${DT_VERSION}" : "${params.JOB_DATE}".trim()
+        }
+      }
+    }
+    stage('Get Records') {
+      steps {
+        sh'''
+          echo "Calling AWS for assets list ..."
+          aws s3api list-objects --bucket alcib --query 'Contents[].{Key: Key}' | jq '.[] .Key' | grep qcow2 | tr -d '"' > __list.log
+        '''
+          // echo "Test" > __list.log
+      }
+    }
+    stage('Filter Results') {
+      steps {
+        script {
+          env.WS_PWD = pwd()
+          def file = readFile "${env.WS_PWD}/__list.log"
+          def noOfLines = 0;
+          def lines = file.readLines() 
+          def filter = []
+          def sub = []
+          def addFuture = "${params.JOB_DATE_INCLUDE_FUTURE}"
+          def jobDate = "${env.JOB_DATE}".trim()
+          def imgType = "${params.IMAGE}".trim()
+          def osVersion = "${params.OS_MAJOR_VER}".trim()
+          def strPre = "AlmaLinux-${params.OS_MAJOR_VER}-"
+          println("Final Date: ${env.JOB_DATE}")
+          println(jobDate)
+          for (line in lines) {
+            if (line.contains(strPre)) {
+              if (imgType.equals("ALL")){
+                filter.add(line)
+              } else {
+                if (line.contains(imgType)) {
+                    filter.add(line)
+                }
+              }
+            }
+          }
+          for (line in filter) {
+            if (addFuture == "false") {
+              if (line.contains(jobDate)) {
+                  sub.add(line)
+                }  
+            } else {
+              def parts = line.split("/")
+              def parts2 = parts[0].split("-")
+              if (parts2.length >=5) {
+                if (parts2[4] >= jobDate) {
+                  sub.add(line)
+                }
+              }
+            }
+          }  
+          def rel_amd = ["NONE"], rel_arm = ["NONE"], rel_on_amd = ["NONE"], rel_on_arm = ["NONE"], rel_ppc = ["NONE"], rel_390 = ["NONE"], rel_efi = ["NONE"]
+          for (rec in sub) {
+            if (rec.contains("x86_64")) {
+              if (rec.contains("UEFI")){
+                rel_efi.add(rec)
+              } else if (rec.contains("GenericCloud")) {
+                rel_amd.add(rec)
+              } else {
+                rel_on_amd.add(rec)  
+              }
+            } else if (rec.contains("aarch64")) {
+              if (rec.contains("GenericCloud")) {
+                rel_arm.add(rec)
+              } else {
+                rel_on_arm.add(rec)  
+              }
+            } else if (rec.contains("ppc64le")) {
+              rel_ppc.add(rec)
+            } else if (rec.contains("s390x")) {
+              rel_390.add(rec)
+            } else {
+              println("Unknown ARCH Type:")
+              println(rec)
+            }
+          }
+          println("x86_64")
+          println(rel_amd)
+          println("x86_64, uefi")
+          println(rel_efi)
+          println("aarch64")
+          println(rel_arm)
+          println("ppc64le")
+          println(rel_ppc)
+          println("s390x")
+          println(rel_390)
+          println("x86_64 - on")
+          println(rel_on_amd)
+          println("aarch64 on")
+          println(rel_on_arm)
+          env.GC_REC_AMD = rel_amd.join("\n")
+          env.GC_REC_ARM = rel_arm.join("\n")
+          env.ON_REC_AMD = rel_on_amd.join("\n")
+          env.ON_REC_ARM = rel_on_arm.join("\n")              
+          env.GC_REC_PPC = rel_ppc.join("\n")
+          env.GC_REC_390 = rel_390.join("\n")
+          env.GC_REC_EFI = rel_efi.join("\n")
+        }  
+      }  
+    }
+    stage('User Input, Release Yes/No') {
+      steps {
+          script {
+              // Preset to no, in case of timeout or user abort
+              env.RELEASE_BUILD = 'no'
+              env.AGREE_CONFIRM = 'false'
+              env.DT_VERSION = sh(script: 'date -u +"%Y%m%d"', , returnStdout: true).trim()
+              // Adding OS sub version, like 8.6 or 9.0 etc. + release date
+              env.VERSION = (params.OS_MAJOR_VER == '8') ? "${params.OS_MAJOR_VER}.6" : "${params.OS_MAJOR_VER}.0"
+              env.CHANGELOG = "AlmaLinux security upates."
+              env.SHOW_MSG = (params.RUNENV == 'PRD') ? "Release files to STAGING($RUNENV)":"Release files to DEVEL($RUNENV)"
+          }
+          // Wrap only user input in timeout block and with-in catch block.
+          // Rest of the action occurs after it based on env variable
+          // On Abort, env varible not set, returns null
+          // Above ENV preset is safety-net to get 'no', in case of timeout/abort exception
+          timeout(time:30, unit:'MINUTES') {
+            script {
+              catchError(buildResult: 'SUCCESS', stageResult: 'ABORTED') {
+                def params = []
+                params.add(choice(name: 'GC_X86_64', choices: "${env.GC_REC_AMD}"))
+                params.add(choice(name: 'GC_UEFI', choices: "${env.GC_REC_EFI}"))
+                params.add(choice(name: 'GC_AARCH64', choices: "${env.GC_REC_ARM}"))
+                params.add(choice(name: 'GC_PPC64LE', choices: "${env.GC_REC_PPC}"))
+                params.add(choice(name: 'GC_S390X', choices: "${env.GC_REC_390}"))
+                params.add(choice(name: 'ON_X86_64', choices: "${env.ON_REC_AMD}"))
+                params.add(choice(name: 'ON_AARCH64', choices: "${env.ON_REC_ARM}"))
+                params.add(string(name: 'CHANGELOG', description: 'AlmaLinux security updates', defaultValue: "${env.CHANGELOG}"))
+                params.add(choice(name: 'RELEASE_BUILD', choices: 'no\nyes'))
+
+                def userInput = input(
+                  id: 'userInput',
+                  message: "${env.SHOW_MSG}", ok: 'Process',
+                  parameters: params
+                )
+                def x86_64 = [], aarch64 = [], files = []
+                if( userInput['GC_X86_64'] != 'NONE') {
+                  x86_64.add(userInput['GC_X86_64'])
+                  files.add(userInput['GC_X86_64'])
+                } 
+                if( userInput['GC_UEFI'] != 'NONE') {
+                  x86_64.add(userInput['GC_UEFI'])
+                  files.add(userInput['GC_UEFI'])
+                } 
+                if( userInput['ON_X86_64'] != 'NONE') {
+                  x86_64.add(userInput['ON_X86_64'])
+                  files.add(userInput['ON_X86_64'])
+                }
+                if(userInput['GC_AARCH64'] != 'NONE') {
+                  aarch64.add(userInput['GC_AARCH64'])
+                  files.add(userInput['GC_AARCH64'])
+                }
+                if(userInput['ON_AARCH64'] != 'NONE') {
+                  aarch64.add(userInput['ON_AARCH64'])
+                  files.add(userInput['ON_AARCH64'])
+                } 
+                if(userInput['GC_PPC64LE'] != 'NONE') {
+                  files.add(userInput['GC_PPC64LE'])
+                } 
+                if(userInput['GC_S390X'] != 'NONE') {
+                  files.add(userInput['GC_S390X'])
+                }
+                env.RELEASE_BUILD = userInput['RELEASE_BUILD']
+                if (x86_64.isEmpty()) {
+                  env.KEYS_X86_64 = 'NONE'
+                } else {
+                  env.KEYS_X86_64 = x86_64.join(",")
+                }
+                if (aarch64.isEmpty()) {
+                  env.KEYS_AARCH64 = 'NONE'
+                } else {
+                  env.KEYS_AARCH64 = aarch64.join(",")
+                }
+                env.KEYS_PPC64LE = userInput['GC_PPC64LE']
+                env.KEYS_S390X = userInput['GC_S390X']               
+                env.CHANGELOG = userInput['CHANGELOG']
+                if (files.isEmpty()) {
+                  env.HTML_MSG = "NONE"
+                  echo "Job failed: No keys selected for processing"
+                  sh(script: 'false')
+                } else {
+                  def _html = files.join("</li><li>")
+                  def html = "<br><hr><br><h3>S3 Keys to process</h3><ul>${_html}</li></ul> Select <b>Confirm</b> to Agree"
+                  env.HTML_MSG = html
+                }
+              }
+              echo "Make Release: ${env.RELEASE_BUILD}"
+              echo "X86_64 Keys: ${env.KEYS_X86_64}"
+              echo "AARCH64 Keys: ${env.KEYS_AARCH64}"
+              echo "PPC64LE Keys: ${env.KEYS_PPC64LE}"
+              echo "S390X Keys: ${env.KEYS_S390X}"
+              echo "Change Log: ${env.CHANGELOG}"
+            }
+          }
+        }
+    }
+    stage('Confirm Release') {
+      when {
+          expression { env.RELEASE_BUILD == 'yes' }
+      }
+      steps {
+        script {
+          if (env.HTML_MSG != 'NONE') {
+            catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+              def inputProcess = input(id: 'REL_RESP', message: "${env.SHOW_MSG}", ok: 'Confirm', 
+                parameters: [booleanParam(name: 'AGREE_CONFIRM', defaultValue: false , description: "${env.HTML_MSG}")
+                  ], submitterParameter: 'REL_RESP_DEVOPS' )  
+              env.AGREE_CONFIRM = inputProcess['AGREE_CONFIRM']     
+            }
+          } else {
+            // reduntent check?
+            echo "Job failed: No keys selected for processing"
+            sh(script: 'false')
+          }
+        }
+      }
+    }  
+    stage('Process Release') {
+      when {
+        expression { env.RELEASE_BUILD == 'yes' }
+      }      
+      steps {
+        script {
+          if (env.AGREE_CONFIRM != 'true') {
+            echo "Job failed: Check Agree/confirm before processing"
+            sh(script: 'false')
+          }
+          def jobs = [:]
+          if (env.KEYS_X86_64 != 'NONE'){
+            jobs["x86_64"] = performSignStage("x86_64")
+          }
+          if (env.KEYS_AARCH64 != 'NONE'){
+            jobs["aarch64"] = performSignStage("aarch64")
+          }
+          if (env.KEYS_PPC64LE != 'NONE'){
+            jobs["ppc64le"] = performSignStage("ppc64le")
+          }
+          if (env.KEYS_S390X != 'NONE'){
+            jobs["s390x"] = performSignStage("s390x")
+          }
+          parallel jobs
+        }
+      }
+    }        
+  }
+  post {
+    always {
+      archiveArtifacts artifacts: '*.log'
+    }
+    success {
+      echo "Job Success ..."
+      slackSend channel: '#albs-jenkins-notifications',
+                color: 'good',
+                message: "The build ${currentBuild.fullDisplayName} completed successfully : ${currentBuild.absoluteUrl}"
+    }
+    failure {
+      echo "Job Failed ..."
+      slackSend channel: '#albs-jenkins-action-required',
+                color: 'danger',
+                message: "The build ${currentBuild.fullDisplayName} failed : ${currentBuild.absoluteUrl}"
+    }
+    aborted {
+      echo "Job Aborted ..."
+      slackSend channel: '#albs-jenkins-action-required',
+                color: 'warning',
+                message: "The build ${currentBuild.fullDisplayName} was aborted : ${currentBuild.absoluteUrl}"
+    }
+  }  
+}

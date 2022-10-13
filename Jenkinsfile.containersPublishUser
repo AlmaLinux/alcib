@@ -1,5 +1,5 @@
 properties([disableConcurrentBuilds(), disableResume(), parameters([[name: 'RUNENV', $class: 'ChoiceParameter', choiceType: 'PT_RADIO', description: 'Select Almalinux 8 branch option to publish', filterLength: 1, filterable: false, randomName: 'choice-parameter-230686960675645', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def getOpts() {
-  def result = ["DEVL:selected", "PROD"]
+  def result = ["DEV:selected", "PRD"]
 } 
 def res = getOpts()
 
@@ -171,18 +171,28 @@ pipeline {
     //label 'ec2-al8-x86_64'
   }
   stages {
-      stage('Safety Checks') {
-        when {
-          allOf {
-            expression { params.AL8PUBLISH == 'NO' }
-            expression { params.AL9PUBLISH == 'NO' }
-          }  
+    stage('Safety Checks') {
+      parallel {
+        stage('Validate Input' ) {
+          steps {
+            echo "Checking job input values ..."
+            echo "Saving params to param.log ..."
+            script {
+              if ( params.AL8PUBLISH == 'NO' &&  params.AL9PUBLISH == 'NO') {
+                echo "Selected both producion repository, nothing publish, job will terminate and exit"
+                sh(script: 'false')
+              }
+            }
+
+          }
         }
-        steps {
-          echo "Selected both producion repository, nothing publish, job will terminate and exit"
-          sh(script: 'false')
+        stage('Validate Security') {
+          steps {
+            echo "Checking for job security ..."
+          }
         }
-      }    
+      }
+    }  
       stage('Prepare WS') {
         steps {
           echo "Workspace cleanup ..."

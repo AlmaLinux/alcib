@@ -235,7 +235,7 @@ pipeline {
                   echo -n " done!"
                   echo
                   source ./env-al8.log
-                  git clone --depth=1 --branch=$AL8BRANCH $al_git_publish_url $WS_PWD/dock-scripts/work/al8
+                  git clone --depth=1 --branch=$AL8BRANCH https://github.com/AlmaLinux/docker-images.git $WS_PWD/dock-scripts/work/al8
                   ls -al $WS_PWD/dock-scripts/work/al8
                   '''
                 }
@@ -286,7 +286,7 @@ pipeline {
                   echo -n " done!"
                   echo 
                   source ./env-al9.log
-                  git clone --depth=1 --branch=$AL9BRANCH $al_git_publish_url $WS_PWD/dock-scripts/work/al9
+                  git clone --depth=1 --branch=$AL9BRANCH https://github.com/AlmaLinux/docker-images.git $WS_PWD/dock-scripts/work/al9
                   ls -al $WS_PWD/dock-scripts/work/al9                                   
                   '''
                 }

@@ -123,7 +123,7 @@ def var2 = getBranch(AL9PUBLISH, dtprod)
 return var2
 ''']]], [name: 'JOB_SUMMARY', $class: 'DynamicReferenceParameter', choiceType: 'ET_FORMATTED_HTML', description: 'Job Summary: Following would be the job summary in processing', omitValueField: false, randomName: 'choice-parameter-230686986276185', referencedParameters: 'AL8PUBLISH,AL8BRANCH,AL9PUBLISH,AL9BRANCH,RUNENV,IMG_TYPE', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def RUNDESC=""
 
-if (RUNENV == "DEVL") {
+if (RUNENV == "DEV") {
   RUNDESC = "Publish images to development repos: <b>quay.io/almalinuxautobot</b>. Image group/type to publish: <b>${IMG_TYPE}</b>."
 } else {
   RUNDESC = "Publish images to development repos: <b>quay.io/almalinuxorg</b> and <b>docker.io/almalinux</b>. Image group/type to publish: <b>${IMG_TYPE}</b>."

@@ -253,8 +253,6 @@ pipeline {
                     echo ${DH_PWD} | docker login -u ${DH_UID} --password-stdin docker.io 
                     echo ${QUAY_PWD} | docker login -u ${QUAY_UID} --password-stdin quay.io 
                     build_push_manifest "$al_os_version" "$al_rel_version" "$IMG_TYPE" "$al_repo_prefix" "$AL9DATE" 
-                    docker logout
-                    docker logout quay.io
                     cd ../..
                     rm -rf work/al8
                     '''
@@ -303,8 +301,6 @@ pipeline {
                     echo ${DH_PWD} | docker login -u ${DH_UID} --password-stdin docker.io 
                     echo ${QUAY_PWD} | docker login -u ${QUAY_UID} --password-stdin quay.io 
                     build_push_manifest "$al_os_version" "$al_rel_version" "$IMG_TYPE" "$al_repo_prefix" "$AL9DATE" 
-                    docker logout
-                    docker logout quay.io
                     cd ../..
                     rm -rf work/al9
                     '''
@@ -319,6 +315,10 @@ pipeline {
       stage('Post Publish') {
         steps {
           sh('echo "Completed publishing ...!" & date ')
+          sh '''
+            docker logout
+            docker logout quay.io
+          '''
         }
       }
     }

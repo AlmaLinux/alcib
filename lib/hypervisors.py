@@ -243,7 +243,7 @@ class BaseHypervisor:
                 apply = 'terraform apply -var=ami_id=ami-070a38d61ee1ea697 ' \
                         '-var=instance_type=t4g.large --auto-approve'
             elif self.arch == 'x86_64':
-                apply = 'terraform apply -var=ami_id=ami-0732b50c88bd647f2 ' \
+                apply = 'terraform apply -var=ami_id=ami-095344ee5e3742504 ' \
                         '-var=instance_type=t3.medium --auto-approve'
         terraform_commands.append(apply)
         for cmd in terraform_commands:
@@ -1379,7 +1379,7 @@ class AgentHypervisor(Equinix):
         shell_command(cmd_rsync1, cwd)
         logging.info('Done ...!')
         logging.info('Copy files to work directory ...')
-#  Path already contains end `/`        
+#  Path already contains end `/`
         shell_command(f'cp -av {out_prod}* .', cwd)
         logging.info('Done ...!')
         logging.info(keys_list)
@@ -1388,7 +1388,7 @@ class AgentHypervisor(Equinix):
             name = parse_for_filename(key)
             latest = generate_latest_name(name)
             print(latest)
-    
+
             awscmd = (f'aws s3api get-object --bucket alcib --key {key} {name} '
                 f'> ./{name}.json')
 #                f'| tee  ./{name}.json')
@@ -1412,14 +1412,14 @@ class AgentHypervisor(Equinix):
         """
         Sign Preparation for staging
         """
-        logging.info('In sign_prep :entry: ...')        
+        logging.info('In sign_prep :entry: ...')
         held_cwd = os.getcwd();
         work_dir = f'{held_cwd}/{self.arch}'
         ar = self.arch.upper()
         basekey = f'KEYS_{ar}'
         logging.info(f'BALA: Getting key to process, reading env: {basekey} ...')
         keys_list  = os.getenv(basekey)
-        logging.info(keys_list)  
+        logging.info(keys_list)
         self.prepare_files(keys_list)
         logging.info('In sign_prep :after prepare:  ...')
         # execute_command(f'cat CHECKSUM', os.getcwd())
@@ -1458,7 +1458,7 @@ class AgentHypervisor(Equinix):
             with open(f'{work_dir}/CHECKSUM.asc',"w") as file:
                 file.write(out_data)
                 file.close()
-        
+
         shell_command("ls -al | grep -E 'qcow2|CHECKSUM'", work_dir)
 
         renv = os.getenv('RUNENV')
@@ -1466,7 +1466,7 @@ class AgentHypervisor(Equinix):
         if (renv == 'PRD'):
             rdir =  "staging"
         out_path = self.rsync_output_images_tmpl.format(rdir, self.os_major_ver, self.arch)
-        
+
         logging.info(f'Clean & Copy files to {out_path} ...!')
         shell_command(f'rm -f {out_path}* && cp -av {work_dir}/* {out_path} && ls -al {out_path} && rm -rf {work_dir}', work_dir)
         logging.info(f'Log contents of {out_path}CHECKSUM')

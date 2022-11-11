@@ -15,7 +15,7 @@ variable "instance_type" {
 
 variable "ami_id" {
   type = string
-  default = "ami-0732b50c88bd647f2"
+  default = "ami-095344ee5e3742504"
 }
 
 data "template_file" "user_data" {

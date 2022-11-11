@@ -123,7 +123,7 @@ def var2 = getBranch(AL9PUBLISH, dtprod)
 return var2
 ''']]], [name: 'JOB_SUMMARY', $class: 'DynamicReferenceParameter', choiceType: 'ET_FORMATTED_HTML', description: 'Job Summary: Following would be the job summary in processing', omitValueField: false, randomName: 'choice-parameter-230686986276185', referencedParameters: 'AL8PUBLISH,AL8BRANCH,AL9PUBLISH,AL9BRANCH,RUNENV,IMG_TYPE', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def RUNDESC=""
 
-if (RUNENV == "DEVL") {
+if (RUNENV == "DEV") {
   RUNDESC = "Publish images to development repos: <b>quay.io/almalinuxautobot</b>. Image group/type to publish: <b>${IMG_TYPE}</b>."
 } else {
   RUNDESC = "Publish images to development repos: <b>quay.io/almalinuxorg</b> and <b>docker.io/almalinux</b>. Image group/type to publish: <b>${IMG_TYPE}</b>."
@@ -235,7 +235,7 @@ pipeline {
                   echo -n " done!"
                   echo
                   source ./env-al8.log
-                  git clone --depth=1 --branch=$AL8BRANCH $al_git_publish_url $WS_PWD/dock-scripts/work/al8
+                  git clone --depth=1 --branch=$AL8BRANCH https://github.com/AlmaLinux/docker-images.git $WS_PWD/dock-scripts/work/al8
                   ls -al $WS_PWD/dock-scripts/work/al8
                   '''
                 }
@@ -253,8 +253,6 @@ pipeline {
                     echo ${DH_PWD} | docker login -u ${DH_UID} --password-stdin docker.io 
                     echo ${QUAY_PWD} | docker login -u ${QUAY_UID} --password-stdin quay.io 
                     build_push_manifest "$al_os_version" "$al_rel_version" "$IMG_TYPE" "$al_repo_prefix" "$AL9DATE" 
-                    docker logout
-                    docker logout quay.io
                     cd ../..
                     rm -rf work/al8
                     '''
@@ -286,7 +284,7 @@ pipeline {
                   echo -n " done!"
                   echo 
                   source ./env-al9.log
-                  git clone --depth=1 --branch=$AL9BRANCH $al_git_publish_url $WS_PWD/dock-scripts/work/al9
+                  git clone --depth=1 --branch=$AL9BRANCH https://github.com/AlmaLinux/docker-images.git $WS_PWD/dock-scripts/work/al9
                   ls -al $WS_PWD/dock-scripts/work/al9                                   
                   '''
                 }
@@ -303,8 +301,6 @@ pipeline {
                     echo ${DH_PWD} | docker login -u ${DH_UID} --password-stdin docker.io 
                     echo ${QUAY_PWD} | docker login -u ${QUAY_UID} --password-stdin quay.io 
                     build_push_manifest "$al_os_version" "$al_rel_version" "$IMG_TYPE" "$al_repo_prefix" "$AL9DATE" 
-                    docker logout
-                    docker logout quay.io
                     cd ../..
                     rm -rf work/al9
                     '''
@@ -319,6 +315,10 @@ pipeline {
       stage('Post Publish') {
         steps {
           sh('echo "Completed publishing ...!" & date ')
+          sh '''
+            docker logout
+            docker logout quay.io
+          '''
         }
       }
     }

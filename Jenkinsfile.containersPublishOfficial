@@ -1,5 +1,5 @@
-properties([disableConcurrentBuilds(), disableResume(), parameters([booleanParam(defaultValue: false, description: 'Do not fail when production branchh exists', name: 'NO_FAIL'),[name: 'AL8OPTION', $class: 'ChoiceParameter', choiceType: 'PT_RADIO', description: 'Select Almalinux 8 branch option to publish', filterLength: 1, filterable: false, randomName: 'choice-parameter-230686960675855', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def getOpts() {
-  def result = ["No Changes:selected", "Use Development"]
+properties([disableConcurrentBuilds(), disableResume(), parameters([booleanParam(defaultValue: false, description: 'Do not fail when production branch exists, reuse existing branch', name: 'NO_FAIL'),[name: 'AL8OPTION', $class: 'ChoiceParameter', choiceType: 'PT_RADIO', description: 'Select Almalinux 8 branch option to publish', filterLength: 1, filterable: false, randomName: 'choice-parameter-230686960675855', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def getOpts() {
+  def result = ["No Changes:selected", "Get Branches"]
 } 
 def res = getOpts()
 
@@ -54,7 +54,7 @@ def var2 = getBranch(AL8OPTION)
 
 return var2
 ''']]], [name: 'AL9OPTION', $class: 'ChoiceParameter', choiceType: 'PT_RADIO', description: 'Select Almalinux 9 branch option to publish', filterLength: 1, filterable: false, randomName: 'choice-parameter-230686972751396', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def getOpts() {
-  def result = ["No Changes:selected", "Use Development"]
+  def result = ["No Changes:selected", "Get Branches"]
 } 
 def res = getOpts()
 

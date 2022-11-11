@@ -1372,16 +1372,17 @@ class AgentHypervisor(Equinix):
         wcmd = f'mkdir -p {cwd} && cd {cwd}'
         shell_command(wcmd, wdir)
         logging.info(f'Enter prepare_files in {cwd} ...')
-        inp_src = self.rsync_input_images_prod.format(self.os_major_ver, self.arch)
-        out_prod = self.rsync_output_images_tmpl.format(f'prod', self.os_major_ver, self.arch)
-        logging.info(f'Rsync prod {inp_src} to local dir {out_prod} ...')
-        cmd_rsync1 = (f'rsync -tavz {inp_src} {out_prod}')
-        shell_command(cmd_rsync1, cwd)
-        logging.info('Done ...!')
-        logging.info('Copy files to work directory ...')
+        ## Enable this back, move it as separate step in pipeline for future
+    ##    inp_src = self.rsync_input_images_prod.format(self.os_major_ver, self.arch)
+    ##    out_prod = self.rsync_output_images_tmpl.format(f'prod', self.os_major_ver, self.arch)
+    ##    logging.info(f'Rsync prod {inp_src} to local dir {out_prod} ...')
+    ##    cmd_rsync1 = (f'rsync -tavz {inp_src} {out_prod}')
+    ##    shell_command(cmd_rsync1, cwd)
+    ##    logging.info('Done ...!')
+    ##    logging.info('Copy files to work directory ...')
 #  Path already contains end `/`
-        shell_command(f'cp -av {out_prod}* .', cwd)
-        logging.info('Done ...!')
+    ##    shell_command(f'cp -av {out_prod}* .', cwd)
+    ##    logging.info('Done ...!')
         logging.info(keys_list)
         keys = keys_list.split(",")
         for key in keys:

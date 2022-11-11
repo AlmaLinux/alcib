@@ -1424,7 +1424,8 @@ class AgentHypervisor(Equinix):
         logging.info('In sign_prep :after prepare:  ...')
         # execute_command(f'cat CHECKSUM', os.getcwd())
         r = open(f'{work_dir}/CHECKSUM', "r")
-        checksum_file = r.read().encode('utf-8')
+        # encode file not necessary on read
+        checksum_file = r.read()
         settings.sign_jwt_token = os.getenv('SIGN_JWT_TOKEN')
         # settings.sign_jwt_token = base64.b64encode(os.getenv('SIGN_JWT_TOKEN'))
         if settings.sign_jwt_token > " ":
@@ -1458,6 +1459,9 @@ class AgentHypervisor(Equinix):
             with open(f'{work_dir}/CHECKSUM.asc',"w") as file:
                 file.write(out_data)
                 file.close()
+
+        # Verifiy everything went well        
+        shell_command("gpg --verify CHECKSUM.asc CHECKSUM", work_dir)
 
         shell_command("ls -al | grep -E 'qcow2|CHECKSUM'", work_dir)
 

@@ -1372,16 +1372,17 @@ class AgentHypervisor(Equinix):
         wcmd = f'mkdir -p {cwd} && cd {cwd}'
         shell_command(wcmd, wdir)
         logging.info(f'Enter prepare_files in {cwd} ...')
-        inp_src = self.rsync_input_images_prod.format(self.os_major_ver, self.arch)
-        out_prod = self.rsync_output_images_tmpl.format(f'prod', self.os_major_ver, self.arch)
-        logging.info(f'Rsync prod {inp_src} to local dir {out_prod} ...')
-        cmd_rsync1 = (f'rsync -tavz {inp_src} {out_prod}')
-        shell_command(cmd_rsync1, cwd)
-        logging.info('Done ...!')
-        logging.info('Copy files to work directory ...')
+        ## Enable this back, move it as separate step in pipeline for future
+    ##    inp_src = self.rsync_input_images_prod.format(self.os_major_ver, self.arch)
+    ##    out_prod = self.rsync_output_images_tmpl.format(f'prod', self.os_major_ver, self.arch)
+    ##    logging.info(f'Rsync prod {inp_src} to local dir {out_prod} ...')
+    ##    cmd_rsync1 = (f'rsync -tavz {inp_src} {out_prod}')
+    ##    shell_command(cmd_rsync1, cwd)
+    ##    logging.info('Done ...!')
+    ##    logging.info('Copy files to work directory ...')
 #  Path already contains end `/`
-        shell_command(f'cp -av {out_prod}* .', cwd)
-        logging.info('Done ...!')
+    ##    shell_command(f'cp -av {out_prod}* .', cwd)
+    ##    logging.info('Done ...!')
         logging.info(keys_list)
         keys = keys_list.split(",")
         for key in keys:
@@ -1424,7 +1425,8 @@ class AgentHypervisor(Equinix):
         logging.info('In sign_prep :after prepare:  ...')
         # execute_command(f'cat CHECKSUM', os.getcwd())
         r = open(f'{work_dir}/CHECKSUM', "r")
-        checksum_file = r.read().encode('utf-8')
+        # encode file not necessary on read
+        checksum_file = r.read()
         settings.sign_jwt_token = os.getenv('SIGN_JWT_TOKEN')
         # settings.sign_jwt_token = base64.b64encode(os.getenv('SIGN_JWT_TOKEN'))
         if settings.sign_jwt_token > " ":
@@ -1458,6 +1460,9 @@ class AgentHypervisor(Equinix):
             with open(f'{work_dir}/CHECKSUM.asc',"w") as file:
                 file.write(out_data)
                 file.close()
+
+        # Verifiy everything went well        
+        shell_command("gpg --verify CHECKSUM.asc CHECKSUM", work_dir)
 
         shell_command("ls -al | grep -E 'qcow2|CHECKSUM'", work_dir)
 

@@ -109,8 +109,8 @@ pipeline {
                 // Preset to no, in case of timeout or user abort
                 env.RELEASE_BUILD = 'no'
                 env.DT_VERSION = sh(script: 'date -u +"%Y%m%d"', , returnStdout: true).trim()
-                // Adding OS sub version, like 8.6 or 9.0 etc. + release date
-                env.VERSION = (params.OS_MAJOR_VER == '8') ? "${params.OS_MAJOR_VER}.6.${env.DT_VERSION}" : "${params.OS_MAJOR_VER}.0.${env.DT_VERSION}"
+                // Adding OS sub version, like 8.7 or 9.1 etc. + release date
+                env.VERSION = (params.OS_MAJOR_VER == '8') ? "${params.OS_MAJOR_VER}.7.${env.DT_VERSION}" : "${params.OS_MAJOR_VER}.1.${env.DT_VERSION}"
                 env.CHANGELOG = "AlmaLinux security upates."
             }
             // Wrap only user input in timeout block and with-in catch block.

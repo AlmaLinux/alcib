@@ -15,7 +15,7 @@ provider "aws" {
 }
 
 resource "aws_instance" "ALCIB-VirtualBox" {
-  ami = "ami-02f74f91954e5879d"
+  ami = "ami-0d07edc17e80b4239"
   instance_type               = "i3.metal"
   associate_public_ip_address = "true"
   key_name                    = "alcib-user-prod"

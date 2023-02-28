@@ -898,14 +898,12 @@ class KVM(LinuxHypervisors):
     packer_build_gencloud = (
         "cd cloud-images && "
         "packer build -var qemu_binary='/usr/libexec/qemu-kvm'"
-        " -var firmware_x86_64='/usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd'"
         " -only=qemu.almalinux-{}-gencloud-x86_64 . 2>&1 | tee ./{}"
     )
 
     packer_build_gencloud2 = (
         "cd cloud-images && "
         "packer build -var qemu_binary='/usr/libexec/qemu-kvm'"
-        " -var firmware_x86_64='/usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd'"
         " -only=qemu.almalinux-{}-gencloud-uefi-x86_64 . 2>&1 | tee ./{}"
     )
 
@@ -917,7 +915,6 @@ class KVM(LinuxHypervisors):
     packer_build_opennebula2 = (
         "cd cloud-images && "
         "packer build -var qemu_binary='/usr/libexec/qemu-kvm' "
-        "-var firmware_x86_64='/usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd' "
         "-only=qemu.almalinux-{}-opennebula-x86_64 . 2>&1 | tee ./{}"
     )
 
@@ -1461,7 +1458,7 @@ class AgentHypervisor(Equinix):
                 file.write(out_data)
                 file.close()
 
-        # Verifiy everything went well        
+        # Verifiy everything went well
         shell_command("gpg --verify CHECKSUM.asc CHECKSUM", work_dir)
 
         shell_command("ls -al | grep -E 'qcow2|CHECKSUM'", work_dir)

@@ -231,7 +231,7 @@ pipeline {
                   echo
                   echo -n "Writing ${file} ... "
                   print_env_header "${file}";
-                  almaEnvBuilder  "${file}" "8" "7" "all" "$IMG_TYPE" "$RUNENV" "$AL8DATE"
+                  almaEnvBuilder  "${file}" "8" "8" "all" "$IMG_TYPE" "$RUNENV" "$AL8DATE"
                   echo -n " done!"
                   echo
                   source ./env-al8.log

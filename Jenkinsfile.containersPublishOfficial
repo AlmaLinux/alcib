@@ -1,11 +1,11 @@
 properties([disableConcurrentBuilds(), disableResume(), parameters([booleanParam(defaultValue: false, description: 'Do not fail when production branch exists, reuse existing branch', name: 'NO_FAIL'),[name: 'AL8OPTION', $class: 'ChoiceParameter', choiceType: 'PT_RADIO', description: 'Select Almalinux 8 branch option to publish', filterLength: 1, filterable: false, randomName: 'choice-parameter-230686960675855', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def getOpts() {
   def result = ["No Changes:selected", "Get Branches"]
-} 
+}
 def res = getOpts()
 
 return res
 ''']]], [name: 'AL8BRANCH', $class: 'CascadeChoiceParameter', choiceType: 'PT_SINGLE_SELECT', description: 'AlmaLinux 8 branch to publish', filterLength: 1, filterable: true, randomName: 'choice-parameter-230686968657517', referencedParameters: 'AL8OPTION', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def getDockerHubLibraryPrefix(String osVersion="8", String gitRepoPath="docker-library/official-images/master") {
-  def response = new URL("https://raw.githubusercontent.com/${gitRepoPath}/library/almalinux").text 
+  def response = new URL("https://raw.githubusercontent.com/${gitRepoPath}/library/almalinux").text
   //println("Status: "+ response)   // dump for debug
   def pre="al${osVersion}"
   def branch=""
@@ -13,13 +13,13 @@ return res
     if (i != null && i.endsWith("amd64") && i.contains(pre) && i.length() > 23) {
     // let value overwrite to get last value
       branch = i.substring(11,23)
-    } 
+    }
   }
   return branch
 }
 def getDevRepoBranches(String prodPreFix="al8-20220901", String gitOwner="almalinuxautobot", String gitRepo="docker-images"){
   def regions = "git ls-remote -h https://github.com/${gitOwner}/${gitRepo}.git"
-  def region = regions.execute() 
+  def region = regions.execute()
   region.waitFor()
   def output = region.in.text
   def exitcode= region.exitValue()
@@ -37,7 +37,7 @@ def getDevRepoBranches(String prodPreFix="al8-20220901", String gitOwner="almali
   for(i in output.tokenize()){
     if (i.contains(pre) && i.substring(11) > prodPreFix && !i.contains("template")) {
       branch.add(i.substring(11))
-    } 
+    }
   }
   return branch
 }
@@ -55,12 +55,12 @@ def var2 = getBranch(AL8OPTION)
 return var2
 ''']]], [name: 'AL9OPTION', $class: 'ChoiceParameter', choiceType: 'PT_RADIO', description: 'Select Almalinux 9 branch option to publish', filterLength: 1, filterable: false, randomName: 'choice-parameter-230686972751396', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def getOpts() {
   def result = ["No Changes:selected", "Get Branches"]
-} 
+}
 def res = getOpts()
 
 return res
 ''']]], [name: 'AL9BRANCH', $class: 'CascadeChoiceParameter', choiceType: 'PT_SINGLE_SELECT', description: 'AlmaLinux 9 branch to publish', filterLength: 1, filterable: true, randomName: 'choice-parameter-230686979823352', referencedParameters: 'AL9OPTION', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], oldScript: '', sandbox: false, script: ''], script: [classpath: [], oldScript: '', sandbox: false, script: '''def getDockerHubLibraryPrefix(String osVersion="8", String gitRepoPath="docker-library/official-images/master") {
-  def response = new URL("https://raw.githubusercontent.com/${gitRepoPath}/library/almalinux").text 
+  def response = new URL("https://raw.githubusercontent.com/${gitRepoPath}/library/almalinux").text
   //println("Status: "+ response)   // dump for debug
   def pre="al${osVersion}"
   def branch=""
@@ -68,13 +68,13 @@ return res
     if (i != null && i.endsWith("amd64") && i.contains(pre) && i.length() > 23) {
     // let value overwrite to get last value
       branch = i.substring(11,23)
-    } 
+    }
   }
   return branch
 }
 def getDevRepoBranches(String prodPreFix="al8-20220901", String gitOwner="almalinuxautobot", String gitRepo="docker-images"){
   def regions = "git ls-remote -h https://github.com/${gitOwner}/${gitRepo}.git"
-  def region = regions.execute() 
+  def region = regions.execute()
   region.waitFor()
   def output = region.in.text
   def exitcode= region.exitValue()
@@ -92,7 +92,7 @@ def getDevRepoBranches(String prodPreFix="al8-20220901", String gitOwner="almali
   for(i in output.tokenize()){
     if (i.contains(pre) && i.substring(11) > prodPreFix && !i.contains("template")) {
       branch.add(i.substring(11))
-    } 
+    }
   }
   return branch
 }
@@ -146,7 +146,7 @@ pipeline {
         WS_PWD = sh(script: 'pwd', , returnStdout: true).trim()
         AL8DATE = sh(script: 'echo ${AL8BRANCH:4:8}', , returnStdout: true).trim()
         AL9DATE = sh(script: 'echo ${AL9BRANCH:4:8}', , returnStdout: true).trim()
-    } 
+    }
     agent {
       label 'ec2-al8-x86_64'
     }
@@ -173,7 +173,7 @@ pipeline {
             }
           }
         }
-      }        
+      }
         stage('Prepare WS') {
           steps {
             echo "Workspace cleanup ..."
@@ -193,7 +193,7 @@ pipeline {
             anyOf {
               expression { params.AL8OPTION != 'No Changes' }
               expression { params.AL9OPTION != 'No Changes' }
-            }  
+            }
           }
           steps {
             withCredentials([string(credentialsId: 'github-almalinuxautobot-name', variable: 'GIT_NAME'),string(credentialsId: 'github-almalinuxautobot-email', variable: 'GIT_EMAIL')]) {
@@ -205,7 +205,7 @@ pipeline {
               '''
             }
           }
-        }        
+        }
         stage('Parallel Steps') {
           parallel {
             stage('Alma 8') {
@@ -217,7 +217,7 @@ pipeline {
                   steps {
                     echo "Verify Release run"
                     sh '''
-                    cd $WS_PWD/dock-scripts 
+                    cd $WS_PWD/dock-scripts
                     source ./docker_utils_functions
                     validateOrPrepareBranches "8" "${AL8DATE}" "${AL8BRANCH}" "${AL8OPTION}" "true" "${NO_FAIL}"
                     '''
@@ -230,11 +230,11 @@ pipeline {
                   steps {
                     echo "Testing images from ${AL8BRANCH} repo ..."
                     sh '''
-                      cd $WS_PWD/dock-scripts 
+                      cd $WS_PWD/dock-scripts
                       source ./docker_utils_functions
                       rm -rf "work/test-al8"
                       git clone --single-branch --branch=${AL8BRANCH} https://github.com/almalinuxautobot/docker-images "$WS_PWD/dock-scripts/work/test-al8"
-                      cd "$WS_PWD/dock-scripts/work/test-al8"                    
+                      cd "$WS_PWD/dock-scripts/work/test-al8"
                       cat ./env.al8
                       source ./env.al8
                       cp ./env.al8 $WS_PWD/dock-scripts/env-al8.log
@@ -248,12 +248,12 @@ pipeline {
                         -e SYS_MICRO=$SYS_MICRO \
                         -e SYS_DEFAULT=$SYS_DEFAULT \
                         -e SYS_MINIMAL=$SYS_MINIMAL \
-                        srbala/testinfra:docker pytest -p no:cacheprovider --verbose --junit-xml al8_junit.xml   
-                      mv *.xml $WS_PWD/dock-scripts/work/                   
+                        srbala/testinfra:docker pytest -p no:cacheprovider --verbose --junit-xml al8_junit.xml
+                      mv *.xml $WS_PWD/dock-scripts/work/
                       rm -rf "$WS_PWD/dock-scripts/work/test-al8"
                     '''
                     junit allowEmptyResults: true, skipPublishingChecks: true, testResults: '**/al8*.xml'
-                    archiveArtifacts artifacts: "**/al8*.xml", fingerprint: true 
+                    archiveArtifacts artifacts: "**/al8*.xml", fingerprint: true
                   }
                 }
                 stage('AL8 Prepare') {
@@ -264,7 +264,7 @@ pipeline {
                     echo "Prepare Release ..."
                     withCredentials([usernamePassword(credentialsId: 'github-almalinuxautobot', passwordVariable: 'GIT_PWD', usernameVariable: 'GIT_UID')]) {
                       sh '''
-                        cd $WS_PWD/dock-scripts 
+                        cd $WS_PWD/dock-scripts
                         source ./docker_utils_functions
                         validateOrPrepareBranches "8" "${AL8DATE}" "${AL8BRANCH}" "${AL8OPTION}" "false" "${NO_FAIL}" "${GIT_UID}" "${GIT_PWD}"
                       '''
@@ -286,7 +286,7 @@ pipeline {
                       rm __*.log
                     '''
                   }
-                }                                          
+                }
               }
             }
             stage('Alma 9') {
@@ -298,7 +298,7 @@ pipeline {
                   steps {
                     echo "Verify Release ..."
                     sh '''
-                    cd $WS_PWD/dock-scripts 
+                    cd $WS_PWD/dock-scripts
                     source ./docker_utils_functions
                     validateOrPrepareBranches "9" "${AL9DATE}" "${AL9BRANCH}" "${AL9OPTION}" "true" "${NO_FAIL}"
                     '''
@@ -311,11 +311,11 @@ pipeline {
                   steps {
                     echo "Testing images from ${AL9BRANCH} repo ..."
                     sh '''
-                      cd $WS_PWD/dock-scripts 
+                      cd $WS_PWD/dock-scripts
                       source ./docker_utils_functions
                       rm -rf "work/test-al9"
                       git clone --single-branch --branch=${AL9BRANCH} https://github.com/almalinuxautobot/docker-images "$WS_PWD/dock-scripts/work/test-al9"
-                      cd "$WS_PWD/dock-scripts/work/test-al9"                    
+                      cd "$WS_PWD/dock-scripts/work/test-al9"
                       cat ./env.al9
                       source ./env.al9
                       cp ./env.al9 $WS_PWD/dock-scripts/env-al9.log
@@ -329,12 +329,12 @@ pipeline {
                         -e SYS_MICRO=$SYS_MICRO \
                         -e SYS_DEFAULT=$SYS_DEFAULT \
                         -e SYS_MINIMAL=$SYS_MINIMAL \
-                        srbala/testinfra:docker pytest -p no:cacheprovider --verbose --junit-xml al9_junit.xml   
-                      mv *.xml $WS_PWD/dock-scripts/work/                   
+                        srbala/testinfra:docker pytest -p no:cacheprovider --verbose --junit-xml al9_junit.xml
+                      mv *.xml $WS_PWD/dock-scripts/work/
                       rm -rf "$WS_PWD/dock-scripts/work/test-al9"
                     '''
                     junit allowEmptyResults: true, skipPublishingChecks: true, testResults: '**/al9*.xml'
-                    archiveArtifacts artifacts: "**/al9*.xml", fingerprint: true 
+                    archiveArtifacts artifacts: "**/al9*.xml", fingerprint: true
                   }
                 }
                 stage('AL9 Prepare') {
@@ -345,7 +345,7 @@ pipeline {
                     echo "Prepare Release ..."
                     withCredentials([usernamePassword(credentialsId: 'github-almalinuxautobot', passwordVariable: 'GIT_PWD', usernameVariable: 'GIT_UID')]) {
                       sh '''
-                        cd $WS_PWD/dock-scripts 
+                        cd $WS_PWD/dock-scripts
                         source ./docker_utils_functions
                         validateOrPrepareBranches "9" "${AL9DATE}" "${AL9BRANCH}" "${AL9OPTION}" "false" "${NO_FAIL}" "${GIT_UID}" "${GIT_PWD}"
                       '''
@@ -367,22 +367,22 @@ pipeline {
                       rm __*.log
                     '''
                   }
-                }                                          
-              }              
+                }
+              }
             }
-          }          
+          }
         }
         stage('Generate Library') {
           when {
             anyOf {
               expression { params.AL8OPTION != 'No Changes' }
               expression { params.AL9OPTION != 'No Changes' }
-            }  
+            }
           }
           steps {
             echo "Generating library file"
             sh '''
-            cd $WS_PWD/dock-scripts 
+            cd $WS_PWD/dock-scripts
             source ./docker_utils_functions
             ./gen_docker_official_library "${AL8DATE}" "${AL9DATE}"
             '''
@@ -396,7 +396,7 @@ pipeline {
             anyOf {
               expression { params.AL8OPTION != 'No Changes' }
               expression { params.AL9OPTION != 'No Changes' }
-            }  
+            }
           }
           steps {
             echo "Working to create a PR request"
@@ -413,7 +413,9 @@ pipeline {
             cd $WS_PWD
             git clone --single-branch https://github.com/AlmaLinux/docker-library-official-images dh-off
             cd dh-off
-            git checkout -b "alma-update-${JDT}"
+            git remote add upstream https://github.com/docker-library/official-images.git
+            git remote update
+            git checkout -b "alma-update-${JDT}" --track upstream/master
             cp $WS_PWD/dock-scripts/__alma ./library/almalinux
             git add ./library/almalinux
             '''
@@ -439,10 +441,10 @@ pipeline {
                   chmod +x $PWD/bin/gh
                   rm -rf gh_* $WS_PWD/cli.*
                   jq --version && gh --version
-                  ls -al                
+                  ls -al
                   cd $WS_PWD/dh-off
-                  export GH_TOKEN=$GIT_PWD 
-                  echo $GIT_PWD > gh auth login --with-token 
+                  export GH_TOKEN=$GIT_PWD
+                  echo $GIT_PWD > gh auth login --with-token
                   git branch
                   git push https://${GIT_UID}:${GIT_PWD}@github.com/AlmaLinux/docker-library-official-images.git "alma-update-${JDT}" && git fetch origin "alma-update-${JDT}"
                   gh pr create --fill --repo docker-library/official-images --head=AlmaLinux:"alma-update-${JDT}" --base master -F $WS_PWD/dock-scripts/prinfo.md
@@ -461,7 +463,7 @@ pipeline {
           docker system prune -f
         '''
       }
-    }        
+    }
     success {
       echo "success"
       // slackSend channel: '#albs-jenkins-notifications',
@@ -474,5 +476,5 @@ pipeline {
       //   message: "@channel The Docker/Container rootfs build job ${currentBuild.fullDisplayName} - ${env.JOB_NAME}, ID #${env.BUILD_NUMBER} has failed, possible security update found ${currentBuild.absoluteUrl}.",
       //   color: 'red'
     }
-  }    
+  }
 }
